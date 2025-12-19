@@ -40,7 +40,7 @@
                                         value="{{ request('search') }}" 
                                         placeholder="Cari No. Ticket atau Judul..."> 
                                     <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted">
-                                        <i class="bi bi-search"></i>
+                                        
                                     </span>
                                 </div>
                             </div>
