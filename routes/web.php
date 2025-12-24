@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\TestLdapController;
 use App\Http\Controllers\LdapLoginController;
 use App\Http\Controllers\Master\NotificationController;
+use App\Http\Controllers\MeetingRoomController;
+use App\Http\Controllers\BookingController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -91,5 +93,11 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::delete('/notifications/clear', [NotificationController::class, 'clearAll']);
     Route::post('/laporan/reminder', [App\Http\Controllers\Report\ReportController::class, 'sendReminder'])->name('laporan.reminder');
+
+    // Meeting Room Booking
+    Route::resource('meeting-rooms', MeetingRoomController::class);
+        Route::get('/booking-calendar', [BookingController::class, 'index'])->name('booking.calendar');
+        Route::get('/booking-events', [BookingController::class, 'getEvents'])->name('booking.events');
+        Route::post('/booking-store', [BookingController::class, 'store'])->name('booking.store');
 
 });
