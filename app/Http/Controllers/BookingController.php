@@ -20,7 +20,6 @@ class BookingController extends Controller
     // API untuk data JSON ke FullCalendar
     public function getEvents(Request $request)
     {
-        // Filter berdasarkan view range kalender (start & end dikirim otomatis oleh FullCalendar)
         $bookings = MeetingBooking::with(['room', 'user'])
             ->whereDate('start_time', '>=', $request->start)
             ->whereDate('end_time', '<=', $request->end)
@@ -31,7 +30,7 @@ class BookingController extends Controller
         foreach ($bookings as $booking) {
             $events[] = [
                 'id' => $booking->id,
-                'title' => $booking->room->name . ' - ' . $booking->user->name,
+                'title' => $booking->room->name . ' - ' . $booking->title,
                 'start' => $booking->start_time->toIso8601String(),
                 'end' => $booking->end_time->toIso8601String(),
                 'backgroundColor' => $booking->room->color,
@@ -41,7 +40,9 @@ class BookingController extends Controller
                     'room_name' => $booking->room->name,
                     'user_name' => $booking->user->name,
                     'description' => $booking->description ?? '-',
-                    'title_meeting' => $booking->title
+                    'title_meeting' => $booking->title,
+                    // Tambahkan ini untuk cek hak akses di JS
+                    'can_delete' => $booking->user_id == auth()->id() 
                 ]
             ];
         }
@@ -90,5 +91,19 @@ class BookingController extends Controller
         ]);
 
         return back()->with('success', 'Ruangan berhasil direservasi!');
+    }
+
+    public function destroy($id)
+    {
+        $booking = MeetingBooking::findOrFail($id);
+
+        // Validasi: Hanya pembuat booking yang boleh menghapus
+        if ($booking->user_id != auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Anda tidak berhak menghapus booking ini!'], 403);
+        }
+
+        $booking->delete();
+
+        return response()->json(['success' => true, 'message' => 'Booking berhasil dibatalkan.']);
     }
 }

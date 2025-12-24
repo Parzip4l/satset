@@ -99,5 +99,6 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::get('/booking-calendar', [BookingController::class, 'index'])->name('booking.calendar');
         Route::get('/booking-events', [BookingController::class, 'getEvents'])->name('booking.events');
         Route::post('/booking-store', [BookingController::class, 'store'])->name('booking.store');
+        Route::delete('/booking-delete/{id}', [BookingController::class, 'destroy'])->name('booking.delete');
 
 });

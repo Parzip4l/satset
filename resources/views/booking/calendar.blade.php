@@ -152,12 +152,20 @@
                     <span class="text-dark small" id="detail-desc">-</span>
                 </div>
 
-                <div class="d-flex align-items-center justify-content-center gap-2 text-muted small">
+                <div class="d-flex align-items-center justify-content-center gap-2 text-muted small mb-4">
                     <i class="bi bi-person-circle"></i>
                     <span>Booked by: <strong class="text-dark" id="detail-user">User</strong></span>
                 </div>
                 
-                <button type="button" class="btn btn-light w-100 mt-4" data-bs-dismiss="modal">Tutup</button>
+                {{-- Tombol Action --}}
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-light flex-fill" data-bs-dismiss="modal">Tutup</button>
+                    
+                    {{-- Tombol Delete (Hidden by default, shown via JS) --}}
+                    <button type="button" id="btn-delete-event" class="btn btn-danger flex-fill d-none">
+                        <i class="bi bi-trash me-1"></i> Batal
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -178,6 +186,7 @@
 
         // Init Calendar
         var calendarEl = document.getElementById('calendar');
+        let currentEventId = null;
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             headerToolbar: {
@@ -201,23 +210,72 @@
             eventClick: function(info) {
                 var event = info.event;
                 var props = event.extendedProps;
+                
+                // Simpan ID event ke variable
+                currentEventId = event.id;
 
-                $('#detail-title').text(event.title);
-                $('#detail-user').text(props.user_name); // Pastikan key JSON controller 'user_name'
+                $('#detail-title').text(props.title_meeting || event.title); // Gunakan title asli jika ada
+                $('#detail-user').text(props.user_name);
                 $('#detail-desc').text(props.description || '-');
                 
-                // Format Time simple
+                // Format Waktu
                 const options = { hour: '2-digit', minute: '2-digit' };
                 const timeString = event.start.toLocaleTimeString([], options) + ' - ' + (event.end ? event.end.toLocaleTimeString([], options) : '');
                 $('#detail-time').text(event.start.toLocaleDateString() + ' • ' + timeString);
                 
-                // Styling
+                // Styling Badge
                 $('#detail-badge').text(props.room_name).css('background-color', event.backgroundColor);
+                
+                // LOGIKA TOMBOL DELETE
+                // Jika props.can_delete TRUE (dikirim dari controller), maka munculkan tombol
+                if (props.can_delete) {
+                    $('#btn-delete-event').removeClass('d-none');
+                } else {
+                    $('#btn-delete-event').addClass('d-none');
+                }
                 
                 $('#ModalEventDetail').modal('show');
             }
         });
         calendar.render();
+
+        $('#btn-delete-event').click(function() {
+            if (!currentEventId) return;
+
+            Swal.fire({
+                title: 'Batalkan Meeting?',
+                text: "Jadwal ini akan dihapus permanen.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '/booking-delete/' + currentEventId,
+                        type: 'DELETE', // Method DELETE
+                        data: {
+                            _token: '{{ csrf_token() }}'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                $('#ModalEventDetail').modal('hide');
+                                // Refresh Kalender otomatis tanpa reload page
+                                calendar.refetchEvents(); 
+                                Swal.fire('Terhapus!', response.message, 'success');
+                            } else {
+                                Swal.fire('Gagal!', response.message, 'error');
+                            }
+                        },
+                        error: function(xhr) {
+                            Swal.fire('Error!', 'Terjadi kesalahan server.', 'error');
+                        }
+                    });
+                }
+            });
+        });
 
         // Flash Messages
         @if(session('success')) Swal.fire({ icon: 'success', title: 'Berhasil!', text: '{{ session('success') }}', timer: 2000, showConfirmButton: false }); @endif

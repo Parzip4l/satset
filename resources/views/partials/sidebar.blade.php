@@ -47,7 +47,7 @@
 
                     {{-- MENU TANPA SUB-MENU --}}
                     @if($visibleChildren->isEmpty())
-                        <li class="pe-slide">
+                        <li class="pe-slide pe-has-sub">
                             <a href="{{ ($menu->url && $menu->url != '#') ? route($menu->url) : 'javascript:void(0)' }}" class="pe-nav-link">
                                 <i class="{{ $menu->icon }} pe-nav-icon"></i>
                                 <span class="pe-nav-content">{{ $menu->title }}</span>
