@@ -15,6 +15,8 @@ use App\Models\Master\Impact;
 use App\Models\Master\Urgency;
 use App\Models\Master\Department;
 use App\Models\Master\Comment;
+use App\Models\Master\TicketHistory;
+use App\Models\Master\TicketCategory;
 
 class Ticket extends Model
 {
@@ -32,6 +34,7 @@ class Ticket extends Model
         'impact_id',
         'urgency_id',
         'status_id',
+        'payload',
         'resolved_at',
         'closed_at',
         'ticket_category_id'
@@ -104,7 +107,16 @@ class Ticket extends Model
 
     public function categoryticket()
     {
-        return $this->belongsTo(\App\Models\Master\TicketCategory::class, 'ticket_category_id');
+        return $this->belongsTo(TicketCategory::class, 'ticket_category_id');
+    }
+
+    protected $casts = [
+        'payload' => 'array',
+    ];
+
+    public function customFields()
+    {
+        return $this->hasMany(Ticket::class);
     }
 
 }

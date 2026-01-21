@@ -7,12 +7,15 @@ use App\Http\Controllers\General\userController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Master\TicketFormSchema;
 
 use App\Http\Controllers\TestLdapController;
 use App\Http\Controllers\LdapLoginController;
 use App\Http\Controllers\Master\NotificationController;
 use App\Http\Controllers\MeetingRoomController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\VCardController;
+use App\Http\Controllers\Master\TicketFormSchemaController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -54,6 +57,14 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::post('/tickets/{ticket}/assign', [App\Http\Controllers\Master\TicketController::class, 'assign'])->name('ticket.assign');
     Route::post('/tickets/{ticket}/comment', [App\Http\Controllers\Master\TicketController::class, 'comment'])->name('ticket.comment');
     Route::post('{ticket}/approve', [App\Http\Controllers\Master\TicketController::class, 'approve'])->name('ticket.approve');
+
+    Route::get('/ticket-form-schema/{category}', function ($category) {
+        return TicketFormSchema::where('ticket_category_id', $category)
+            ->firstOrFail()
+            ->schema;
+    });
+
+    Route::resource('form-schema', TicketFormSchemaController::class);
 
     // Master
         Route::resource('divisi', App\Http\Controllers\Master\DivisionController::class);
@@ -100,5 +111,9 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::get('/booking-events', [BookingController::class, 'getEvents'])->name('booking.events');
         Route::post('/booking-store', [BookingController::class, 'store'])->name('booking.store');
         Route::delete('/booking-delete/{id}', [BookingController::class, 'destroy'])->name('booking.delete');
+
+    // VCard Routes
+    Route::get('/contact/{id}', [VCardController::class, 'show'])->name('vcard.show');
+    Route::get('/contact/{id}/download', [VCardController::class, 'download'])->name('vcard.download');
 
 });

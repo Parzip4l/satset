@@ -29,6 +29,11 @@ class ProblemCategory extends Model
        return $this->belongsTo(ProblemCategory::class, 'parent_id');
     }
 
+    public function children()
+    {
+       return $this->hasMany(ProblemCategory::class, 'parent_id');
+    }
+
     public function departments()
     {
         return $this->belongsToMany(

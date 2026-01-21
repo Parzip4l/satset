@@ -5,7 +5,8 @@ use Illuminate\Support\Facades\Route;
 // Import Controller yang baru dibuat
 use App\Http\Controllers\Api\V1\MasterApiController;
 use App\Http\Controllers\Api\V1\TicketApiController;
-
+use App\Models\Master\TicketFormSchema;
+use App\Http\Controllers\Master\TicketFormSchemaController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -47,6 +48,9 @@ Route::prefix('v1')->group(function () {
     Route::post('/tickets', [TicketApiController::class, 'store']);
     Route::put('/tickets/{id}', [TicketApiController::class, 'update']);
     Route::get('/tickets/{id}', [TicketApiController::class, 'show']);
+
+    Route::get('/ticket-form-schema/{category}', [TicketFormSchemaController::class, 'getSchemaApi']);
+    
 
     /*
     Route::middleware('auth:sanctum')->group(function () {

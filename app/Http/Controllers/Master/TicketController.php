@@ -22,6 +22,7 @@ use App\Models\Master\Department;
 use App\Models\Master\Approval;
 use App\Models\User;
 use App\Models\Master\TicketCategory;
+use App\Models\Master\TicketFormSchema; 
 
 
 use App\Models\Master\TicketHistory;
@@ -79,7 +80,10 @@ class TicketController extends Controller
     {
         $priority = Priority::all();
         $status = Status::all();
-        $categories = ProblemCategory::all();
+        $rootCategories = ProblemCategory::whereNull('parent_id')
+            ->with('children') 
+            ->get();
+        $categories = $this->flattenCategories($rootCategories);
         $priorities = Priority::all();
         $impacts = Impact::all();
         $urgencies = Urgency::all();
@@ -87,6 +91,30 @@ class TicketController extends Controller
         $categoryticket = TicketCategory::all();
 
         return view('ticket.create', compact('status','priority','categories','priorities','impacts','urgencies','statuses','categoryticket'));
+    }
+
+    private function flattenCategories($categories, $prefix = '')
+    {
+        $result = [];
+
+        foreach ($categories as $category) {
+            // Masukkan kategori saat ini ke array baru
+            $result[] = [
+                'id' => $category->id,
+                'name' => $prefix . $category->name // Gabungkan prefix (strip) dengan nama
+            ];
+
+            // Jika punya anak, panggil fungsi ini lagi (Rekursif)
+            // Tambahkan prefix '— ' untuk level anak
+            if ($category->children->count() > 0) {
+                $result = array_merge(
+                    $result, 
+                    $this->flattenCategories($category->children, $prefix . '— ')
+                );
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -163,6 +191,15 @@ class TicketController extends Controller
         }
 
         return redirect()->back()->with('success', 'Ticket berhasil dibuat dan email dikirim.');
+    }
+
+    // schema
+    public function getSchema($categoryId)
+    {
+        $schemaModel = TicketFormSchema::where('ticket_category_id', $categoryId)->first();
+
+        // Return array kosong jika tidak ada schema khusus
+        return response()->json($schemaModel ? $schemaModel->schema : []);
     }
 
 

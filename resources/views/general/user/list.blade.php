@@ -95,6 +95,12 @@
                                                             <i class="bi bi-pencil me-2 text-primary"></i> Edit & Password
                                                         </button>
                                                     </li>
+                                                    <li>
+                                                        <button type="button" class="dropdown-item py-2" onclick="showQrModal('{{ $data->id }}', '{{ $data->name }}')">
+                                                            <i class="bi bi-qr-code me-2 text-primary"></i> Qr Code
+                                                        </button>
+                                                    </li>
+                                            
                                                     <li><hr class="dropdown-divider opacity-50"></li>
                                                     <li>
                                                         <button type="button" class="dropdown-item py-2 text-danger" onclick="confirmDelete({{ $data->id }})">
@@ -132,7 +138,33 @@
                     </div>
                 </div>
             </div>
-            
+
+            <!-- QR Code Modal -->
+            <div class="modal fade" id="ModalQr" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-sm">
+                    <div class="modal-content border-0 rounded-4">
+                        <div class="modal-header border-bottom-0">
+                            <h5 class="modal-title fw-bold">User QR Code</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body text-center p-4">
+                            <div class="mb-3 p-3 bg-white rounded shadow-sm border d-inline-block">
+                                {{-- Container QR Code --}}
+                                <div id="qr-container"></div>
+                            </div>
+                            <h6 class="fw-bold mb-1" id="qr-name">User Name</h6>
+                            <p class="text-muted small">Scan untuk simpan kontak</p>
+                            
+                            {{-- Link Manual jika kamera rusak --}}
+                            <div class="mt-3">
+                                <a href="#" id="qr-link" target="_blank" class="btn btn-outline-primary btn-sm w-100">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i> Buka Profil
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -201,6 +233,7 @@
 @section('script')
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
     $(document).ready(function() {
@@ -293,6 +326,32 @@
                 // Pastikan route delete user sudah ada
             }
         });
+    }
+
+    function showQrModal(userId, userName) {
+        // 1. Set Nama
+        $('#qr-name').text(userName);
+        
+        // 2. Buat URL Profil Publik
+        // Ganti 'APP_URL' dengan domain asli saat production, misal lrtjakarta.co.id
+        let publicUrl = "{{ url('/contact') }}/" + userId;
+        
+        // 3. Update Tombol Link
+        $('#qr-link').attr('href', publicUrl);
+
+        // 4. Generate QR Code
+        $('#qr-container').html(''); // Kosongkan dulu
+        new QRCode(document.getElementById("qr-container"), {
+            text: publicUrl,
+            width: 180,
+            height: 180,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        // 5. Tampilkan Modal
+        $('#ModalQr').modal('show');
     }
 </script>
 

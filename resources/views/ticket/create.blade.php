@@ -152,7 +152,6 @@
     <div class="row justify-content-center mb-8">
         <div class="col-xl-9 col-lg-10">
             
-            {{-- Form dengan ID agar mudah diseleksi JS --}}
             <form id="ticketForm" action="{{ route('ticket.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 
@@ -209,12 +208,19 @@
 
                                 <div class="col-12">
                                     <label class="form-label">Kategori Masalah <span class="text-danger">*</span></label>
-                                    <select name="category_id" class="form-select select2-init" data-placeholder="Pilih Kategori (Contoh: Hardware, Network, Software...)" required>
+                                    <select name="category_id" class="form-select select2-init" data-placeholder="Pilih Kategori" required>
                                         <option></option>
-                                        @foreach($categories as $c)
-                                            <option value="{{ $c->id }}" {{ old('category_id') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                                        @foreach($categories as $cat)
+                                            <option value="{{ $cat['id'] }}" {{ old('category_id') == $cat['id'] ? 'selected' : '' }}>
+                                                {{ $cat['name'] }}
+                                            </option>
                                         @endforeach
                                     </select>
+                                </div>
+
+                                {{-- AREA FORM DINAMIS (Muncul setelah pilih Tipe Layanan) --}}
+                                <div id="dynamicFormContainer" class="col-12 row g-4 mt-2" style="display: none;">
+                                    {{-- JS Injects Inputs Here --}}
                                 </div>
                             </div>
                         </div>
@@ -288,7 +294,6 @@
                             
                             <div class="d-flex gap-2 w-100 w-md-auto">
                                 <a href="{{ route('ticket.index') }}" class="btn btn-light border w-50 w-md-auto py-2 fw-semibold text-muted">Batal</a>
-                                {{-- Tambahkan ID pada tombol submit --}}
                                 <button type="submit" id="btnSubmit" class="btn btn-primary btn-submit w-50 w-md-auto text-white">
                                     <i class="bi bi-send-fill me-2"></i> Kirim Tiket
                                 </button>
@@ -307,13 +312,104 @@
 @section('js')
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-{{-- SweetAlert2 JS --}}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
     $(document).ready(function() {
+
+        // --- 1. LOGIKA FORM DINAMIS ---
+        $('select[name="ticket_category_id"]').on('change', function() {
+            let categoryId = $(this).val();
+            let container = $('#dynamicFormContainer');
+            
+            // Bersihkan container dan sembunyikan dulu
+            container.empty().hide();
+
+            if(categoryId) {
+                // Panggil Endpoint API Schema
+                // Pastikan route ini sesuai dengan TicketController::getSchema atau TicketFormSchemaController::getSchemaApi
+                let url = "{{ url('ticket-form-schema') }}/" + categoryId;
+
+                $.ajax({
+                    url: url,
+                    type: "GET",
+                    dataType: "json",
+                    success: function(schema) {
+                        if (schema && schema.length > 0) {
+                            
+                            // Tambahkan Header Section
+                            container.append(`
+                                <div class="col-12 mt-4 mb-2">
+                                    <div class="p-3 bg-primary-subtle rounded-3 border border-primary-subtle">
+                                        <h6 class="fw-bold text-primary mb-0"><i class="bi bi-ui-checks-grid me-2"></i>Detail Layanan Tambahan</h6>
+                                    </div>
+                                </div>
+                            `);
+
+                            $.each(schema, function(index, field) {
+                                let inputHtml = '';
+                                let requiredStar = field.required ? '<span class="text-danger">*</span>' : '';
+                                let requiredAttr = field.required ? 'required' : '';
+                                
+                                // UPDATE: Menggunakan field.name sesuai JSON baru
+                                let identifier = field.name || field.key; 
+                                let fieldName = `payload[${identifier}]`; 
+
+                                switch(field.type) {
+                                    case 'text':
+                                    case 'number':
+                                    case 'time':
+                                        inputHtml = `<input type="${field.type}" name="${fieldName}" class="form-control" ${requiredAttr} placeholder="Isi ${field.label}...">`;
+                                        break;
+                                    case 'date':
+                                        // Tambahkan onclick showPicker agar kalender langsung muncul
+                                        inputHtml = `<input type="date" name="${fieldName}" class="form-control" ${requiredAttr} onclick="this.showPicker()">`;
+                                        break;
+                                    case 'textarea':
+                                        inputHtml = `<textarea name="${fieldName}" class="form-control" rows="3" ${requiredAttr} placeholder="Isi ${field.label}..."></textarea>`;
+                                        break;
+                                    case 'select':
+                                        // Handling Options (Bisa String "A,B" atau Array ["A","B"])
+                                        let optionsHtml = '<option value="">-- Pilih --</option>';
+                                        let opts = field.options;
+
+                                        // Jika string dipisah koma
+                                        if (typeof opts === 'string') {
+                                            opts = opts.split(',').map(item => item.trim());
+                                        }
+
+                                        if (Array.isArray(opts)) {
+                                            opts.forEach(opt => {
+                                                optionsHtml += `<option value="${opt}">${opt}</option>`;
+                                            });
+                                        }
+                                        inputHtml = `<select name="${fieldName}" class="form-select" ${requiredAttr}>${optionsHtml}</select>`;
+                                        break;
+                                    default:
+                                        inputHtml = `<input type="text" name="${fieldName}" class="form-control" ${requiredAttr}>`;
+                                }
+
+                                let wrapper = `
+                                    <div class="col-12 col-md-6 animate__animated animate__fadeIn">
+                                        <label class="form-label text-muted small text-uppercase fw-bold">${field.label} ${requiredStar}</label>
+                                        ${inputHtml}
+                                    </div>
+                                `;
+                                container.append(wrapper);
+                            });
+
+                            // Tampilkan container dengan efek
+                            container.fadeIn();
+                        }
+                    },
+                    error: function(err) {
+                        console.error("Gagal mengambil schema form:", err);
+                    }
+                });
+            }
+        });
         
-        // --- 1. Init Select2 ---
+        // --- 2. Init Select2 ---
         $('.select2-init').select2({
             theme: 'bootstrap-5',
             width: '100%',
@@ -321,7 +417,7 @@
             placeholder: function() { return $(this).data('placeholder'); }
         });
 
-        // Efek Fokus Select2
+        // Styling Fokus Select2
         $('.select2-init').on('select2:open', function (e) {
             $(this).next('.select2-container').find('.select2-selection').css({
                 'border-color': 'var(--primary-color)',
@@ -335,9 +431,9 @@
             });
         });
 
-        // --- 2. SweetAlert Toast Logic ---
+        // --- 3. SweetAlert & Validation ---
         
-        // A. Cek Session Flash Message (Jika Redirect kembali ke halaman ini)
+        // Session Flash Message
         @if(session('success'))
             const Toast = Swal.mixin({
                 toast: true,
@@ -350,20 +446,14 @@
                     toast.addEventListener('mouseleave', Swal.resumeTimer)
                 }
             })
-
-            Toast.fire({
-                icon: 'success',
-                title: '{{ session('success') }}'
-            })
+            Toast.fire({ icon: 'success', title: '{{ session('success') }}' })
         @endif
 
-        // B. Konfirmasi Sebelum Submit (Opsional tapi Bagus)
+        // Confirm Submit
         $('#btnSubmit').on('click', function(e) {
-            e.preventDefault(); // Cegah submit langsung
-            
+            e.preventDefault(); 
             let form = $('#ticketForm');
             
-            // Cek validasi HTML5 dulu (required fields)
             if (form[0].checkValidity() === false) {
                 form[0].reportValidity();
                 return;
@@ -371,26 +461,22 @@
 
             Swal.fire({
                 title: 'Kirim Tiket?',
-                text: "Pastikan data yang Anda masukkan sudah benar.",
+                text: "Pastikan data sudah benar sebelum dikirim.",
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonColor: '#3b71fe',
-                cancelButtonColor: '#d33',
+                cancelButtonColor: '#64748b',
                 confirmButtonText: 'Ya, Kirim!',
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Tampilkan Loading State
                     Swal.fire({
-                        title: 'Sedang Mengirim...',
-                        text: 'Mohon tunggu sebentar',
+                        title: 'Mengirim...',
+                        text: 'Mohon tunggu',
                         allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading()
-                        }
+                        didOpen: () => { Swal.showLoading() }
                     });
-                    
-                    form.submit(); // Submit form secara manual
+                    form.submit();
                 }
             });
         });
