@@ -32,6 +32,8 @@ class TicketResource extends JsonResource
             
             'impact'         => $this->impact->name ?? '-',
             'urgency'        => $this->urgency->name ?? '-',
+            
+            'dynamic_fields' => $this->payload ?? [],
         ];
     }
 }

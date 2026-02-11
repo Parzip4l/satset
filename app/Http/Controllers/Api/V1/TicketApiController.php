@@ -202,6 +202,7 @@ class TicketApiController extends Controller
             'impact_id'          => 'nullable|exists:impacts,id',
             'urgency_id'         => 'nullable|exists:urgencies,id',
             'ticket_category_id' => 'nullable|exists:ticket_categories,id',
+            'dynamic_fields'     => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -246,6 +247,7 @@ class TicketApiController extends Controller
                 'urgency_id'             => $request->urgency_id,
                 'ticket_category_id'     => $request->ticket_category_id,
                 'status_id'              => $defaultStatusId,
+                'payload'                => $request->dynamic_fields,
             ]);
 
             // 5. CREATE HISTORY
@@ -324,6 +326,7 @@ class TicketApiController extends Controller
             'impact_id'          => 'nullable|exists:impacts,id',
             'urgency_id'         => 'nullable|exists:urgencies,id',
             'ticket_category_id' => 'nullable|exists:ticket_categories,id',
+            'dynamic_fields'     => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -358,6 +361,7 @@ class TicketApiController extends Controller
                 'impact_id'          => $request->impact_id,
                 'urgency_id'         => $request->urgency_id,
                 'ticket_category_id' => $request->ticket_category_id,
+                'payload'            => $request->dynamic_fields,
             ];
 
             if ($categoryChanged) {
