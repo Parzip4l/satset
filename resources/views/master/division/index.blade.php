@@ -16,12 +16,15 @@
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
                         <div>
                             <h4 class="fw-bold mb-1">Data Divisi</h4>
-                            <p class="text-muted mb-0">Kelola daftar divisi/departemen dalam perusahaan.</p>
+                            <p class="text-muted mb-0">Data divisi mengikuti master organisasi dari Signal.</p>
                         </div>
                         <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-primary shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#ModalDivisi">
-                                <i class="bi bi-plus-lg me-1"></i> Tambah Divisi
-                            </button>
+                            <form action="{{ route('divisi.sync-signal') }}" method="POST" class="m-0 sync-signal-form">
+                                @csrf
+                                <button type="submit" class="btn btn-primary shadow-sm px-4">
+                                    <i class="bi bi-arrow-repeat me-1"></i> Sync dari Signal
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -83,17 +86,7 @@
                                                     <i class="bi bi-three-dots-vertical"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 10px;">
-                                                    <li>
-                                                        <button type="button" class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#ModalDivisiUpdate{{ $data->id }}">
-                                                            <i class="bi bi-pencil me-2 text-primary"></i> Edit
-                                                        </button>
-                                                    </li>
-                                                    <li><hr class="dropdown-divider opacity-50"></li>
-                                                    <li>
-                                                        <button type="button" class="dropdown-item py-2 text-danger" onclick="confirmDelete({{ $data->id }}, '{{ $data->name }}')">
-                                                            <i class="bi bi-trash me-2"></i> Hapus
-                                                        </button>
-                                                    </li>
+                                                    <li><span class="dropdown-item-text text-muted small">Data dikelola dari Signal.</span></li>
                                                 </ul>
                                             </div>
                                         </td>
@@ -217,6 +210,26 @@
             timer = setTimeout(function() {
                 $('#filter-form').submit();
             }, 700);
+        });
+
+        $('.sync-signal-form').on('submit', function(e) {
+            e.preventDefault();
+            const form = this;
+
+            Swal.fire({
+                title: 'Sync dari Signal?',
+                text: 'Data divisi dan department akan diperbarui dari master organisasi Signal.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#e21a1a',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, sync',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
         });
     });
 

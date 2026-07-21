@@ -112,6 +112,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::resource('form-schema', TicketFormSchemaController::class);
 
     // Master
+        Route::post('divisi/sync-signal', [App\Http\Controllers\Master\DivisionController::class, 'syncSignal'])->name('divisi.sync-signal');
         Route::resource('divisi', App\Http\Controllers\Master\DivisionController::class);
         Route::resource('lokasi', App\Http\Controllers\Master\LocationController::class);
         Route::resource('pic', App\Http\Controllers\Master\PicController::class);
@@ -121,6 +122,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         // Route::resource('bahaya', App\Http\Controllers\Master\KategoriBahaya::class);
 
         // Departement
+        Route::post('department/sync-signal', [App\Http\Controllers\Master\DepartmentController::class, 'syncSignal'])->name('department.sync-signal');
         Route::resource('department', App\Http\Controllers\Master\DepartmentController::class);
         Route::resource('department-problem-assign', App\Http\Controllers\Master\DepartmentCategoryController::class);
         // Problem Category

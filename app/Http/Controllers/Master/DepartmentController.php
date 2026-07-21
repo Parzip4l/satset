@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Services\Organization\SignalOrganizationSyncService;
 
 // Model
 use App\Models\Master\Department;
@@ -13,6 +14,21 @@ use App\Models\Master\Divisions;
 
 class DepartmentController extends Controller
 {
+    public function syncSignal(SignalOrganizationSyncService $syncService)
+    {
+        try {
+            $result = $syncService->sync();
+
+            return redirect()
+                ->back()
+                ->with('success', "Sync dari Signal berhasil: {$result['divisions']} divisi dan {$result['departments']} department.");
+        } catch (\Throwable $e) {
+            Log::error('Gagal sync organisasi Signal', ['error' => $e->getMessage()]);
+
+            return redirect()->back()->with('error', 'Gagal sync dari Signal: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
