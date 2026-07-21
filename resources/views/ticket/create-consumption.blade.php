@@ -13,7 +13,7 @@
         --consumption-soft: #f5f8fb;
         --consumption-brand: #0e7490;
         --consumption-brand-soft: #e6f7fb;
-        --consumption-gold: #c9831f;
+        --consumption-gold: #e21a1a;
     }
 
     .consumption-shell {

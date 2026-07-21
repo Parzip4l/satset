@@ -9,7 +9,7 @@
             --bum-muted: #7b8794;
             --bum-line: #e7ecf2;
             --bum-soft: #f7f9fc;
-            --bum-orange: #ff6b2c;
+            --bum-orange: #e21a1a;
             --bum-blue: #0ea5c6;
             --bum-green: #22c55e;
             --bum-yellow: #f6b51e;

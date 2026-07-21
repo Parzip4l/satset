@@ -12,7 +12,7 @@
     <style>
         :root {
             --lrt-red: #dc2626;
-            --lrt-orange: #f97316;
+            --lrt-orange: #e21a1a;
             --primary-color: var(--lrt-red);
             --bg-body: #f8fafc;
             --text-dark: #1e293b;

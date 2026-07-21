@@ -336,7 +336,7 @@
 
 <style>
     /* Styling Tambahan Konsisten */
-    .bg-soft-primary { background-color: rgba(59, 113, 254, 0.1); }
+    .bg-soft-primary { background-color: rgba(226, 26, 26, 0.1); }
     .bg-soft-info { background-color: rgba(13, 202, 240, 0.1); }
     
     .btn-icon {
@@ -356,8 +356,8 @@
     }
 
     .form-control:focus, .form-select:focus {
-        box-shadow: 0 0 0 3px rgba(59, 113, 254, 0.1);
-        border-color: #3b71fe;
+        box-shadow: 0 0 0 3px rgba(226, 26, 26, 0.1);
+        border-color: #e21a1a;
     }
     
     .fw-mono { font-family: monospace; }

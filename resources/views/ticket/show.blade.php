@@ -11,7 +11,7 @@
         :root {
             /* Warna LRT Jakarta */
             --lrt-red: #dc2626;
-            --lrt-orange: #f97316;
+            --lrt-orange: #e21a1a;
             
             --primary-color: var(--lrt-red);
             --primary-hover: #b91c1c;

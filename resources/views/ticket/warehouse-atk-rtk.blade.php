@@ -11,7 +11,7 @@
         --warehouse-muted: #7b8794;
         --warehouse-line: #e7ecf2;
         --warehouse-soft: #f8fafc;
-        --warehouse-primary: #ff6b2c;
+        --warehouse-primary: #e21a1a;
     }
 
     .warehouse-page .page-title {

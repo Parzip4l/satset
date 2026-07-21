@@ -14,9 +14,9 @@
     <style>
         /* Custom Calendar Override */
         .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 800; color: #333; }
-        .fc-button-primary { background-color: #3b71fe !important; border-color: #3b71fe !important; font-weight: 600; }
+        .fc-button-primary { background-color: #e21a1a !important; border-color: #e21a1a !important; font-weight: 600; }
         .fc-button-active { background-color: #2f5bce !important; }
-        .fc-daygrid-day.fc-day-today { background-color: rgba(59, 113, 254, 0.03) !important; }
+        .fc-daygrid-day.fc-day-today { background-color: rgba(226, 26, 26, 0.03) !important; }
         .fc-event { border: none; padding: 3px 5px; font-size: 0.85rem; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.1s; }
         .fc-event:hover { transform: scale(1.02); }
         

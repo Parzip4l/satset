@@ -11,7 +11,7 @@
             --rcv-muted: #7b8794;
             --rcv-line: #e7ecf2;
             --rcv-soft: #f8fafc;
-            --rcv-primary: #ff6b2c;
+            --rcv-primary: #e21a1a;
         }
 
         .receiving-page .page-title {

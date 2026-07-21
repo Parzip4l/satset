@@ -12,7 +12,7 @@
         --atk-ink: #2d2416;
         --atk-muted: #6f6a5c;
         --atk-line: #e7dcc7;
-        --atk-brand: #c9831f;
+        --atk-brand: #e21a1a;
     }
 
     .atk-shell {
@@ -122,7 +122,7 @@
     <div class="atk-shell p-4 p-xl-5">
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
             <div>
-                <span class="badge rounded-pill px-3 py-2 mb-3" style="background:rgba(201,131,31,.14); color:#a56612;">ATK / RTK Request</span>
+                <span class="badge rounded-pill px-3 py-2 mb-3" style="background:rgba(226,26,26,.12); color:#b91c1c;">ATK / RTK Request</span>
                 <h3 class="fw-bold text-dark mb-2">Form kebutuhan ATK dan RTK.</h3>
                 <p class="text-muted mb-0">Menu ini disiapkan supaya kebutuhan operasional kantor punya jalur sendiri dan tidak bercampur dengan request general.</p>
             </div>
@@ -213,7 +213,7 @@
                             <p class="text-muted small mb-0">Threshold approval atasan: <strong>Rp{{ number_format($approvalThreshold ?? 100000, 0, ',', '.') }}</strong>.</p>
                             <div class="d-flex gap-2">
                                 <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Batal</a>
-                                <button type="submit" class="btn rounded-pill px-4 text-white" style="background:#c9831f;">
+                                <button type="submit" class="btn rounded-pill px-4 text-white" style="background:#e21a1a;">
                                     <i class="bi bi-send me-1"></i> Kirim Permintaan
                                 </button>
                             </div>
@@ -264,7 +264,7 @@
             icon: 'error',
             title: 'Form belum lengkap',
             text: '{{ $errors->first() }}',
-            confirmButtonColor: '#c9831f'
+            confirmButtonColor: '#e21a1a'
         });
     @endif
 
@@ -273,7 +273,7 @@
             icon: 'success',
             title: 'Berhasil',
             text: '{{ session('success') }}',
-            confirmButtonColor: '#c9831f'
+            confirmButtonColor: '#e21a1a'
         });
     @endif
 </script>

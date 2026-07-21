@@ -284,7 +284,7 @@
 
 <style>
     /* Styling Tambahan untuk Look Modern */
-    .bg-soft-primary { background-color: rgba(59, 113, 254, 0.1); }
+    .bg-soft-primary { background-color: rgba(226, 26, 26, 0.1); }
     .bg-soft-warning { background-color: rgba(255, 184, 34, 0.1); }
     .bg-soft-success { background-color: rgba(28, 209, 100, 0.1); }
     .bg-soft-danger { background-color: rgba(255, 70, 70, 0.1); }
@@ -316,8 +316,8 @@
     }
 
     .form-control:focus, .form-select:focus {
-        box-shadow: 0 0 0 3px rgba(59, 113, 254, 0.1);
-        border-color: #3b71fe;
+        box-shadow: 0 0 0 3px rgba(226, 26, 26, 0.1);
+        border-color: #e21a1a;
     }
 </style>
 @endsection

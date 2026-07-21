@@ -436,7 +436,7 @@ function usageTooltip(categories) {
     return function({ series, dataPointIndex }) {
         const date = categories[dataPointIndex];
         return tooltipHtml(dateLong(date), [
-            { label: 'Qty keluar', value: series[0]?.[dataPointIndex], color: '#f97316' },
+            { label: 'Qty keluar', value: series[0]?.[dataPointIndex], color: '#e21a1a' },
         ]);
     };
 }
@@ -506,7 +506,7 @@ async function loadUsageTrend() {
             tooltip: { formatter: dateShort },
         },
         yaxis: { labels: { formatter: numberId } },
-        colors: ['#f97316'],
+        colors: ['#e21a1a'],
         dataLabels: { enabled: false },
         grid: { strokeDashArray: 4 },
         tooltip: {
@@ -561,7 +561,7 @@ async function loadRequestTrend() {
         chart: { type: 'bar', height: 300, toolbar: { show: false } },
         series: [{ name: 'Request', data: monthly.map(row => row.total) }],
         xaxis: { categories: monthly.map(row => monthShort(row.period)) },
-        colors: ['#c9831f'],
+        colors: ['#e21a1a'],
         dataLabels: { enabled: false },
     });
 }

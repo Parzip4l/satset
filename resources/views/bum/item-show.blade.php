@@ -9,7 +9,7 @@
             --detail-muted: #7b8794;
             --detail-line: #e7ecf2;
             --detail-soft: #f8fafc;
-            --detail-primary: #ff6b2c;
+            --detail-primary: #e21a1a;
         }
 
         .detail-title {

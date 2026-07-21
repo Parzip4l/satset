@@ -9,7 +9,7 @@
             --guide-muted: #7b8794;
             --guide-line: #e7ecf2;
             --guide-soft: #f8fafc;
-            --guide-primary: #ff6b2c;
+            --guide-primary: #e21a1a;
             --guide-blue: #2563eb;
             --guide-green: #16a34a;
             --guide-amber: #d97706;

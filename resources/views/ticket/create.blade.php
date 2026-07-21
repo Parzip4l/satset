@@ -9,8 +9,8 @@
 
     <style>
         :root {
-            --primary-color: #3b71fe;
-            --primary-hover: #295ecc;
+            --primary-color: #e21a1a;
+            --primary-hover: #b91c1c;
             --border-color: #e2e8f0;
             --bg-body: #f1f5f9;
             --input-bg: #f8fafc;
@@ -50,7 +50,7 @@
             font-size: 0.8rem;
             font-weight: 800;
             margin-right: 12px;
-            box-shadow: 0 4px 6px -1px rgba(59, 113, 254, 0.3);
+            box-shadow: 0 4px 6px -1px rgba(226, 26, 26, 0.3);
         }
 
         .form-label {
@@ -78,7 +78,7 @@
         .select2-container--bootstrap-5.select2-container--focus .select2-selection {
             background-color: #fff;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(59, 113, 254, 0.1);
+            box-shadow: 0 0 0 4px rgba(226, 26, 26, 0.1);
         }
 
         .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
@@ -133,7 +133,7 @@
             padding: 12px 32px;
             border-radius: 50rem;
             font-weight: 600;
-            box-shadow: 0 4px 12px rgba(59, 113, 254, 0.25);
+            box-shadow: 0 4px 12px rgba(226, 26, 26, 0.25);
             transition: all 0.3s;
         }
         .btn-submit:hover {
@@ -422,7 +422,7 @@
         $('.select2-init').on('select2:open', function (e) {
             $(this).next('.select2-container').find('.select2-selection').css({
                 'border-color': 'var(--primary-color)',
-                'box-shadow': '0 0 0 4px rgba(59, 113, 254, 0.1)'
+                'box-shadow': '0 0 0 4px rgba(226, 26, 26, 0.1)'
             });
         });
         $('.select2-init').on('select2:close', function (e) {
@@ -465,7 +465,7 @@
                 text: "Pastikan data sudah benar sebelum dikirim.",
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#3b71fe',
+                confirmButtonColor: '#e21a1a',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Ya, Kirim!',
                 cancelButtonText: 'Batal'

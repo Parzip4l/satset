@@ -11,7 +11,7 @@
             --opname-muted: #7b8794;
             --opname-line: #e7ecf2;
             --opname-soft: #f8fafc;
-            --opname-primary: #ff6b2c;
+            --opname-primary: #e21a1a;
         }
 
         .opname-page .page-title {

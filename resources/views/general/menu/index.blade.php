@@ -294,7 +294,7 @@
 
 <style>
     /* Styling Tambahan Konsisten */
-    .bg-soft-primary { background-color: rgba(59, 113, 254, 0.1); }
+    .bg-soft-primary { background-color: rgba(226, 26, 26, 0.1); }
     
     .btn-icon {
         width: 32px; height: 32px;
@@ -313,14 +313,14 @@
     }
 
     .form-control:focus {
-        box-shadow: 0 0 0 3px rgba(59, 113, 254, 0.1);
-        border-color: #3b71fe;
+        box-shadow: 0 0 0 3px rgba(226, 26, 26, 0.1);
+        border-color: #e21a1a;
     }
     
     /* Toggle Switch Color */
     .form-check-input:checked {
-        background-color: #3b71fe;
-        border-color: #3b71fe;
+        background-color: #e21a1a;
+        border-color: #e21a1a;
     }
 </style>
 @endsection

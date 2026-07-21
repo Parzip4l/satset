@@ -24,7 +24,7 @@
     <div class="row mb-2">
         @php
             $stats = [
-                ['label' => 'Total Tickets', 'value' => $totalRequests ?? 0, 'icon' => 'ri-ticket-2-fill', 'color' => '#3b71fe', 'bg' => 'primary'],
+                ['label' => 'Total Tickets', 'value' => $totalRequests ?? 0, 'icon' => 'ri-ticket-2-fill', 'color' => '#e21a1a', 'bg' => 'primary'],
                 ['label' => 'Open', 'value' => $openRequests ?? 0, 'icon' => 'ri-error-warning-fill', 'color' => '#ffc107', 'bg' => 'warning'],
                 ['label' => 'In Progress', 'value' => $inProgressRequests ?? 0, 'icon' => 'ri-time-fill', 'color' => '#0dcaf0', 'bg' => 'info'],
                 ['label' => 'Resolved', 'value' => $closedRequests ?? 0, 'icon' => 'ri-checkbox-circle-fill', 'color' => '#198754', 'bg' => 'success'],
@@ -188,7 +188,7 @@
 <style>
     .focus-none:focus { box-shadow: none; }
     .text-muted-opacity { opacity: 0.6; }
-    .bg-soft-primary { background-color: rgba(59, 113, 254, 0.1); }
+    .bg-soft-primary { background-color: rgba(226, 26, 26, 0.1); }
 </style>
 @endsection
 
@@ -209,7 +209,7 @@
         },
         yaxis: { labels: { style: { colors: '#adb5bd' } } },
         grid: { borderColor: '#f1f1f1', strokeDashArray: 4, padding: { left: 20, right: 20 } },
-        colors: ['#3b71fe'],
+        colors: ['#e21a1a'],
         dataLabels: { enabled: false },
         tooltip: { theme: 'light', x: { show: true } }
     };

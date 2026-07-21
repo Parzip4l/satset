@@ -8,7 +8,7 @@
         --ga-ink: #111827;
         --ga-muted: #64748b;
         --ga-line: #e2e8f0;
-        --ga-primary: #6d28d9;
+        --ga-primary: #e21a1a;
         --ga-soft: #f5f3ff;
     }
 

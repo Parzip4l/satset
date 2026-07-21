@@ -89,7 +89,7 @@ var daily_sales_chart = {
     height: 275,
     type: 'radialBar'
   },
-  colors: ['#16a2b8', '#ffc108', '#19a63a', '#f27333'], // Blue, Purple, Green, Orange
+  colors: ['#16a2b8', '#ffc108', '#19a63a', '#e21a1a'], // Blue, yellow, green, red
   plotOptions: {
     radialBar: {
       dataLabels: {
@@ -227,7 +227,7 @@ var product_order_chart = {
       borderRadius: 6      // Apply rounded corners
     }
   },
-  colors: [ '#f27333'], // New vibrant colors
+  colors: [ '#e21a1a'],
   xaxis: {
     crosshairs: {
       width: 1

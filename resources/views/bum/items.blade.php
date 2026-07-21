@@ -9,7 +9,7 @@
             --item-muted: #7b8794;
             --item-line: #e7ecf2;
             --item-soft: #f8fafc;
-            --item-primary: #ff6b2c;
+            --item-primary: #e21a1a;
         }
 
         .items-page .page-title {

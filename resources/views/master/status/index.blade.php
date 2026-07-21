@@ -287,7 +287,7 @@
 
 <style>
     /* Styling Tambahan Konsisten */
-    .bg-soft-primary { background-color: rgba(59, 113, 254, 0.1); }
+    .bg-soft-primary { background-color: rgba(226, 26, 26, 0.1); }
     .bg-soft-success { background-color: rgba(25, 135, 84, 0.1); }
     .bg-soft-warning { background-color: rgba(255, 193, 7, 0.1); }
     .bg-soft-danger { background-color: rgba(220, 53, 69, 0.1); }
@@ -310,8 +310,8 @@
     }
 
     .form-control:focus {
-        box-shadow: 0 0 0 3px rgba(59, 113, 254, 0.1);
-        border-color: #3b71fe;
+        box-shadow: 0 0 0 3px rgba(226, 26, 26, 0.1);
+        border-color: #e21a1a;
     }
     
     .fw-mono { font-family: monospace; }

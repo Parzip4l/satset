@@ -14,7 +14,7 @@
         --hub-warm: #f3ede2;
         --hub-blue: #0f5cc0;
         --hub-teal: #0e7490;
-        --hub-gold: #c9831f;
+        --hub-gold: #e21a1a;
         --hub-shadow: 0 24px 60px rgba(16, 37, 66, 0.08);
     }
 
@@ -72,8 +72,8 @@
 
     .request-card.general::before { background: linear-gradient(180deg, #0f5cc0, #55a3ff); }
     .request-card.konsumsi::before { background: linear-gradient(180deg, #0e7490, #39b6c8); }
-    .request-card.atk::before { background: linear-gradient(180deg, #c9831f, #f5b748); }
-    .request-card.ga::before { background: linear-gradient(180deg, #6d28d9, #a78bfa); }
+    .request-card.atk::before { background: linear-gradient(180deg, #e21a1a, #f87171); }
+    .request-card.ga::before { background: linear-gradient(180deg, #e21a1a, #f87171); }
 
     .request-icon {
         width: 64px;
@@ -154,7 +154,7 @@
                     <div class="col-6">
                         <div class="request-stat">
                             <div class="text-muted small mb-1">Selesai</div>
-                            <div class="fs-3 fw-bold" style="color:#c9831f;">{{ $stats['completed'] ?? 0 }}</div>
+                            <div class="fs-3 fw-bold" style="color:#e21a1a;">{{ $stats['completed'] ?? 0 }}</div>
                         </div>
                     </div>
                 </div>
@@ -200,14 +200,14 @@
         <div class="col-xl-4 col-md-6">
             <div class="request-card atk">
                 <div class="card-body p-4 p-xl-5">
-                    <div class="request-icon mb-4" style="background: rgba(201,131,31,.14); color:#c9831f;">
+                    <div class="request-icon mb-4" style="background: rgba(226,26,26,.12); color:#e21a1a;">
                         <i class="bi bi-box-seam"></i>
                     </div>
                     <h4 class="fw-bold mb-2">ATK / RTK</h4>
                     <p class="text-muted mb-4">
                         Pengajuan kebutuhan alat tulis atau rumah tangga kantor dengan form khusus supaya request operasional tidak tercampur dengan tiket general.
                     </p>
-                    <a href="{{ route('ticket.atk-rtk.create') }}" class="btn rounded-pill px-4 text-white" style="background:#c9831f;">
+                    <a href="{{ route('ticket.atk-rtk.create') }}" class="btn rounded-pill px-4 text-white" style="background:#e21a1a;">
                         Buka Form ATK/RTK
                     </a>
                 </div>
@@ -217,14 +217,14 @@
         <div class="col-xl-4 col-md-6">
             <div class="request-card ga">
                 <div class="card-body p-4 p-xl-5">
-                    <div class="request-icon mb-4" style="background: rgba(109,40,217,.12); color:#6d28d9;">
+                    <div class="request-icon mb-4" style="background: rgba(226,26,26,.12); color:#e21a1a;">
                         <i class="bi bi-qr-code-scan"></i>
                     </div>
                     <h4 class="fw-bold mb-2">GA Permintaan & Temuan</h4>
                     <p class="text-muted mb-4">
                         Form QR Code Bagian Umum untuk mencatat permintaan dukungan dan temuan kerusakan agar tindak lanjutnya termonitor.
                     </p>
-                    <a href="{{ route('ticket.ga-permintaan-temuan.create') }}" class="btn rounded-pill px-4 text-white" style="background:#6d28d9;">
+                    <a href="{{ route('ticket.ga-permintaan-temuan.create') }}" class="btn rounded-pill px-4 text-white" style="background:#e21a1a;">
                         Buka Form GA
                     </a>
                 </div>

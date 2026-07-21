@@ -11,7 +11,7 @@
             --stock-muted: #7b8794;
             --stock-line: #e7ecf2;
             --stock-soft: #f8fafc;
-            --stock-primary: #ff6b2c;
+            --stock-primary: #e21a1a;
         }
 
         .stock-card-page .page-title {

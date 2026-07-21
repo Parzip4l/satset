@@ -9,7 +9,7 @@
             --report-muted: #7b8794;
             --report-line: #e7ecf2;
             --report-soft: #f8fafc;
-            --report-primary: #ff6b2c;
+            --report-primary: #e21a1a;
         }
 
         .reports-page .page-title {

@@ -179,7 +179,7 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label small text-muted fw-bold">Warna Kalender</label>
-                            <input type="color" name="color" class="form-control form-control-color w-100" value="#3b71fe" title="Pilih warna untuk kalender">
+                            <input type="color" name="color" class="form-control form-control-color w-100" value="#e21a1a" title="Pilih warna untuk kalender">
                         </div>
                     </div>
                     <div class="mb-3">
@@ -293,10 +293,10 @@
 
 <style>
     /* Styling Konsisten dengan Ticket List */
-    .bg-soft-primary { background-color: rgba(59, 113, 254, 0.1); }
+    .bg-soft-primary { background-color: rgba(226, 26, 26, 0.1); }
     .badge-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     .btn-icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
     .table thead th { letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; }
-    .form-control:focus, .form-select:focus { box-shadow: 0 0 0 3px rgba(59, 113, 254, 0.1); border-color: #3b71fe; }
+    .form-control:focus, .form-select:focus { box-shadow: 0 0 0 3px rgba(226, 26, 26, 0.1); border-color: #e21a1a; }
 </style>
 @endsection

@@ -12,7 +12,18 @@
 
 <style>
     :root {
-        --bs-primary: #3b71fe; /* Sesuaikan dengan warna SatSet */
+        --brand-primary: #e21a1a;
+        --brand-primary-rgb: 226, 26, 26;
+        --brand-primary-hover: #b91c1c;
+        --brand-primary-hover-rgb: 185, 28, 28;
+        --bs-primary: var(--brand-primary);
+        --bs-primary-rgb: var(--brand-primary-rgb);
+        --pe-primary: var(--brand-primary);
+        --pe-primary-rgb: var(--brand-primary-rgb);
+        --pe-link-color-rgb: var(--brand-primary-rgb);
+        --pe-link-hover-color-rgb: var(--brand-primary-hover-rgb);
+        --pe-primary-bg-subtle: rgba(var(--brand-primary-rgb), 0.1);
+        --pe-primary-border-subtle: rgba(var(--brand-primary-rgb), 0.45);
     }
     
     .card {
@@ -21,7 +32,34 @@
     }
 
     /* Styling tambahan untuk elemen yang kita buat sebelumnya */
-    .bg-primary-subtle { background-color: rgba(59, 113, 254, 0.1) !important; }
+    .btn-primary {
+        --bs-btn-bg: var(--brand-primary);
+        --bs-btn-border-color: var(--brand-primary);
+        --bs-btn-hover-bg: var(--brand-primary-hover);
+        --bs-btn-hover-border-color: var(--brand-primary-hover);
+        --bs-btn-active-bg: var(--brand-primary-hover);
+        --bs-btn-active-border-color: var(--brand-primary-hover);
+        --bs-btn-disabled-bg: var(--brand-primary);
+        --bs-btn-disabled-border-color: var(--brand-primary);
+    }
+    .btn-outline-primary {
+        --bs-btn-color: var(--brand-primary);
+        --bs-btn-border-color: var(--brand-primary);
+        --bs-btn-hover-bg: var(--brand-primary);
+        --bs-btn-hover-border-color: var(--brand-primary);
+        --bs-btn-active-bg: var(--brand-primary-hover);
+        --bs-btn-active-border-color: var(--brand-primary-hover);
+    }
+    .text-primary { color: var(--brand-primary) !important; }
+    .bg-primary { background-color: var(--brand-primary) !important; }
+    .border-primary { border-color: var(--brand-primary) !important; }
+    .link-primary { color: var(--brand-primary) !important; }
+    .bg-primary-subtle, .bg-soft-primary { background-color: rgba(var(--brand-primary-rgb), 0.1) !important; }
+    .border-primary-subtle { border-color: rgba(var(--brand-primary-rgb), 0.45) !important; }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--brand-primary);
+        box-shadow: 0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.14);
+    }
     .bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
     .bg-warning-subtle { background-color: rgba(255, 193, 7, 0.1) !important; }
     .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }
