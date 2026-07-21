@@ -51,7 +51,7 @@
         --bs-btn-active-border-color: var(--brand-primary-hover);
     }
     .text-primary { color: var(--brand-primary) !important; }
-    .bg-primary { background-color: var(--brand-primary) !important; }
+    .bg-primary { background-color: rgba(var(--brand-primary-rgb), var(--bs-bg-opacity, var(--pe-bg-opacity, 1))) !important; }
     .border-primary { border-color: var(--brand-primary) !important; }
     .link-primary { color: var(--brand-primary) !important; }
     .bg-primary-subtle, .bg-soft-primary { background-color: rgba(var(--brand-primary-rgb), 0.1) !important; }
