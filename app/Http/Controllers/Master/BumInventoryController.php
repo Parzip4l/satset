@@ -13,6 +13,7 @@ use App\Services\ConsumableStockService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
 class BumInventoryController extends Controller
@@ -36,10 +37,23 @@ class BumInventoryController extends Controller
                     ->orWhereNotIn('payload->workflow_status', ['CLOSED', 'CANCELLED', 'REJECTED_BY_MANAGER']);
             })
             ->count();
-        $lowStockCount = ConsumableItem::whereColumn('current_stock', '<=', 'minimum_stock')->where('is_active', true)->count();
-        $pendingReceiving = ProcurementReceiving::whereIn('status', ['DRAFT', 'SUBMITTED', 'PO_CREATED', 'PO_SENT_TO_VENDOR', 'DELIVERY_SCHEDULED'])->count();
-        $currentOpname = StockOpname::where('period', now()->format('Y-m'))->latest()->first();
-        $lowStockItems = ConsumableItem::whereColumn('current_stock', '<=', 'minimum_stock')->orderBy('name')->take(8)->get();
+        $inventoryTablesReady = collect([
+            'consumable_items',
+            'procurement_receivings',
+            'stock_opnames',
+        ])->every(fn ($table) => Schema::hasTable($table));
+
+        if ($inventoryTablesReady) {
+            $lowStockCount = ConsumableItem::whereColumn('current_stock', '<=', 'minimum_stock')->where('is_active', true)->count();
+            $pendingReceiving = ProcurementReceiving::whereIn('status', ['DRAFT', 'SUBMITTED', 'PO_CREATED', 'PO_SENT_TO_VENDOR', 'DELIVERY_SCHEDULED'])->count();
+            $currentOpname = StockOpname::where('period', now()->format('Y-m'))->latest()->first();
+            $lowStockItems = ConsumableItem::whereColumn('current_stock', '<=', 'minimum_stock')->orderBy('name')->take(8)->get();
+        } else {
+            $lowStockCount = 0;
+            $pendingReceiving = 0;
+            $currentOpname = null;
+            $lowStockItems = collect();
+        }
 
         $gaBaseQuery = Ticket::with(['requester', 'status'])
             ->where('payload->request_type', 'ga_request_finding')
@@ -80,6 +94,7 @@ class BumInventoryController extends Controller
             'pendingReceiving',
             'currentOpname',
             'lowStockItems',
+            'inventoryTablesReady',
             'gaType',
             'gaStats',
             'gaStatusBreakdown',

@@ -60,6 +60,35 @@
         border-color: var(--brand-primary);
         box-shadow: 0 0 0 0.2rem rgba(var(--brand-primary-rgb), 0.14);
     }
+    aside.pe-app-sidebar .pe-app-sidebar-menu .pe-nav-link {
+        border-radius: 0 14px 14px 0;
+        margin: 2px 10px 2px 0;
+        position: relative;
+    }
+    aside.pe-app-sidebar .pe-app-sidebar-menu .pe-nav-link.active {
+        background-color: rgba(var(--brand-primary-rgb), 0.1) !important;
+        color: var(--brand-primary) !important;
+        font-weight: 800;
+    }
+    aside.pe-app-sidebar .pe-app-sidebar-menu .pe-nav-link.active::before {
+        background-color: var(--brand-primary);
+        border-radius: 0 999px 999px 0;
+        content: "";
+        height: 100%;
+        left: -10px;
+        position: absolute;
+        top: 0;
+        width: 5px;
+    }
+    aside.pe-app-sidebar .pe-app-sidebar-menu .pe-nav-link.active .pe-nav-icon,
+    aside.pe-app-sidebar .pe-app-sidebar-menu .pe-nav-link.active .pe-nav-content,
+    aside.pe-app-sidebar .pe-app-sidebar-menu .pe-nav-link.active .pe-nav-arrow {
+        color: var(--brand-primary) !important;
+    }
+    aside.pe-app-sidebar .pe-app-sidebar-menu .pe-slide-menu .pe-nav-link.active {
+        border-radius: 8px;
+        margin-left: 0;
+    }
     .bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
     .bg-warning-subtle { background-color: rgba(255, 193, 7, 0.1) !important; }
     .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }

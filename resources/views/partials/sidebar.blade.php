@@ -46,24 +46,35 @@
 
                     {{-- MENU TANPA SUB-MENU --}}
                     @if($visibleChildren->isEmpty())
+                        @php
+                            $menuActive = $menu->url && $menu->url !== '#' && request()->routeIs($menu->url);
+                        @endphp
                         <li class="pe-slide pe-has-sub">
-                            <a href="{{ ($menu->url && $menu->url != '#') ? route($menu->url) : 'javascript:void(0)' }}" class="pe-nav-link">
+                            <a href="{{ ($menu->url && $menu->url != '#') ? route($menu->url) : 'javascript:void(0)' }}" class="pe-nav-link {{ $menuActive ? 'active' : '' }}">
                                 <i class="{{ $menu->icon }} pe-nav-icon"></i>
                                 <span class="pe-nav-content">{{ $menu->title }}</span>
                             </a>
                         </li>
                     @else
                         {{-- MENU DENGAN SUB-MENU --}}
+                        @php
+                            $parentActive = $visibleChildren->contains(function ($child) {
+                                return $child->url && $child->url !== '#' && request()->routeIs($child->url);
+                            });
+                        @endphp
                         <li class="pe-slide pe-has-sub">
-                            <a href="#collapseSide{{ $menu->id }}" class="pe-nav-link" data-bs-toggle="collapse" aria-expanded="false" aria-controls="collapseSide{{ $menu->id }}">
+                            <a href="#collapseSide{{ $menu->id }}" class="pe-nav-link {{ $parentActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $parentActive ? 'true' : 'false' }}" aria-controls="collapseSide{{ $menu->id }}">
                                 <i class="{{ $menu->icon }} pe-nav-icon"></i>
                                 <span class="pe-nav-content">{{ $menu->title }}</span>
                                 <i class="ri-arrow-down-s-line pe-nav-arrow"></i>
                             </a>
-                            <ul class="pe-slide-menu collapse" id="collapseSide{{ $menu->id }}">
+                            <ul class="pe-slide-menu collapse {{ $parentActive ? 'show' : '' }}" id="collapseSide{{ $menu->id }}">
                                 @foreach($visibleChildren as $child)
+                                    @php
+                                        $childActive = $child->url && $child->url !== '#' && request()->routeIs($child->url);
+                                    @endphp
                                     <li class="pe-slide-item">
-                                        <a href="{{ ($child->url && $child->url != '#') ? route($child->url) : 'javascript:void(0)' }}" class="pe-nav-link">
+                                        <a href="{{ ($child->url && $child->url != '#') ? route($child->url) : 'javascript:void(0)' }}" class="pe-nav-link {{ $childActive ? 'active' : '' }}">
                                             {{ $child->title }}
                                         </a>
                                     </li>

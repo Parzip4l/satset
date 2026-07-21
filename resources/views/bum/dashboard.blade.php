@@ -331,6 +331,12 @@
         </div>
     </div>
 
+    @unless($inventoryTablesReady)
+        <div class="alert alert-warning border-0 shadow-sm mb-4">
+            Modul inventori belum siap karena tabel BUM belum ada di database. Jalankan migration di server agar data stok, penerimaan, dan opname aktif.
+        </div>
+    @endunless
+
     <div class="row g-3 mb-4">
         @foreach([
             ['label' => 'ATK/RTK Pending', 'value' => $atkPending, 'icon' => 'bi-clipboard-check', 'color' => 'warning'],
