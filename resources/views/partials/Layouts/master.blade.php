@@ -15,7 +15,7 @@
 
     <script type="module" src="{{ asset('assets/js/layout-setup.js') }}"></script>
 
-    <link rel="shortcut icon" href="{{ asset('assets/images/lrtj.png') }}">
+    <link rel="shortcut icon" href="{{ asset('assets/images/k_favicon_32x.png') }}">
 
     {{-- CSS tambahan dari masing-masing page --}}
     @yield('css')

@@ -13,7 +13,7 @@
                 <div class="col-12 col-md-8 col-lg-6 col-xl-5">
                     <div class="card mx-xxl-8">
                         <div class="card-body py-12 px-8">
-                            <img src="assets/images/logo-lrtj.png" alt="Logo Dark" height="50"
+                            <img src="{{ asset('assets/images/logo-lrtj.png') }}" alt="Logo Dark" height="50"
                                 class="mb-4 mx-auto d-block">
                             <h6 class="mb-3 mb-8 fw-medium text-center">Get on SATSET: Solve Issues, Zero Hassle.</h6>
 

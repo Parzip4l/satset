@@ -1,4 +1,13 @@
 <!-- Begin Header -->
+@php
+    $headerUser = auth()->user();
+    $headerName = $headerUser->name ?? 'Guest';
+    $headerInitials = collect(explode(' ', trim($headerName)))
+        ->filter()
+        ->take(2)
+        ->map(fn ($part) => strtoupper(substr($part, 0, 1)))
+        ->implode('') ?: 'G';
+@endphp
 <header class="app-header" id="appHeader">
     <div class="container-fluid w-100">
         <div class="d-flex align-items-center">
@@ -41,7 +50,7 @@
                         </div>
                         <div class="p-3">
                             <div class="noti-item">
-                                <img src="assets/images/logo-md.png" alt="Logo Image" class="avatar-md">
+                                <img src="{{ asset('assets/images/logo-md.png') }}" alt="Logo Image" class="avatar-md">
                                 <div>
                                     <a href="javascript:void(0)" class="stretched-link">
                                         <h6 class="mb-1">Item Back in Stock</h6>
@@ -61,21 +70,25 @@
                 <div class="dropdown pe-dropdown-mega d-none d-md-block">
                     <button class="header-profile-btn btn gap-1 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="header-btn btn position-relative">
-                            <img src="assets/images/avatar/avatar-10.jpg" alt="Avatar Image" class="img-fluid rounded-circle">
+                            <span class="d-flex align-items-center justify-content-center rounded-circle bg-primary text-white fw-bold" style="width: 36px; height: 36px; font-size: 13px;">
+                                {{ $headerInitials }}
+                            </span>
                             <span class="position-absolute translate-middle badge border border-light rounded-circle bg-success"><span class="visually-hidden">unread messages</span></span>
                         </span>
                         <div class="d-none d-lg-block pe-2">
-                            <span class="d-block mb-0 fs-13 fw-semibold">{{ auth()->check() ? auth()->user()->name : 'Guest' }}</span>
+                            <span class="d-block mb-0 fs-13 fw-semibold">{{ $headerName }}</span>
                         </div>
                     </button>
                     <div class="dropdown-menu dropdown-mega-sm header-dropdown-menu p-3">
                         <div class="border-bottom pb-2 mb-2 d-flex align-items-center gap-2">
-                            <img src="assets/images/avatar/avatar-10.jpg" alt="Avatar Image" class="avatar-md">
+                            <span class="avatar-md rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center">
+                                {{ $headerInitials }}
+                            </span>
                             <div>
                                 <a href="javascript:void(0)">
-                                    <h6 class="mb-0 lh-base">{{ auth()->check() ? auth()->user()->name : 'Guest' }}</h6>
+                                    <h6 class="mb-0 lh-base">{{ $headerName }}</h6>
                                 </a>
-                                <p class="mb-0 fs-13 text-muted">{{ auth()->check() ? auth()->user()->email : 'Guest' }}</p>
+                                <p class="mb-0 fs-13 text-muted">{{ $headerUser->email ?? 'Guest' }}</p>
                             </div>
                         </div>
                         <ul class="list-unstyled mb-1 border-bottom pb-1">

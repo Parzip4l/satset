@@ -29,7 +29,6 @@
             }
         @endphp
 
-        @if($filteredMenus->isNotEmpty())
         <ul class="pe-main-menu list-unstyled">
             @foreach($filteredMenus as $menu)
                 
@@ -75,8 +74,57 @@
 
                 @endif
             @endforeach
+
+            @php
+                $bumMenuActive = request()->routeIs('bum.*')
+                    || request()->routeIs('ticket.ga-permintaan-temuan.create')
+                    || request()->routeIs('ticket.atk-rtk.create')
+                    || request()->routeIs('ticket.atk-rtk.warehouse');
+            @endphp
+            <li class="pe-menu-title">Operasional GA</li>
+            <li class="pe-slide pe-has-sub">
+                <a href="#collapseSideBum" class="pe-nav-link {{ $bumMenuActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $bumMenuActive ? 'true' : 'false' }}" aria-controls="collapseSideBum">
+                    <i class="bi bi-box-seam pe-nav-icon"></i>
+                    <span class="pe-nav-content">GA & Inventori</span>
+                    <i class="ri-arrow-down-s-line pe-nav-arrow"></i>
+                </a>
+                <ul class="pe-slide-menu collapse {{ $bumMenuActive ? 'show' : '' }}" id="collapseSideBum">
+                    <li class="pe-slide-item">
+                        <a href="{{ route('bum.dashboard') }}" class="pe-nav-link {{ request()->routeIs('bum.dashboard') ? 'active' : '' }}">Ringkasan</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('bum.guide') }}" class="pe-nav-link {{ request()->routeIs('bum.guide') ? 'active' : '' }}">Manual Guide</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('ticket.ga-permintaan-temuan.create') }}" class="pe-nav-link {{ request()->routeIs('ticket.ga-permintaan-temuan.create') ? 'active' : '' }}">Input Permintaan / Temuan</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('ticket.atk-rtk.create') }}" class="pe-nav-link {{ request()->routeIs('ticket.atk-rtk.create') ? 'active' : '' }}">Request ATK / RTK</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('ticket.atk-rtk.warehouse') }}" class="pe-nav-link {{ request()->routeIs('ticket.atk-rtk.warehouse') ? 'active' : '' }}">Gudang ATK / RTK</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('bum.items') }}" class="pe-nav-link {{ request()->routeIs('bum.items', 'bum.items.show') ? 'active' : '' }}">Master Barang</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('bum.receivings') }}" class="pe-nav-link {{ request()->routeIs('bum.receivings') ? 'active' : '' }}">Penerimaan Barang</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('bum.stock-card') }}" class="pe-nav-link {{ request()->routeIs('bum.stock-card') ? 'active' : '' }}">Stock Card</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('bum.opnames') }}" class="pe-nav-link {{ request()->routeIs('bum.opnames') ? 'active' : '' }}">Stock Opname</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('bum.analytics') }}" class="pe-nav-link {{ request()->routeIs('bum.analytics') ? 'active' : '' }}">Analytics & Forecast</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('bum.reports') }}" class="pe-nav-link {{ request()->routeIs('bum.reports') ? 'active' : '' }}">Laporan</a>
+                    </li>
+                </ul>
+            </li>
         </ul>
-        @endif
     </nav>
 </aside>
 <div class="sidebar-backdrop" id="sidebar-backdrop"></div>

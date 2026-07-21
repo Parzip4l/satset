@@ -60,7 +60,14 @@
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            object-fit: cover;
+            background: var(--lrt-gradient);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 42px;
+            font-weight: 800;
+            letter-spacing: 0;
         }
 
         .content-area { padding-top: 80px; padding-bottom: 40px; }
@@ -144,13 +151,20 @@
     </style>
 </head>
 <body>
+    @php
+        $profileInitials = collect(explode(' ', trim($data['name'] ?? 'Guest')))
+            ->filter()
+            ->take(2)
+            ->map(fn ($part) => strtoupper(substr($part, 0, 1)))
+            ->implode('') ?: 'G';
+    @endphp
 
     <div class="profile-card">
         {{-- Header Image --}}
         <div class="header-bg text-center pt-4">
-            <img src="https://e-ptw.lrtjakarta.co.id/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Flogo-lrtj-white.847caf54.png&w=640&q=75" alt="Logo" style="height: 40px; opacity: 0.95;">
+            <img src="{{ asset('assets/images/logo-lrtj.png') }}" alt="Logo" style="height: 40px; opacity: 0.95;">
             <div class="avatar-container">
-                <img src="{{ $data['photo'] }}" alt="Profile" class="avatar-img">
+                <div class="avatar-img">{{ $profileInitials }}</div>
             </div>
         </div>
 

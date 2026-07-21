@@ -2,6 +2,7 @@
 
 namespace App\Models\Master;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class TicketFormSchema extends Model
@@ -25,7 +26,7 @@ class TicketFormSchema extends Model
         return Attribute::make(
             get: function ($value) {
                 // Decode JSON asli dulu jika $value masih raw string
-                $data = json_decode($value, true); 
+                $data = is_array($value) ? $value : json_decode($value, true);
 
                 // Lakukan mapping
                 return array_map(function ($item) {
@@ -33,7 +34,7 @@ class TicketFormSchema extends Model
                         $item['options'] = array_map('trim', explode(',', $item['options']));
                     }
                     return $item;
-                }, $data);
+                }, $data ?: []);
             }
         );
     }

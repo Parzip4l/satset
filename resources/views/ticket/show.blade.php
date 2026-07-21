@@ -166,11 +166,34 @@
 
 @section('content')
 <div class="container py-5">
+    @php
+        $requestType = data_get($ticket->payload, 'request_type');
+        $workflowStatus = data_get($ticket->payload, 'workflow_status', '-');
+        $pendingApproval = $ticket->approvals->where('status', 'Pending')->first();
+        $isBumRequest = in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true);
+        $categoryLabel = match ($requestType) {
+            'consumption' => 'Permintaan Konsumsi Rapat',
+            'atk_rtk' => 'Permintaan ATK/RTK',
+            'ga_request_finding' => 'GA Permintaan & Temuan',
+            default => $ticket->category->name ?? '-',
+        };
+        $serviceLabel = match ($requestType) {
+            'consumption' => 'Layanan BUM - Konsumsi Rapat',
+            'atk_rtk' => 'Layanan BUM - ATK/RTK',
+            'ga_request_finding' => 'Layanan BUM - QR Permintaan & Temuan',
+            default => $ticket->categoryticket->name ?? '-',
+        };
+    @endphp
 
     {{-- ALERTS --}}
     @if (session('success'))
         <div class="alert alert-success border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center">
             <i class="bi bi-check-circle-fill fs-5 me-2"></i> {{ session('success') }}
+        </div>
+    @endif
+    @if (session('error'))
+        <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i> {{ session('error') }}
         </div>
     @endif
 
@@ -190,7 +213,7 @@
             </div>
             <h1 class="page-title mb-0">{{ $ticket->title }}</h1>
         </div>
-        <a href="{{ route('ticket.index') }}" class="btn-back text-decoration-none shadow-sm">
+        <a href="{{ route('ticket.general') }}" class="btn-back text-decoration-none shadow-sm">
             <i class="bi bi-arrow-left me-1"></i> Kembali
         </a>
     </div>
@@ -221,6 +244,112 @@
                     </div>
                 </div>
             </div>
+
+            @if(!empty($ticket->payload))
+            <div class="card-clean">
+                <div class="card-header-clean">
+                    <span class="header-title"><i class="bi bi-ui-checks-grid text-danger"></i> Detail Request</span>
+                    <span class="badge bg-light text-dark border">{{ data_get($ticket->payload, 'request_label', 'General') }}</span>
+                </div>
+                <div class="card-body p-4">
+                    @php
+                        if ($requestType === 'consumption') {
+                            $detailPayload = collect([
+                                'Nama Kegiatan' => data_get($ticket->payload, 'activity_name'),
+                                'Jenis Kegiatan' => data_get($ticket->payload, 'event_type'),
+                                'Tanggal' => data_get($ticket->payload, 'event_date'),
+                                'Jam' => trim((data_get($ticket->payload, 'start_time') ?: '-') . ' - ' . (data_get($ticket->payload, 'end_time') ?: '-')),
+                                'Ruang/Lokasi' => data_get($ticket->payload, 'location'),
+                                'Jumlah Peserta' => data_get($ticket->payload, 'participant_count'),
+                                'Jenis Konsumsi' => data_get($ticket->payload, 'consumption_type'),
+                                'Atasan Approval' => data_get($ticket->payload, 'supervisor_name'),
+                                'PIC Kegiatan' => data_get($ticket->payload, 'pic_contact'),
+                                'Status BUM' => $workflowStatus,
+                            ])->filter(fn ($value) => filled($value) && $value !== '- -');
+                        } elseif ($requestType === 'atk_rtk') {
+                            $detailPayload = collect([
+                                'Judul Permintaan' => data_get($ticket->payload, 'request_subject'),
+                                'Jenis Barang' => data_get($ticket->payload, 'item_type'),
+                                'Jumlah Diminta' => data_get($ticket->payload, 'quantity'),
+                                'Jumlah Disetujui' => data_get($ticket->payload, 'approved_qty'),
+                                'Jumlah Diserahkan' => data_get($ticket->payload, 'fulfilled_qty'),
+                                'Tanggal Dibutuhkan' => data_get($ticket->payload, 'needed_date'),
+                                'Lokasi Pengiriman' => data_get($ticket->payload, 'delivery_location'),
+                                'PIC Penerima' => data_get($ticket->payload, 'recipient_pic'),
+                                'Atasan Approval' => data_get($ticket->payload, 'supervisor_name'),
+                                'Status BUM' => $workflowStatus,
+                            ])->filter(fn ($value) => filled($value));
+                        } elseif ($requestType === 'ga_request_finding') {
+                            $detailPayload = collect([
+                                'Jenis Laporan' => data_get($ticket->payload, 'report_type'),
+                                'Lokasi' => data_get($ticket->payload, 'location'),
+                                'Detail Lokasi' => data_get($ticket->payload, 'detail_location'),
+                                'Uraian' => data_get($ticket->payload, 'description'),
+                                'Ekspektasi Tindak Lanjut' => data_get($ticket->payload, 'expected_action'),
+                                'Kontak Pelapor' => data_get($ticket->payload, 'reporter_phone'),
+                                'Status BUM' => $workflowStatus,
+                            ])->filter(fn ($value) => filled($value));
+                        } else {
+                            $detailPayload = collect($ticket->payload)
+                                ->except(['request_type', 'request_label', 'submitted_at', 'workflow'])
+                                ->filter(fn ($value) => filled($value) && !is_array($value));
+                        }
+                    @endphp
+
+                    @if($detailPayload->isNotEmpty())
+                        <div class="row g-3">
+                            @foreach($detailPayload as $key => $value)
+                                <div class="col-md-6">
+                                    <div class="border rounded-3 p-3 h-100 bg-light bg-opacity-50">
+                                        <div class="text-muted text-uppercase small fw-bold mb-1">{{ str_replace('_', ' ', $key) }}</div>
+                                        <div class="text-dark fw-semibold">{{ $value }}</div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    @if(!empty(data_get($ticket->payload, 'workflow')))
+                        <div class="mt-4">
+                            <div class="text-muted text-uppercase small fw-bold mb-2">Workflow</div>
+                            <ol class="mb-0 ps-3 text-muted">
+                                @foreach(data_get($ticket->payload, 'workflow', []) as $step)
+                                    <li class="mb-2">{{ $step }}</li>
+                                @endforeach
+                            </ol>
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @endif
+
+            @if($ticket->attachments->isNotEmpty())
+            <div class="card-clean">
+                <div class="card-header-clean">
+                    <span class="header-title"><i class="bi bi-paperclip text-danger"></i> Lampiran</span>
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20 rounded-pill px-2">{{ $ticket->attachments->count() }}</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        @foreach($ticket->attachments as $attachment)
+                            <div class="col-md-6">
+                                <a href="{{ asset('storage/' . $attachment->file_path) }}" target="_blank" class="text-decoration-none">
+                                    <div class="border rounded-3 p-3 h-100 bg-light bg-opacity-50">
+                                        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                            <div class="fw-semibold text-dark">{{ $attachment->file_name }}</div>
+                                            <span class="badge bg-light text-dark border">{{ str_replace('_', ' ', $attachment->attachment_type ?? 'file') }}</span>
+                                        </div>
+                                        <div class="text-muted small">
+                                            {{ strtoupper($attachment->mime_type ?? '-') }} • {{ number_format(($attachment->size ?? 0) / 1024, 1) }} KB
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+            @endif
 
             {{-- 2. DISKUSI --}}
             <div class="card-clean">
@@ -285,15 +414,23 @@
                     <div class="row g-4">
                         <div class="col-6">
                             <span class="meta-label">Kategori</span>
-                            <span class="meta-value">{{ $ticket->category->name ?? '-' }}</span>
+                            <span class="meta-value">{{ $categoryLabel }}</span>
                         </div>
                         <div class="col-6">
                             <span class="meta-label">Layanan</span>
-                            <span class="meta-value">{{ $ticket->ticket_category->name ?? '-' }}</span>
+                            <span class="meta-value">{{ $serviceLabel }}</span>
                         </div>
-                        
-                        <div class="col-12"><div class="border-bottom border-dashed"></div></div>
 
+                        @if($isBumRequest)
+                        <div class="col-12">
+                            <div class="border-bottom border-dashed"></div>
+                        </div>
+                        <div class="col-12">
+                            <span class="meta-label">Status Proses</span>
+                            <span class="badge bg-light text-dark border px-3 py-2">{{ $workflowStatus }}</span>
+                        </div>
+                        @else
+                        <div class="col-12"><div class="border-bottom border-dashed"></div></div>
                         <div class="col-4">
                             <span class="meta-label">Priority</span>
                             <span class="fw-bold {{ ($ticket->priority->name ?? '') == 'High' ? 'text-danger' : 'text-dark' }}">
@@ -310,6 +447,7 @@
                             <span class="meta-label">Urgency</span>
                             <span class="fw-bold text-dark">{{ $ticket->urgency->name ?? '-' }}</span>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -318,7 +456,7 @@
             @if(auth()->user()->role == 'admin')
             <div class="card-clean border-top-4 border-warning" style="border-top: 4px solid var(--lrt-orange);">
                 <div class="card-header-clean bg-light">
-                    <span class="header-title text-dark"><i class="bi bi-shield-lock-fill text-warning"></i> Admin Zone</span>
+                    <span class="header-title text-dark"><i class="bi bi-shield-lock-fill text-warning"></i> {{ $isBumRequest ? 'Kontrol Status' : 'Admin Zone' }}</span>
                 </div>
                 <div class="card-body p-4">
                     
@@ -337,6 +475,7 @@
 
                     <div class="separator"></div>
 
+                    @if(!$isBumRequest)
                     <form action="{{ route('ticket.assign', $ticket->id) }}" method="POST">
                         @csrf
                         <div class="row g-3">
@@ -364,6 +503,107 @@
                                 </button>
                             </div>
                         </div>
+                    </form>
+                    @else
+                        <div class="alert border-0 mb-0" style="background:#eef7fb; color:#0e5f74;">
+                            Request ini diproses lewat alur BUM, jadi tidak memakai assign teknisi.
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @endif
+
+            @if($pendingApproval && ((int) $pendingApproval->approver_id === (int) auth()->id() || auth()->user()->role === 'admin'))
+            <div class="card-clean">
+                <div class="card-header-clean">
+                    <span class="header-title"><i class="bi bi-check2-square text-danger"></i> Approval Atasan</span>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ route('ticket.approve', $ticket) }}" method="POST" class="row g-3">
+                        @csrf
+                        <input type="hidden" name="approval_id" value="{{ $pendingApproval->id }}">
+                        <div class="col-12">
+                            <select name="status" class="form-select" required>
+                                <option value="approved">Approve</option>
+                                <option value="rejected">Reject</option>
+                            </select>
+                        </div>
+                        <div class="col-12"><textarea name="note" class="form-control" rows="2" placeholder="Catatan approval"></textarea></div>
+                        <div class="col-12"><button class="btn btn-primary w-100">Simpan Approval</button></div>
+                    </form>
+                </div>
+            </div>
+            @endif
+
+            @if($requestType === 'atk_rtk')
+            <div class="card-clean">
+                <div class="card-header-clean">
+                    <span class="header-title"><i class="bi bi-box-seam text-danger"></i> Proses ATK/RTK</span>
+                    <span class="badge bg-light text-dark border">{{ $workflowStatus }}</span>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ route('ticket.atk-rtk.bum-review', $ticket) }}" method="POST" class="row g-2 mb-4">
+                        @csrf
+                        <div class="col-12">
+                            <label class="meta-label">Review BUM</label>
+                            <select name="workflow_status" class="form-select">
+                                <option value="STOCK_CHECKED">Stock Checked</option>
+                                <option value="WAITING_PROCUREMENT">Waiting Procurement</option>
+                                <option value="READY_TO_HANDOVER">Ready To Handover</option>
+                                <option value="CANCELLED">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-12"><input type="number" min="0" name="approved_qty" class="form-control" value="{{ data_get($ticket->payload, 'approved_qty', data_get($ticket->payload, 'quantity')) }}" placeholder="Qty approved"></div>
+                        <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan BUM"></textarea></div>
+                        <div class="col-12"><button class="btn btn-outline-primary w-100">Simpan Review</button></div>
+                    </form>
+
+                    <form action="{{ route('ticket.atk-rtk.handover', $ticket) }}" method="POST" class="row g-2">
+                        @csrf
+                        <div class="col-12">
+                            <label class="meta-label">Handover Barang</label>
+                            <select name="item_id" class="form-select select2-bs5" data-placeholder="Cari item stok" required>
+                                <option value="">Pilih item stok</option>
+                                @foreach($consumableItems as $item)
+                                    <option value="{{ $item->id }}" @selected(data_get($ticket->payload, 'item_id') == $item->id)>{{ $item->code }} - {{ $item->name }} (stok {{ $item->current_stock }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-6"><input type="number" min="1" name="fulfilled_qty" class="form-control" value="{{ data_get($ticket->payload, 'approved_qty', data_get($ticket->payload, 'quantity', 1)) }}" required></div>
+                        <div class="col-6"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
+                        <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
+                        <div class="col-12"><button class="btn btn-primary w-100">Handover & Kurangi Stok</button></div>
+                    </form>
+                </div>
+            </div>
+            @endif
+
+            @if($requestType === 'consumption')
+            <div class="card-clean">
+                <div class="card-header-clean">
+                    <span class="header-title"><i class="bi bi-cup-hot text-danger"></i> Proses Konsumsi</span>
+                    <span class="badge bg-light text-dark border">{{ $workflowStatus }}</span>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ route('ticket.consumption.flow', $ticket) }}" method="POST" class="row g-2 mb-4">
+                        @csrf
+                        <div class="col-12"><select name="workflow_status" class="form-select"><option>APPROVED_BY_BUM</option><option>ORDERED_TO_VENDOR</option><option>RECEIVED</option><option>WAITING_ACCOUNTABILITY</option><option>REPORTED</option><option>CLOSED</option><option>CANCELLED</option></select></div>
+                        <div class="col-12"><input name="vendor_name" class="form-control" value="{{ data_get($ticket->payload, 'vendor_name') }}" placeholder="Vendor"></div>
+                        <div class="col-6"><input type="date" name="order_date" class="form-control" value="{{ data_get($ticket->payload, 'order_date') }}"></div>
+                        <div class="col-6"><input type="date" name="receipt_date" class="form-control" value="{{ data_get($ticket->payload, 'receipt_date') }}"></div>
+                        <div class="col-6"><input type="number" min="0" name="estimated_cost" class="form-control" value="{{ data_get($ticket->payload, 'estimated_cost') }}" placeholder="Estimasi"></div>
+                        <div class="col-6"><input type="number" min="0" name="actual_cost" class="form-control" value="{{ data_get($ticket->payload, 'actual_cost') }}" placeholder="Aktual"></div>
+                        <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan order/verifikasi">{{ data_get($ticket->payload, 'notes') }}</textarea></div>
+                        <div class="col-12"><button class="btn btn-outline-primary w-100">Update Konsumsi</button></div>
+                    </form>
+
+                    <form action="{{ route('ticket.consumption.evidence', $ticket) }}" method="POST" enctype="multipart/form-data" class="row g-2">
+                        @csrf
+                        <div class="col-12"><label class="meta-label">Upload Pertanggungjawaban</label></div>
+                        <div class="col-12"><input type="file" name="attendance_file" class="form-control"></div>
+                        <div class="col-12"><input type="file" name="documentation_file" class="form-control"></div>
+                        <div class="col-12"><input type="file" name="activity_report_file" class="form-control"></div>
+                        <div class="col-12"><button class="btn btn-primary w-100">Upload Evidence</button></div>
                     </form>
                 </div>
             </div>

@@ -1,0 +1,154 @@
+code,name,category,unit,unit_price,minimum_stock,buffer_stock,current_stock,location,is_active
+I.1,Amplop Besar Perusahaan (1 Rim = 100 lbr),ATK,Rim,3300,100,100,12,GA02,1
+I.2,Amplop kecil perusahaan (1 Rim = 100 lbr),ATK,Rim,2100,100,100,22,GA02,1
+I.3,Kop surat hal. Pertama (1 Rim = 100 lbr),ATK,Rim,124500,3,3,9,GA03,1
+I.4,Kop surat hal. Kedua (1 Rim = 100 lbr),ATK,Rim,155000,3,3,17,GA03,1
+I.5,Amplop Putih uk. No.90 Putih 110x230mm (1box=100pcs) Ex. Paperline,ATK,Dus,275,3,3,53,AC05,1
+I.6,Amplop No.104 Putih 95x152mm (1box=100pcs) Ex. Paperline,ATK,Dus,165,3,3,94,AD01,1
+I.7,Amplop coklat ukuran F4 Neuro ( 1 Dus = 50 Lbr),ATK,Dus,385,5,5,6,,1
+I.8,Baterai ukuran AA ex. ABC (1 Dus =24 Set),ATK,Dus,16500,25,25,11,AA03,1
+I.9,Baterai ukuran AAA ex. ABC (1 Dus = 24 Set),ATK,Dus,16500,25,25,5,AA03,1
+I.10,Baterai ukuran D ex. ABC (1 Dus = 24 Set),ATK,Dus,8800,30,30,3,AA03,1
+I.11,Box file Bantex 4011 (1 Dus =25 Pcs),ATK,Dus,33000,20,20,3,CA05,1
+I.12,Bindex Ordner Paper Lever Arch File 717-15 Blue Folio 75mm ( 1 Dus = 12 Pcs),ATK,Dus,42350,20,20,20,CB05,1
+I.13,Bantex Ordner 1465 (1 Dus = 15 Pcs),ATK,Dus,36300,20,20,6,CB03,1
+I.14,Bantex Display Book A4 3145 (40 Pockets),ATK,Dus,74250,2,2,2,AC02,1
+I.15,Binder clip no. 105 Ex. Joyko (1 pack = 12 dus),ATK,Dus,6554,10,10,45,AB02,1
+I.16,Binder clip no. 107 Ex. Joyko (1 pack = 12 dus),ATK,Dus,3226,10,10,45,BB02,1
+I.17,Binder clip no. 111 Ex. Joyko (1 pack = 12 dus),ATK,Dus,5041,10,10,53,BB02,1
+I.18,Binder clip no. 155 Ex. Joyko (1 pack = 12 dus),ATK,Dus,7058,10,10,59,AA02,1
+I.19,Binder clip no. 200 Ex. Joyko (1 pack = 12 Pcs),ATK,Dus,18150,3,3,66,BB01,1
+I.20,Binder clip no. 260 Ex. Joyko (1 pack = 12 Pcs),ATK,Dus,18150,20,20,77,AA01,1
+I.21,Trigonal clips No.1 Ex. Joyko (1 box=10 Dus),ATK,Dus,1936,15,15,11,BB03,1
+I.22,Trigonal clips No.3 Ex. Joyko (1 box=10 Dus),ATK,Dus,1815,4,4,7,BB03,1
+I.23,Buku Folio( 1 Pack Isi = 5 Pcs,ATK,Pack,24200,5,5,7,AC03,1
+I.24,Clear Holder F4 isi 60 pocket,ATK,Pcs,33000,6,6,62,AD02,1
+I.25,Clear Sleeves Map Bening (1 Pack = 12 Pcs),ATK,Pack,2750,6,6,33,,1
+I.26,Papan jalan kayu,ATK,Pcs,6600,3,3,24,,1
+I.27,Cutter kenko A-300 (1 Dus =12 Pcs),ATK,Dus,12650,8,8,6,AC03,1
+I.28,Devider 5220 A4(20) ex. Bambi (1 Pack = 12 Pcs),ATK,Pack,35000,10,10,26,AD04,1
+I.29,Devider 5221 F4(20) ex. Bambi,ATK,Pack,42900,7,7,0,,1
+I.30,Devider 6010 Bantex,ATK,Set,27500,15,15,0,,1
+I.31,"Double tape 3M 1""",ATK,Pcs,55000,150,150,59,AD04,1
+I.32,Double tape Kenko,ATK,Pcs,7700,10,10,42,AD04,1
+I.33,Gunting Uk. Sedang,ATK,Pcs,7700,3,3,30,AA04,1
+I.34,Corection tape ( 1 Dus = 12 Pcs),ATK,Dus,7700,10,10,5,BB03,1
+I.35,Kartu RFID,ATK,Pcs,11000,1,1,0,,1
+I.36,Kabel HDMI,ATK,Pcs,440000,5,5,0,,1
+I.37,Kalkulator Casio MX-12B,ATK,Pcs,82500,6,6,25,AB03,1
+I.38,Kertas A4 70gr Ex. Sidu,ATK,Dus,44000,60,60,92,GA01,1
+I.39,Kertas F4 70 gr Ex. Sidu,ATK,Dus,55000,4,4,25,GA02,1
+I.40,Kertas A3 70 gr Ex. Sidu,ATK,Dus,88000,4,4,2,GA01,1
+I.41,Label Sticker BROTHER P-Touch E850 TKU 18ml (Black on White),ATK,Dus,330000,6,6,24,AA03,1
+I.42,"Lakban hitam 5 cm Linen 2"" Ex.Daimaru",ATK,Pcs,18150,70,70,50,AD04,1
+I.43,"Lakban Merah 5 cm Linen 2"" Ex.Daimaru",ATK,Pcs,18150,20,20,60,AD04,1
+I.44,"Lakban Kuning 5 cm Linen 2"" Ex.Daimaru",ATK,Pcs,18150,20,20,28,AD04,1
+I.45,Lakban Bening Besar (1 pack =6 pcs),ATK,Pack,8800,8,8,7,AD04,1
+I.46,Lakban Bening Kecil(1 pack =12 Pcs),ATK,Pack,3850,2,2,4,AD04,1
+I.47,Laser Pointer untuk TV,ATK,Pcs,715000,5,5,5,AC03,1
+I.48,Lem kertas stick 15gr Ex. Kenko (1 Dus = 20 Pcs),ATK,Dus,5500,2,2,3,AA03,1
+I.49,Map Bening - Tali (1 Pack = 12 Pcs),ATK,Pack,4400,6,6,17,AC04,1
+I.50,Penggaris Plastik 30 cm Ex. Butterfly,ATK,Dus,5500,12,12,4,AA03,1
+I.51,Pensil 2B Steadler (1 box = 12 pcs),ATK,Dus,4125,3,3,0,AA03,1
+I.52,Pembolong kertas / Punch no.30 Ex. Joyko,ATK,Pcs,14300,2,2,14,AA03,1
+I.53,Pilot Pen Ball Linear (1 Lusin = 12 Pcs),ATK,Dus,13750,1,1,28,AA04,1
+I.54,Plastik bambi ordner 5221(1 Dus= 1000 Pcs),ATK,Dus,33000,10,10,0,BB01,1
+I.55,Paper/Letter Tray 3 susun ex. Microdot,ATK,Pcs,99000,5,5,14,AD05,1
+I.56,Refill Stapler HD 10 ex. Max Staples No.10-1M 5/16x3/16Inch (1Box=20 Dus),ATK,Pack,3630,25,25,7,AC03,1
+I.57,Refill Stapler HD 50 ex. Max Staples No.3-1M 1/2x1/4Inch (1 Box=20 dus),ATK,Pack,11733,5,5,3,AC03,1
+I.58,Refill Cutter kenko A-300 (1Dus = 12 Pcs),ATK,Pack,5500,2,2,5,AC03,1
+I.59,Stopmap besar Biola 5002 (1 Dus = 50 Pcs),ATK,Pack,1254,1,1,3,AC02,1
+I.60,Stabilo Boss 70 (1 Dus =10 Pcs),ATK,Dus,9900,4,4,6,AA03,1
+I.61,Penghapus Pensil (1 Dus = 20 Pcs),ATK,Dus,4730,20,20,1,AA03,1
+I.62,Stapler HD 10 ex. Joyko (1 dus = 12 Pcs),ATK,Dus,9900,50,50,3,AC03,1
+I.63,Stapler HD 50 ex. Joyko (1 Dus = 10 Pcs),ATK,Dus,20900,2,2,4,AC03,1
+I.64,Sign Here Ex.Pronto (1 Dus = 25 Pcs),ATK,Dus,17600,1,1,2,AA03,1
+I.65,Snelhekter Map / Business file (Clear) ex. Daichi (Pcs),ATK,Pcs,5500,50,50,276,AC02,1
+I.66,Spidol white board BG-12 ex. Snowman (1 Dus = 12 Pcs),ATK,Dus,9900,10,10,14,,1
+I.67,Snowman Permanent Paint Marker Putih (1 Pack isi 12 Pcs),ATK,Dus,13750,10,10,0,,1
+I.68,Snowman Permanent Marker G-12 Hitam (1 Pak isi 12 Pcs),ATK,Dus,6416,3,3,8,AA04,1
+I.69,Sticky Note 654 Ex. 3M Post it ( 1 Dus = 12 Pcs),ATK,Dus,13200,3,3,4,AA03,1
+I.70,Sticky Note 670 Ex. 3M Post it (1 Dus = 6 Pcs),ATK,Dus,36300,3,3,10,,1
+I.71,Whiteboard Eraser Ex. Joyko,ATK,Pack,11000,2,2,14,AB03,1
+I.72,Tempat Pensil Joyko,ATK,Dus,22000,12,12,2,AD02,1
+I.73,Flash disk 32Gb ex sandisk,ATK,Pcs,157300,1,1,15,AC03,1
+I.74,Kertas concorde A4 90gr,ATK,Pack,18150,8,8,18,AC04,1
+I.75,Pulpen Standard F2 0.7 ( 1 Dus = 12 Pcs),ATK,Dus,9075,3,3,24,AA04,1
+I.76,Remover Stapler 9355 ex Bantex,ATK,Pcs,15730,6,6,23,AB03,1
+I.77,Wireless Mouse M185 Logitech,ATK,Pcs,275000,2,2,0,AC03,1
+I.78,Tom & Jerry label 103 (1 dus = 25 pack ),ATK,Dus,7744,2,2,4,BB03,1
+I.79,Hardisk Eksternal SSD 1T,ATK,Pcs,2000000,1,1,0,AC03,1
+I.80,Kertas Flip Chart 60 X 90 cm,ATK,Roll,150000,10,10,25,AC05,1
+I.81,Kofu storage file boxes 42.5 x 37 x 30cm (1 Ikat = 10 Pcs),ATK,Pack,46000,100,100,9,A Floor,1
+I.82,Map Batik ex Bantex (1 box isi 10 pcs),ATK,Pack,13500,2,2,10,,1
+I.83,Nota Kontan Kecil ex Paperline,ATK,Pcs,20000,3,3,9,AB03,1
+I.84,Buku Kwitansi ex paperline,ATK,Pack,25000,2,2,23,AB03,1
+I.85,Buku Catatan Ring NoteBook,ATK,Pcs,12500,20,20,20,BD04,1
+I.86,"Spidol Snowman Paint Maker CP-12, WP-12",ATK,Pcs,15900,0,0,4,,1
+I.87,Pembatas Kertas,ATK,Pcs,21800,10,10,10,BD04,1
+I.88,Pulpen Serasa,ATK,Dus,15900,5,5,11,AA4,1
+I.89,Spidol Snowman Paint Maker Wahite,ATK,Dus,200000,0,0,7,,1
+II.1,Kanebo Ex. Kenmaster,RTK,Pcs,33000,1,1,20,CA04,1
+II.2,Kain Majun,RTK,kg,38500,3,3,0,,1
+II.3,Obat Nyamuk 600 mL Ex. Baygon,RTK,Pcs,38500,8,8,39,CA04,1
+II.4,Pembersih Kaca - Ex. Mr Clean Refill 500mL,RTK,bottle,7700,2,2,0,,1
+II.5,Pembersih Furniture - Lemon Pledge Refill 450mL,RTK,Pcs,30800,2,2,42,CA04,1
+II.6,Refill Pengharum Ruangan Matic Ex. Stella ( 1 Dus = 12 Pcs),RTK,Dus,38500,50,50,2,CA05,1
+II.7,Sunlight 435ML,RTK,pack,14300,8,8,16,,1
+II.8,Spons Ex.Scotch Brite,RTK,Pcs,8800,5,5,27,CA03,1
+II.9,Trash Bag 90x120 ( 1 Pck = 5 Pcs),RTK,Pack,22000,15,15,125,BD02,1
+II.10,Trash Bag 50 x 75 / 60 x 80 ( 1 Pack = 9-10 Pcs),RTK,Pack,22000,15,15,157,BD03,1
+II.11,Tissue Paseo ( 1 Dus = 48 Pcs),RTK,Dus,13200,85,85,19,A Floor,1
+II.12,Tissue Handtowel ( 1  Dus =20 Pcs),RTK,Dus,12100,85,85,87,A Floor,1
+II.13,Tissue Toilet - Roll ( 1 dus= 120 Pcs),RTK,Dus,4965,500,500,20,A Floor,1
+II.14,Hand Sanitizer 5 Liter,RTK,Jerigen,209000,5,5,0,,1
+II.15,Dettol Cair/Disinfektan 750 mL,RTK,Botol,165000,5,5,0,,1
+II.16,Detergent Cair 750ml ex rinso,RTK,Pcs,33000,3,3,13,CA02,1
+II.17,Pewangi Toilet Calmic Cair 50 ml (include tatakan & kertas serap),RTK,Pcs,48400,8,8,0,CA04,1
+II.18,Kamper Ball Gantung 150g ex swallow,RTK,Pack,29040,8,8,17,BA04,1
+II.19,Pewangi urinoir 1 pack isi 10 pcs ex krisbow,RTK,Pack,34100,6,6,43,CB03,1
+II.20,Sarung Tangan Plastik Food Grade 1 pack isi 100 pcs ex Bagus,RTK,Pack,38500,4,4,9,BB04,1
+II.21,Plastik Wrapping Food Grade,RTK,Pack,35000,8,8,16,BA04,1
+II.22,Kain Lap Kotak / Serbet (1 pack isi 12 pcs),RTK,Pack,100000,2,2,6,BB04,1
+II.23,Stella Matic Air (alat),RTK,Pcs,88030,24,24,40,CA05,1
+III.1,Gelas Kertas Non Brand 1 Dus = 20 Pack,RTK,Pcs,258000,10,10,39,CA06,1
+III.2,Gula Ex.Gulaku 1 kg,RTK,Pack,17600,15,15,54,BA04,1
+III.3,Krimer Ex. Max Creamer Non Dairy Creamer 3g (1bag=50sachet),RTK,Pack,38500,4,4,25,BA04,1
+III.4,Kopi Indocafe 180gr,RTK,Pcs,50600,10,10,41,BB04,1
+III.5,Kopi Kapal Api,RTK,pcs,27500,9,9,58,,1
+III.6,Kopi Sachet Ex. Indocafe Coffeemix 3In1 Bag 20g (1 bag=100pcs),RTK,Pack,1650,4,4,0,BA02,1
+III.7,Sendok Makan Ex. Doll,RTK,lusin,75900,3,3,0,,1
+III.8,Teh Ex. Poci (1 pack = 25 pcs),RTK,pack,9900,15,15,0,BA05,1
+III.9,Gula Sachet ex Gulaku 1 pack isi 250pcs @8gr,RTK,Pack,42350,3,3,3,BA04,1
+III.10,Energen 1 bag 20 sachet,RTK,Pack,3327,5,5,50,BA03,1
+III.11,Max tea lemon tea 1 bag isi 30 pcs,RTK,Pack,2016,4,4,8,BA03,1
+III.12,Susu Bubuk Milo 800gr,RTK,Pcs,157300,5,5,10,BB02,1
+III.13,Kental Manis,RTK,Pcs,15000,10,10,22,BA04,1
+III.14,Permen Kopiko 150 gr (1 Pack isi 60pcs),RTK,Pack,18150,30,30,54,BA04,1
+III.15,Permen Relaxa 200g 1 pack isi 50 pcs,RTK,Pack,12100,10,10,45,BA04,1
+III.16,Permen Fresh'N Free sugarfree sweetlets 100gr,RTK,Pack,18700,10,10,39,BA04,1
+III.17,Sendok plastik makan ex KCS 1 pack isi 100,RTK,Pack,18150,5,5,34,BB04,1
+III.18,Piring Makan Kertas,RTK,Pack,40000,4,4,36,BB04,1
+III.19,Pewangi Pakaian Molto,RTK,PCs,15000,0,0,50,CA1,1
+III.20,Kopi Excelso,RTK,Pcs,0,10,10,11,,1
+III.21,Pengharum Mobil,RTK,Pcs,21000,30,30,0,CA3,1
+III.22,Mangkok Plastik (1 Pack = 50 Pcs),RTK,Pack,19600,3,3,16,BB03,1
+III.23,Susu UHT Full Cream Uk.1000Ml,RTK,Dus,275000,3,3,1,Gudang Tengah,1
+III.24,Tutup Gelas Kertas,RTK,Pack,46000,1,1,6,BB03,1
+III.25,Zetalux Lampu Backdrop,RTK,PCS,40000,5,5,0,A Floor,1
+III.26,Led BUIB 10 watt Kuning,RTK,Pcs,42000,31,31,96,A Floor,1
+III.27,Led Sujicon,RTK,Pcs,70000,9,9,9,A Floor,1
+III.28,Led Filament 5 Watt,RTK,Pcs,72100,5,5,5,A Floor,1
+III.29,Led.Filament 4 Watt,RTK,Pcs,72100,40,40,40,A Floor,1
+III.30,Led. Philips 8 watt,RTK,Pcs,37425,100,100,80,A Floor,1
+III.31,Led BuiB 10 watt Putih,RTK,Pcs,42000,35,35,84,A Floor,1
+III.32,Kran Wudhu,RTK,Pcs,176000,5,5,5,A Floor,1
+III.33,Jet Shower,RTK,Pcs,380000,8,8,2,A Floor,1
+III.34,Kran Wastafel,RTK,Pcs,650000,6,6,5,A Floor,1
+III.35,In-Lite 7 watt/Kuning,RTK,Pcs,38476,15,15,9,A Floor,1
+III.36,In-Lite 8 watt/Kuning,RTK,Pcs,50892,33,33,23,A Floor,1
+III.37,Artalux 6500K,RTK,pcs,740000,20,20,5,A Floor,1
+III.38,Philiph Led TL 16 Watt,RTK,pcs,45876,500,500,440,A Floor,1
+III.39,Tempat Tisu TOTO,RTK,pcs,125000,5,5,5,A Floor,1
+III.40,Dekso Kunci Jendela,RTK,pcs,40000,10,10,8,A Floor,1
+III.41,Huben Kunci Lemari,RTK,pcs,125000,20,20,20,A Floor,1

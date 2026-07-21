@@ -1,0 +1,64 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: satset-app
+    container_name: satset-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      - satset-network
+    depends_on:
+      - db
+      - redis
+
+  nginx:
+    image: nginx:alpine
+    container_name: satset-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    networks:
+      - satset-network
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    container_name: satset-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - satset-network
+  adminer:  
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    
+
+  redis:
+    image: redis:alpine
+    container_name: satset-redis
+    networks:
+      - satset-network
+
+networks:
+  satset-network:
+    driver: bridge
+
+
+
+volumes:
+  dbdata:

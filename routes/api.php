@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 // Import Controller yang baru dibuat
 use App\Http\Controllers\Api\V1\MasterApiController;
 use App\Http\Controllers\Api\V1\TicketApiController;
+use App\Http\Controllers\Api\V1\BumAnalyticsApiController;
 use App\Models\Master\TicketFormSchema;
 use App\Http\Controllers\Master\TicketFormSchemaController;
 /*
@@ -20,6 +21,17 @@ use App\Http\Controllers\Master\TicketFormSchemaController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
+});
+
+Route::prefix('/bum/analytics')->group(function () {
+    Route::get('/summary', [BumAnalyticsApiController::class, 'summary']);
+    Route::get('/usage-trend', [BumAnalyticsApiController::class, 'usageTrend']);
+    Route::get('/usage-forecast', [BumAnalyticsApiController::class, 'usageForecast']);
+    Route::get('/stock-forecast', [BumAnalyticsApiController::class, 'stockForecast']);
+    Route::get('/request-trend', [BumAnalyticsApiController::class, 'requestTrend']);
+    Route::get('/meeting-consumption-trend', [BumAnalyticsApiController::class, 'meetingConsumptionTrend']);
+    Route::get('/receiving-trend', [BumAnalyticsApiController::class, 'receivingTrend']);
+    Route::get('/procurement-recommendation', [BumAnalyticsApiController::class, 'procurementRecommendation']);
 });
 
 // ========================================================================
@@ -50,6 +62,17 @@ Route::prefix('v1')->group(function () {
     Route::get('/tickets/{id}', [TicketApiController::class, 'show']);
 
     Route::get('/ticket-form-schema/{category}', [TicketFormSchemaController::class, 'getSchemaApi']);
+
+    Route::prefix('/bum/analytics')->group(function () {
+        Route::get('/summary', [BumAnalyticsApiController::class, 'summary']);
+        Route::get('/usage-trend', [BumAnalyticsApiController::class, 'usageTrend']);
+        Route::get('/usage-forecast', [BumAnalyticsApiController::class, 'usageForecast']);
+        Route::get('/stock-forecast', [BumAnalyticsApiController::class, 'stockForecast']);
+        Route::get('/request-trend', [BumAnalyticsApiController::class, 'requestTrend']);
+        Route::get('/meeting-consumption-trend', [BumAnalyticsApiController::class, 'meetingConsumptionTrend']);
+        Route::get('/receiving-trend', [BumAnalyticsApiController::class, 'receivingTrend']);
+        Route::get('/procurement-recommendation', [BumAnalyticsApiController::class, 'procurementRecommendation']);
+    });
     
 
     /*

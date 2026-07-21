@@ -1,8 +1,8 @@
 @extends('partials.layouts.master')
 
 @section('title', 'Data Ticket | SatSet System')
-@section('title-sub', 'Ticket Management')
-@section('pagetitle', 'Ticket List')
+@section('title-sub', 'General Request')
+@section('pagetitle', 'General Request')
 
 @section('content')
 
@@ -16,9 +16,12 @@
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
                         <div>
                             <h4 class="fw-bold mb-1">Ticket Management</h4>
-                            <p class="text-muted mb-0">Pantau dan kelola semua permintaan bantuan teknis di sini.</p>
+                            <p class="text-muted mb-0">Pantau dan kelola request general yang sudah ada di sini.</p>
                         </div>
                         <div class="d-flex gap-2">
+                            <a href="{{ route('ticket.index') }}" class="btn btn-light border shadow-sm px-4">
+                                <i class="bi bi-grid me-1"></i> Menu Requests
+                            </a>
                             <a href="{{ route('ticket.create') }}" class="btn btn-primary shadow-sm px-4">
                                 <i class="bi bi-plus-lg me-1"></i> Buat Ticket Baru
                             </a>
@@ -30,7 +33,7 @@
             {{-- 2. FILTER & SEARCH TOOLBAR --}}
             <div class="card border-0 mb-4 shadow-sm" style="border-radius: 12px;">
                 <div class="card-body p-3">
-                    <form id="filter-form" method="GET" action="{{ route('ticket.index') }}">
+                    <form id="filter-form" method="GET" action="{{ route('ticket.general') }}">
                         <div class="row g-3 align-items-center">
                             {{-- Search --}}
                             <div class="col-md-4">
@@ -70,7 +73,7 @@
                             </div>
 
                             <div class="col-md-2">
-                                <a href="{{ route('ticket.index') }}" class="btn btn-outline-danger w-100">Reset</a>
+                                <a href="{{ route('ticket.general') }}" class="btn btn-outline-danger w-100">Reset</a>
                             </div>
                         </div>
                     </form>
@@ -116,13 +119,19 @@
                                     <tr>
                                         {{-- Ticket Info --}}
                                         <td class="ps-4 py-3">
+                                            @php
+                                                $requestTypeLabel = data_get($ticket->payload, 'request_label', 'General');
+                                            @endphp
                                             <div class="d-flex align-items-center gap-3">
                                                 <div class="avatar-sm bg-soft-{{ $statusColor }} text-{{ $statusColor }} rounded d-flex align-items-center justify-content-center fw-bold" style="min-width: 40px; height: 40px;">
                                                     <i class="bi bi-ticket-perforated fs-5"></i>
                                                 </div>
                                                 <div>
                                                     <h6 class="fw-bold mb-0 text-dark">{{ $ticket->title }}</h6>
-                                                    <small class="text-muted fw-medium">{{ $ticket->ticket_no }}</small>
+                                                    <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                                                        <small class="text-muted fw-medium">{{ $ticket->ticket_no }}</small>
+                                                        <span class="badge bg-light text-dark border">{{ $requestTypeLabel }}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>

@@ -17,6 +17,7 @@ use App\Models\Master\Department;
 use App\Models\Master\Comment;
 use App\Models\Master\TicketHistory;
 use App\Models\Master\TicketCategory;
+use App\Models\Master\Attachment;
 
 class Ticket extends Model
 {
@@ -37,7 +38,9 @@ class Ticket extends Model
         'payload',
         'resolved_at',
         'closed_at',
-        'ticket_category_id'
+        'ticket_category_id',
+        'assigned_user_id',
+        'assigned_department_id',
     ];
 
     public function requester(): BelongsTo
@@ -103,6 +106,11 @@ class Ticket extends Model
     public function comments()
     {
         return $this->hasMany(Comment::class, 'request_id', 'id');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(Attachment::class, 'request_id', 'id');
     }
 
     public function categoryticket()

@@ -13,6 +13,7 @@ class TicketCreated extends Mailable
 
     public $ticket;
     public $recipientType;
+    public $actionType;
 
     public function __construct(Ticket $ticket, string $recipientType = 'requester', string $actionType = 'created')
     {
@@ -23,11 +24,13 @@ class TicketCreated extends Mailable
 
     public function build()
     {
+        $requestLabel = data_get($this->ticket->payload, 'request_label', 'Ticket');
+
         $subject = $this->actionType === 'status_updated'
-            ? "Update Status Ticket #{$this->ticket->ticket_no}"
+            ? "Update Status {$requestLabel} #{$this->ticket->ticket_no}"
             : ($this->recipientType === 'requester' 
-                ? "Konfirmasi Ticket #{$this->ticket->ticket_no} Anda" 
-                : "Ticket Baru #{$this->ticket->ticket_no} Masuk ke Departemen Anda");
+                ? "Konfirmasi {$requestLabel} #{$this->ticket->ticket_no} Anda" 
+                : "{$requestLabel} Baru #{$this->ticket->ticket_no} Masuk ke Departemen Anda");
 
         return $this->subject($subject)
             ->view('emails.ticket_created')

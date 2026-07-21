@@ -154,6 +154,7 @@
             
             <form id="ticketForm" action="{{ route('ticket.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
+                <input type="hidden" name="request_type" value="general">
                 
                 {{-- HEADER SECTION --}}
                 <div class="card-modern mb-4">
@@ -293,7 +294,7 @@
                             </div>
                             
                             <div class="d-flex gap-2 w-100 w-md-auto">
-                                <a href="{{ route('ticket.index') }}" class="btn btn-light border w-50 w-md-auto py-2 fw-semibold text-muted">Batal</a>
+                                <a href="{{ route('ticket.general') }}" class="btn btn-light border w-50 w-md-auto py-2 fw-semibold text-muted">Batal</a>
                                 <button type="submit" id="btnSubmit" class="btn btn-primary btn-submit w-50 w-md-auto text-white">
                                     <i class="bi bi-send-fill me-2"></i> Kirim Tiket
                                 </button>

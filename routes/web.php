@@ -16,6 +16,8 @@ use App\Http\Controllers\MeetingRoomController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\VCardController;
 use App\Http\Controllers\Master\TicketFormSchemaController;
+use App\Http\Controllers\Master\BumInventoryController;
+use App\Http\Controllers\Master\BumAnalyticsController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -51,12 +53,55 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::get('dashboard', [dashboardController::class, 'index'])->name('dashboard.index');
 
     // Ticket
+    Route::get('/ticket/general', [App\Http\Controllers\Master\TicketController::class, 'generalIndex'])
+        ->name('ticket.general');
+    Route::get('/ticket/permintaan-konsumsi/create', [App\Http\Controllers\Master\TicketController::class, 'createConsumption'])
+        ->name('ticket.konsumsi.create');
+    Route::get('/ticket/atk-rtk/create', [App\Http\Controllers\Master\TicketController::class, 'createAtkRtk'])
+        ->name('ticket.atk-rtk.create');
+    Route::get('/ticket/ga-permintaan-temuan/create', [App\Http\Controllers\Master\TicketController::class, 'createGaRequestFinding'])
+        ->name('ticket.ga-permintaan-temuan.create');
+    Route::get('/ticket/gudang-atk-rtk', [App\Http\Controllers\Master\TicketController::class, 'warehouseAtkRtk'])
+        ->name('ticket.atk-rtk.warehouse');
+    Route::prefix('bum')->name('bum.')->group(function () {
+        Route::get('/dashboard', [BumInventoryController::class, 'dashboard'])->name('dashboard');
+        Route::get('/manual-guide', fn () => view('bum.manual-guide'))->name('guide');
+        Route::get('/analytics', [BumAnalyticsController::class, 'index'])->name('analytics');
+        Route::prefix('analytics/data')->name('analytics.data.')->group(function () {
+            Route::get('/summary', [BumAnalyticsController::class, 'summary'])->name('summary');
+            Route::get('/usage-trend', [BumAnalyticsController::class, 'usageTrend'])->name('usage-trend');
+            Route::get('/usage-forecast', [BumAnalyticsController::class, 'usageForecast'])->name('usage-forecast');
+            Route::get('/stock-forecast', [BumAnalyticsController::class, 'stockForecast'])->name('stock-forecast');
+            Route::get('/request-trend', [BumAnalyticsController::class, 'requestTrend'])->name('request-trend');
+            Route::get('/meeting-consumption-trend', [BumAnalyticsController::class, 'meetingConsumptionTrend'])->name('meeting-consumption-trend');
+            Route::get('/receiving-trend', [BumAnalyticsController::class, 'receivingTrend'])->name('receiving-trend');
+            Route::get('/procurement-recommendation', [BumAnalyticsController::class, 'procurementRecommendation'])->name('procurement-recommendation');
+        });
+        Route::get('/items', [BumInventoryController::class, 'items'])->name('items');
+        Route::post('/items', [BumInventoryController::class, 'storeItem'])->name('items.store');
+        Route::post('/items/{item}/stock-adjustment', [BumInventoryController::class, 'adjustItemStock'])->name('items.stock-adjustment');
+        Route::get('/items/{item}', [BumInventoryController::class, 'showItem'])->name('items.show');
+        Route::put('/items/{item}', [BumInventoryController::class, 'updateItem'])->name('items.update');
+        Route::get('/stock-card', [BumInventoryController::class, 'stockCard'])->name('stock-card');
+        Route::get('/receivings', [BumInventoryController::class, 'receivings'])->name('receivings');
+        Route::post('/receivings', [BumInventoryController::class, 'storeReceiving'])->name('receivings.store');
+        Route::post('/receivings/{receiving}/receive', [BumInventoryController::class, 'receive'])->name('receivings.receive');
+        Route::get('/opnames', [BumInventoryController::class, 'opnames'])->name('opnames');
+        Route::post('/opnames', [BumInventoryController::class, 'storeOpname'])->name('opnames.store');
+        Route::get('/reports', [BumInventoryController::class, 'reports'])->name('reports');
+    });
+    Route::post('/mail/test-email', [App\Http\Controllers\Master\TicketController::class, 'sendTestEmail'])
+        ->name('mail.test.send');
     Route::resource('ticket', App\Http\Controllers\Master\TicketController::class);
     Route::put('/tickets/{ticket}/status', [App\Http\Controllers\Master\TicketController::class, 'updateStatus'])
         ->name('ticket.updateStatus');
     Route::post('/tickets/{ticket}/assign', [App\Http\Controllers\Master\TicketController::class, 'assign'])->name('ticket.assign');
     Route::post('/tickets/{ticket}/comment', [App\Http\Controllers\Master\TicketController::class, 'comment'])->name('ticket.comment');
     Route::post('{ticket}/approve', [App\Http\Controllers\Master\TicketController::class, 'approve'])->name('ticket.approve');
+    Route::post('/tickets/{ticket}/atk-rtk/bum-review', [App\Http\Controllers\Master\TicketController::class, 'bumReviewAtkRtk'])->name('ticket.atk-rtk.bum-review');
+    Route::post('/tickets/{ticket}/atk-rtk/handover', [App\Http\Controllers\Master\TicketController::class, 'handoverAtkRtk'])->name('ticket.atk-rtk.handover');
+    Route::post('/tickets/{ticket}/consumption/flow', [App\Http\Controllers\Master\TicketController::class, 'updateConsumptionFlow'])->name('ticket.consumption.flow');
+    Route::post('/tickets/{ticket}/consumption/evidence', [App\Http\Controllers\Master\TicketController::class, 'uploadConsumptionEvidence'])->name('ticket.consumption.evidence');
 
     Route::get('/ticket-form-schema/{category}', function ($category) {
         return TicketFormSchema::where('ticket_category_id', $category)

@@ -18,6 +18,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             TicketCategorySeeder::class,
+            TicketFormSchemaSeeder::class,
+            ConsumableItemSeeder::class,
+            CatalogGaItemSeeder::class,
         ]);
     }
 }

@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Master;
 use App\Http\Controllers\Controller;
 use App\Models\Master\Ticket;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Carbon\Carbon;
 use App\Mail\TicketCreated;
+use App\Mail\SystemTestEmail;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 // Model
 use App\Models\Master\Status;
@@ -23,6 +27,9 @@ use App\Models\Master\Approval;
 use App\Models\User;
 use App\Models\Master\TicketCategory;
 use App\Models\Master\TicketFormSchema; 
+use App\Models\Master\Attachment;
+use App\Models\Master\ConsumableItem;
+use App\Services\ConsumableStockService;
 
 
 use App\Models\Master\TicketHistory;
@@ -30,9 +37,29 @@ use App\Models\Master\TicketHistory;
 class TicketController extends Controller
 {
     /**
-     * Display all tickets
+     * Display requests landing menu.
      */
-    public function index(Request $request)
+    public function index()
+    {
+        $user = auth()->user();
+
+        $baseQuery = Ticket::query()
+            ->when(($user->role ?? null) !== 'admin', fn($query) => $query->where('requester_id', $user->id));
+
+        $stats = [
+            'total' => (clone $baseQuery)->count(),
+            'open' => (clone $baseQuery)->whereHas('status', fn($query) => $query->where('name', 'Open'))->count(),
+            'in_progress' => (clone $baseQuery)->whereHas('status', fn($query) => $query->where('name', 'In Progress'))->count(),
+            'completed' => (clone $baseQuery)->whereHas('status', fn($query) => $query->whereIn('name', ['Resolved', 'Closed']))->count(),
+        ];
+
+        return view('ticket.menu', compact('stats'));
+    }
+
+    /**
+     * Display general ticket listing.
+     */
+    public function generalIndex(Request $request)
     {
         $user         = auth()->user();
         $search       = $request->get('search');
@@ -42,24 +69,23 @@ class TicketController extends Controller
         $departmentId = $request->get('department_id');
 
         $tickets = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency'])
-            ->when($user->role !== 'admin', fn($q) => $q->where('requester_id', $user->id)) // Hanya milik user non-admin
-            ->when($search, function ($query, $search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('title', 'like', '%' . $search . '%')
-                    ->orWhere('ticket_no', 'like', '%' . $search . '%')
-                    ->orWhereHas('requester', function ($sub) use ($search) {
-                        $sub->where('name', 'like', '%' . $search . '%');
-                    });
+            ->when(($user->role ?? null) !== 'admin', fn($query) => $query->where('requester_id', $user->id))
+            ->when($search, function ($query, $searchValue) {
+                $query->where(function ($builder) use ($searchValue) {
+                    $builder->where('title', 'like', '%' . $searchValue . '%')
+                        ->orWhere('ticket_no', 'like', '%' . $searchValue . '%')
+                        ->orWhereHas('requester', function ($subQuery) use ($searchValue) {
+                            $subQuery->where('name', 'like', '%' . $searchValue . '%');
+                        });
                 });
             })
-            ->when($statusId, fn($q) => $q->where('status_id', $statusId))
-            ->when($priorityId, fn($q) => $q->where('priority_id', $priorityId))
-            ->when($categoryId, fn($q) => $q->where('category_id', $categoryId))
-            ->when($departmentId, fn($q) => $q->where('department_id', $departmentId))
+            ->when($statusId, fn($query) => $query->where('status_id', $statusId))
+            ->when($priorityId, fn($query) => $query->where('priority_id', $priorityId))
+            ->when($categoryId, fn($query) => $query->where('category_id', $categoryId))
+            ->when($departmentId, fn($query) => $query->where('department_id', $departmentId))
             ->latest()
             ->paginate(10);
 
-        // Ambil filter data sebelum return
         $users       = User::all();
         $priority    = Priority::all();
         $status      = Status::all();
@@ -67,30 +93,103 @@ class TicketController extends Controller
         $departments = Department::all();
 
         if ($request->ajax()) {
-            return view('ticket.index', compact('tickets','status','priority','categories','users','departments'))->render();
+            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments'))->render();
         }
 
-        return view('ticket.index', compact('tickets','status','priority','categories','users','departments'));
+        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments'));
     }
-
-
-
 
     public function create()
     {
-        $priority = Priority::all();
-        $status = Status::all();
-        $rootCategories = ProblemCategory::whereNull('parent_id')
-            ->with('children') 
-            ->get();
-        $categories = $this->flattenCategories($rootCategories);
-        $priorities = Priority::all();
-        $impacts = Impact::all();
-        $urgencies = Urgency::all();
-        $statuses = Status::all();
-        $categoryticket = TicketCategory::all();
+        return view('ticket.create', $this->getTicketFormData());
+    }
 
-        return view('ticket.create', compact('status','priority','categories','priorities','impacts','urgencies','statuses','categoryticket'));
+    public function createConsumption()
+    {
+        return view('ticket.create-consumption', $this->getTicketFormData([
+            'serviceRequestId' => $this->getBumTicketCategoryId(),
+            'consumptionCategoryId' => $this->getConsumptionCategoryId(),
+            'approvers' => $this->getApproverUsers(),
+            'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
+            'mediumImpactId' => Impact::where('name', 'Medium')->value('id'),
+            'mediumUrgencyId' => Urgency::where('name', 'Medium')->value('id'),
+        ]));
+    }
+
+    public function createAtkRtk()
+    {
+        return view('ticket.create-atk-rtk', $this->getTicketFormData([
+            'serviceRequestId' => $this->getBumTicketCategoryId(),
+            'atkRtkCategoryId' => $this->getAtkRtkCategoryId(),
+            'approvers' => $this->getApproverUsers(),
+            'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
+            'mediumImpactId' => Impact::where('name', 'Medium')->value('id'),
+            'mediumUrgencyId' => Urgency::where('name', 'Medium')->value('id'),
+            'consumableItems' => ConsumableItem::where('is_active', true)->orderBy('name')->get(),
+            'approvalThreshold' => config('bum.atk_rtk_manager_approval_threshold', 100000),
+        ]));
+    }
+
+    public function createGaRequestFinding()
+    {
+        return view('ticket.create-ga-permintaan-temuan', $this->getTicketFormData([
+            'serviceRequestId' => $this->getBumTicketCategoryId(),
+            'gaRequestFindingCategoryId' => $this->getGaRequestFindingCategoryId(),
+            'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
+            'mediumImpactId' => Impact::where('name', 'Medium')->value('id'),
+            'mediumUrgencyId' => Urgency::where('name', 'Medium')->value('id'),
+        ]));
+    }
+
+    public function warehouseAtkRtk()
+    {
+        $atkTicketsQuery = Ticket::with(['requester', 'status'])
+            ->where('payload->request_type', 'atk_rtk');
+
+        $stats = [
+            'waiting_review' => (clone $atkTicketsQuery)->where('payload->workflow_status', 'WAITING_BUM_REVIEW')->count(),
+            'waiting_procurement' => (clone $atkTicketsQuery)->where('payload->workflow_status', 'WAITING_PROCUREMENT')->count(),
+            'ready_to_handover' => (clone $atkTicketsQuery)->where('payload->workflow_status', 'READY_TO_HANDOVER')->count(),
+            'handed_over' => (clone $atkTicketsQuery)->where('payload->workflow_status', 'HANDED_OVER')->count(),
+        ];
+
+        $activeTickets = (clone $atkTicketsQuery)
+            ->whereIn('payload->workflow_status', [
+                'WAITING_BUM_REVIEW',
+                'STOCK_CHECKED',
+                'WAITING_PROCUREMENT',
+                'READY_TO_HANDOVER',
+            ])
+            ->latest()
+            ->paginate(10);
+
+        $lowStockItems = ConsumableItem::where('is_active', true)
+            ->whereColumn('current_stock', '<=', 'minimum_stock')
+            ->orderBy('name')
+            ->take(8)
+            ->get();
+
+        return view('ticket.warehouse-atk-rtk', compact('stats', 'activeTickets', 'lowStockItems'));
+    }
+
+    public function sendTestEmail()
+    {
+        $user = auth()->user();
+
+        if (!$user || empty($user->email)) {
+            return redirect()->back()->with('error', 'Email user login belum tersedia, jadi test email tidak bisa dikirim.');
+        }
+
+        try {
+            Mail::to($user->email)->send(new SystemTestEmail($user));
+            Log::info('Test email berhasil dikirim ke user login: ' . $user->email);
+
+            return redirect()->back()->with('success', 'Test email berhasil dikirim ke ' . $user->email);
+        } catch (\Exception $e) {
+            Log::error('Gagal mengirim test email ke user login: ' . $user->email . '. Error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Test email gagal dikirim: ' . $e->getMessage());
+        }
     }
 
     private function flattenCategories($categories, $prefix = '')
@@ -117,47 +216,401 @@ class TicketController extends Controller
         return $result;
     }
 
+    private function getTicketFormData(array $extra = [])
+    {
+        $rootCategories = ProblemCategory::whereNull('parent_id')
+            ->with('children')
+            ->get();
+
+        return array_merge([
+            'status' => Status::all(),
+            'priority' => Priority::all(),
+            'categories' => $this->flattenCategories($rootCategories),
+            'priorities' => Priority::all(),
+            'impacts' => Impact::all(),
+            'urgencies' => Urgency::all(),
+            'statuses' => Status::all(),
+            'categoryticket' => TicketCategory::all(),
+        ], $extra);
+    }
+
+    private function getDefaultPriorityId()
+    {
+        return Priority::where('name', 'Medium')->value('id') ?? Priority::value('id');
+    }
+
+    private function getDefaultImpactId()
+    {
+        return Impact::where('name', 'Medium')->value('id') ?? Impact::value('id');
+    }
+
+    private function getDefaultUrgencyId()
+    {
+        return Urgency::where('name', 'Medium')->value('id') ?? Urgency::value('id');
+    }
+
+    private function getDefaultTicketCategoryId()
+    {
+        return TicketCategory::where('code', 'SR')->value('id')
+            ?? TicketCategory::where('name', 'Service Request')->value('id')
+            ?? TicketCategory::value('id');
+    }
+
+    private function getBumTicketCategoryId()
+    {
+        return TicketCategory::firstOrCreate(
+            ['code' => 'BUM'],
+            [
+                'name' => 'Layanan BUM',
+                'description' => 'Layanan Bagian Umum untuk ATK/RTK, konsumsi rapat, dan barang habis pakai.',
+            ]
+        )->id;
+    }
+
+    private function getApproverUsers()
+    {
+        $users = User::where('id', '!=', auth()->id())
+            ->whereIn('role', ['approver', 'manager', 'admin'])
+            ->orderBy('name')
+            ->get();
+
+        if ($users->isNotEmpty()) {
+            return $users;
+        }
+
+        return User::where('id', '!=', auth()->id())
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function getConsumptionCategoryId()
+    {
+        $query = ProblemCategory::query();
+
+        foreach (['konsumsi', 'umum', 'general', 'ga', 'support'] as $index => $keyword) {
+            $method = $index === 0 ? 'where' : 'orWhere';
+            $query->{$method}('name', 'like', '%' . $keyword . '%');
+        }
+
+        return $query->value('id')
+            ?? ProblemCategory::firstOrCreate(
+                ['code' => 'KONSUMSI'],
+                [
+                    'name' => 'Permintaan Konsumsi Rapat',
+                    'description' => 'Kategori request BUM untuk konsumsi rapat dan kegiatan.',
+                ]
+            )->id;
+    }
+
+    private function getAtkRtkCategoryId()
+    {
+        return ProblemCategory::where('code', 'ATKRTK')->value('id')
+            ?? ProblemCategory::where('name', 'like', '%ATK%')->value('id')
+            ?? ProblemCategory::firstOrCreate(
+                ['code' => 'ATKRTK'],
+                [
+                    'name' => 'Permintaan ATK/RTK',
+                    'description' => 'Kategori request BUM untuk alat tulis kantor dan rumah tangga kantor.',
+                ]
+            )->id;
+    }
+
+    private function getGaRequestFindingCategoryId()
+    {
+        return ProblemCategory::where('code', 'GAQR')->value('id')
+            ?? ProblemCategory::where('name', 'like', '%Permintaan dan Temuan%')->value('id')
+            ?? ProblemCategory::firstOrCreate(
+                ['code' => 'GAQR'],
+                [
+                    'name' => 'GA Permintaan dan Temuan',
+                    'description' => 'Kategori laporan QR Code Bagian Umum untuk dukungan permintaan dan temuan.',
+                ]
+            )->id;
+    }
+
+    private function getRequestTypeLabel(string $requestType): string
+    {
+        return match ($requestType) {
+            'consumption' => 'Permintaan Konsumsi',
+            'atk_rtk' => 'ATK / RTK',
+            'ga_request_finding' => 'GA Permintaan & Temuan',
+            default => 'General',
+        };
+    }
+
+    private function getWorkflowSteps(string $requestType): array
+    {
+        if ($requestType === 'consumption') {
+            return [
+                'Karyawan mengajukan form permintaan konsumsi',
+                'Atasan melakukan approval',
+                'Bagian Umum melakukan verifikasi',
+                'Approval Bagian Umum menentukan lanjut ke vendor atau revisi',
+                'Vendor melakukan pemesanan dan pesanan diterima',
+                'Karyawan menyerahkan laporan pertanggungjawaban ke Bagian Umum',
+                'Proses selesai',
+            ];
+        }
+
+        if ($requestType === 'atk_rtk') {
+            return [
+                'Pengajuan kebutuhan ATK/RTK dibuat oleh pemohon',
+                'Permintaan diverifikasi oleh unit terkait',
+                'Pengadaan atau distribusi barang diproses',
+                'Barang diterima dan request ditutup',
+            ];
+        }
+
+        if ($requestType === 'ga_request_finding') {
+            return [
+                'Pelapor scan QR dan mengisi laporan permintaan atau temuan',
+                'Resepsionis atau admin Bagian Umum memonitor laporan masuk',
+                'PIC Bagian Umum memberikan arahan tindak lanjut',
+                'Petugas terkait menyelesaikan permintaan atau temuan',
+                'Bukti penyelesaian dilaporkan dan diverifikasi PIC Bagian Umum',
+                'Admin memperbarui rekap dan ticket ditutup',
+            ];
+        }
+
+        return [
+            'Request umum dibuat oleh pemohon',
+            'Request ditindaklanjuti oleh unit terkait',
+            'Status diperbarui sampai selesai',
+        ];
+    }
+
+    private function buildPayload(string $requestType, array $payload): array
+    {
+        $payload = array_merge($payload, [
+            'request_type' => $requestType,
+            'request_label' => $this->getRequestTypeLabel($requestType),
+            'submitted_at' => now()->toDateTimeString(),
+            'workflow' => $this->getWorkflowSteps($requestType),
+        ]);
+
+        if ($requestType === 'atk_rtk') {
+            $total = ((int) ($payload['quantity'] ?? 0)) * ((float) ($payload['unit_price'] ?? 0));
+            $threshold = config('bum.atk_rtk_manager_approval_threshold', 100000);
+            $payload['total_estimated_amount'] = $total;
+            $payload['approval_threshold'] = $threshold;
+            $payload['workflow_status'] = $total >= $threshold ? 'WAITING_MANAGER_APPROVAL' : 'WAITING_BUM_REVIEW';
+        } elseif ($requestType === 'consumption') {
+            $payload['workflow_status'] = 'WAITING_MANAGER_APPROVAL';
+        } elseif ($requestType === 'ga_request_finding') {
+            $payload['workflow_status'] = 'WAITING_BUM_REVIEW';
+        } else {
+            $payload['workflow_status'] = 'SUBMITTED';
+        }
+
+        return $payload;
+    }
+
+    private function resolveTitle(string $requestType, array $validated, array $payload): string
+    {
+        if ($requestType === 'consumption') {
+            return 'Permintaan Konsumsi - ' . ($payload['activity_name'] ?? 'Kegiatan');
+        }
+
+        if ($requestType === 'atk_rtk') {
+            return 'Permintaan ATK/RTK - ' . ($payload['request_subject'] ?? 'Kebutuhan Operasional');
+        }
+
+        if ($requestType === 'ga_request_finding') {
+            $typeLabel = $payload['report_type'] ?? 'Laporan';
+            return 'GA ' . $typeLabel . ' - ' . ($payload['location'] ?? 'Lokasi');
+        }
+
+        return $validated['title'];
+    }
+
+    private function resolveDescription(string $requestType, array $validated, array $payload): ?string
+    {
+        if ($requestType === 'consumption') {
+            return sprintf(
+                'Permintaan konsumsi untuk %s pada %s di %s. Kebutuhan: %s.',
+                $payload['activity_name'] ?? 'kegiatan',
+                isset($payload['event_date']) ? Carbon::parse($payload['event_date'])->format('d M Y') : '-',
+                $payload['location'] ?? '-',
+                $payload['consumption_notes'] ?? ($payload['consumption_type'] ?? '-')
+            );
+        }
+
+        if ($requestType === 'atk_rtk') {
+            return sprintf(
+                'Permintaan %s sebanyak %s unit untuk %s. Catatan: %s.',
+                $payload['item_type'] ?? 'barang',
+                $payload['quantity'] ?? '-',
+                $payload['delivery_location'] ?? '-',
+                $payload['justification'] ?? '-'
+            );
+        }
+
+        if ($requestType === 'ga_request_finding') {
+            return sprintf(
+                '%s Bagian Umum di %s. Detail: %s. Ekspektasi tindak lanjut: %s.',
+                $payload['report_type'] ?? 'Laporan',
+                $payload['location'] ?? '-',
+                $payload['description'] ?? '-',
+                $payload['expected_action'] ?? '-'
+            );
+        }
+
+        return $validated['description'] ?? null;
+    }
+
+    private function findDepartmentByKeywords(array $keywords): ?Department
+    {
+        $query = Department::query();
+
+        foreach ($keywords as $index => $keyword) {
+            $method = $index === 0 ? 'where' : 'orWhere';
+            $query->{$method}('name', 'like', '%' . $keyword . '%');
+        }
+
+        return $query->first();
+    }
+
+    private function storeRequestAttachment(Request $request, Ticket $ticket, string $fieldName, string $attachmentType): void
+    {
+        if (!$request->hasFile($fieldName)) {
+            return;
+        }
+
+        $file = $request->file($fieldName);
+        $path = $file->store('request-attachments/' . $ticket->id, 'public');
+
+        Attachment::create([
+            'request_id' => $ticket->id,
+            'uploaded_by' => auth()->id(),
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'mime_type' => $file->getClientMimeType(),
+            'size' => $file->getSize(),
+            'attachment_type' => $attachmentType,
+            'uploaded_at' => now(),
+        ]);
+    }
+
     /**
      * Store a newly created ticket
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'category_id'    => 'required|exists:problem_categories,id',
-            'title'          => 'required|string|max:150',
-            'description'    => 'nullable|string',
-            'priority_id'    => 'nullable|exists:priorities,id',
-            'impact_id'      => 'nullable|exists:impacts,id',
-            'urgency_id'     => 'nullable|exists:urgencies,id',
+        $requestType = $request->input('request_type', 'general');
+
+        $rules = [
+            'request_type' => 'required|in:general,consumption,atk_rtk,ga_request_finding',
+            'category_id' => 'required|exists:problem_categories,id',
+            'priority_id' => 'nullable|exists:priorities,id',
+            'impact_id' => 'nullable|exists:impacts,id',
+            'urgency_id' => 'nullable|exists:urgencies,id',
             'ticket_category_id' => 'nullable|exists:ticket_categories,id',
-        ]);
+            'payload' => 'nullable|array',
+        ];
 
-        // Ambil semua department terkait kategori
+        if ($requestType === 'consumption') {
+            $rules = array_merge($rules, [
+                'payload.activity_name' => 'required|string|max:150',
+                'payload.event_type' => 'required|string|max:100',
+                'payload.event_date' => 'required|date',
+                'payload.start_time' => 'required|date_format:H:i',
+                'payload.end_time' => 'required|date_format:H:i',
+                'payload.location' => 'required|string|max:150',
+                'payload.participant_count' => 'required|integer|min:1',
+                'payload.consumption_type' => 'required|string|max:100',
+                'payload.request_reason' => 'required|string',
+                'payload.supervisor_id' => 'required|exists:users,id',
+                'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
+                'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
+                'activity_report_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+                'training_material_file' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx|max:5120',
+            ]);
+        } elseif ($requestType === 'atk_rtk') {
+            $rules = array_merge($rules, [
+                'payload.request_subject' => 'required|string|max:150',
+                'payload.item_type' => 'required|string|max:100',
+                'payload.item_id' => 'nullable|exists:consumable_items,id',
+                'payload.quantity' => 'required|integer|min:1',
+                'payload.unit_price' => 'nullable|numeric|min:0',
+                'payload.supervisor_id' => 'nullable|exists:users,id',
+                'payload.needed_date' => 'required|date',
+                'payload.delivery_location' => 'required|string|max:150',
+                'payload.justification' => 'required|string',
+            ]);
+        } elseif ($requestType === 'ga_request_finding') {
+            $rules = array_merge($rules, [
+                'payload.report_type' => 'required|in:Permintaan,Temuan',
+                'payload.location' => 'required|string|max:150',
+                'payload.detail_location' => 'nullable|string|max:150',
+                'payload.description' => 'required|string',
+                'payload.expected_action' => 'nullable|string|max:255',
+                'payload.reporter_phone' => 'nullable|string|max:30',
+                'evidence_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            ]);
+        } else {
+            $rules = array_merge($rules, [
+                'title' => 'required|string|max:150',
+                'description' => 'nullable|string',
+            ]);
+        }
+
+        $validated = $request->validate($rules);
+
+        if ($requestType === 'atk_rtk') {
+            $estimatedAmount = ((int) data_get($validated, 'payload.quantity', 0)) * ((float) data_get($validated, 'payload.unit_price', 0));
+            $threshold = config('bum.atk_rtk_manager_approval_threshold', 100000);
+            if ($estimatedAmount >= $threshold && empty(data_get($validated, 'payload.supervisor_id'))) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'payload.supervisor_id' => 'Atasan wajib dipilih jika estimasi permintaan mencapai threshold approval.',
+                ]);
+            }
+        }
+
         $departments = DepartmentCategory::with('department')
-            ->where('category_id', $request->category_id)
+            ->where('category_id', $validated['category_id'])
             ->get()
-            ->pluck('department');
+            ->pluck('department')
+            ->filter();
 
-        // Ambil department pertama untuk assign tiket (jika ada)
         $assignedDepartment = $departments->first();
 
-        // Generate ticket no
-        $ticketNo = $this->generateTicketNo($request->category_id);
+        if (!$assignedDepartment && in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true)) {
+            $assignedDepartment = $this->findDepartmentByKeywords(['umum', 'general affairs', 'ga', 'procurement']);
+        }
 
-        // Create tiket
+        if ($requestType === 'consumption') {
+            $validated['category_id'] = $this->getConsumptionCategoryId();
+            $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
+        } elseif ($requestType === 'atk_rtk') {
+            $validated['category_id'] = $this->getAtkRtkCategoryId();
+            $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
+        } elseif ($requestType === 'ga_request_finding') {
+            $validated['category_id'] = $this->getGaRequestFindingCategoryId();
+            $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
+        }
+
+        $payload = $this->buildPayload($requestType, $validated['payload'] ?? []);
+
+        if (in_array($requestType, ['consumption', 'atk_rtk'], true) && !empty($payload['supervisor_id'])) {
+            $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
+        }
+
+        $ticketNo = $this->generateTicketNo($validated['category_id']);
+
         $ticket = Ticket::create([
-            'ticket_no'     => $ticketNo,
-            'requester_id'  => auth()->id(),
+            'ticket_no' => $ticketNo,
+            'requester_id' => auth()->id(),
             'department_id' => $assignedDepartment->id ?? null,
             'assigned_department_id' => $assignedDepartment->id ?? null,
-            'category_id'   => $request->category_id,
-            'title'         => $request->title,
-            'description'   => $request->description,
-            'priority_id'   => $request->priority_id,
-            'impact_id'     => $request->impact_id,
-            'urgency_id'    => $request->urgency_id,
-            'ticket_category_id'    => $request->ticket_category_id,
-            'status_id'     => Status::where('name', 'Open')->first()->id ?? 1,
+            'category_id' => $validated['category_id'],
+            'title' => $this->resolveTitle($requestType, $validated, $payload),
+            'description' => $this->resolveDescription($requestType, $validated, $payload),
+            'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+            'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+            'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+            'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getDefaultTicketCategoryId(),
+            'payload' => $payload,
+            'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
         ]);
 
         // Create history
@@ -165,8 +618,21 @@ class TicketController extends Controller
             'ticket_id' => $ticket->id,
             'user_id'   => auth()->id(),
             'status_id' => $ticket->status_id,
-            'action'    => 'Ticket dibuat',
+            'action'    => 'Ticket dibuat (' . $this->getRequestTypeLabel($requestType) . ')',
         ]);
+
+        if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
+            $this->createManagerApproval($ticket);
+        }
+
+        if ($requestType === 'consumption') {
+            $this->storeRequestAttachment($request, $ticket, 'attendance_file', 'attendance');
+            $this->storeRequestAttachment($request, $ticket, 'documentation_file', 'documentation');
+            $this->storeRequestAttachment($request, $ticket, 'activity_report_file', 'activity_report');
+            $this->storeRequestAttachment($request, $ticket, 'training_material_file', 'training_material');
+        } elseif ($requestType === 'ga_request_finding') {
+            $this->storeRequestAttachment($request, $ticket, 'evidence_file', 'ga_report_evidence');
+        }
 
         // Kirim email ke pengaju
         try {
@@ -190,7 +656,22 @@ class TicketController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Ticket berhasil dibuat dan email dikirim.');
+        if ($requestType === 'consumption') {
+            return redirect()->route('ticket.konsumsi.create')
+                ->with('success', 'Permintaan konsumsi berhasil dibuat dan flow pengajuannya sudah tercatat.');
+        }
+
+        if ($requestType === 'atk_rtk') {
+            return redirect()->route('ticket.atk-rtk.create')
+                ->with('success', 'Permintaan ATK/RTK berhasil dibuat.');
+        }
+
+        if ($requestType === 'ga_request_finding') {
+            return redirect()->route('ticket.ga-permintaan-temuan.create')
+                ->with('success', 'Laporan GA Permintaan & Temuan berhasil dibuat.');
+        }
+
+        return redirect()->route('ticket.general')->with('success', 'Ticket berhasil dibuat dan email dikirim.');
     }
 
     // schema
@@ -208,12 +689,13 @@ class TicketController extends Controller
      */
     public function show(Ticket $ticket)
     {
-        $ticket->load(['requester', 'priority', 'status', 'department', 'assignedUser', 'assignedDepartment', 'histories.user', 'comments.user']);
+        $ticket->load(['requester', 'priority', 'status', 'department', 'assignedUser', 'assignedDepartment', 'histories.user', 'comments.user', 'attachments']);
         $users = User::all();
         $departments = Department::all();
         $statuses = Status::all();
+        $consumableItems = ConsumableItem::where('is_active', true)->orderBy('name')->get();
 
-        return view('ticket.show', compact('ticket', 'users', 'departments', 'statuses'));
+        return view('ticket.show', compact('ticket', 'users', 'departments', 'statuses', 'consumableItems'));
     }
     /**
      * Update ticket
@@ -373,12 +855,29 @@ class TicketController extends Controller
             'note' => 'nullable|string',
         ]);
 
-        $approval = Approval::find($request->approval_id);
+        $approval = Approval::where('request_id', $ticket->id)->findOrFail($request->approval_id);
+
+        if ((int) $ticket->requester_id === (int) auth()->id() && (auth()->user()->role ?? null) !== 'admin') {
+            return redirect()->back()->with('error', 'User tidak boleh approve request miliknya sendiri.');
+        }
+
         $approval->update([
             'status' => $request->status,
-            'note' => $request->note,
+            'notes' => $request->note,
             'decided_at' => now(),
         ]);
+
+        $payload = $ticket->payload ?? [];
+        $requestType = data_get($payload, 'request_type');
+        if ($requestType === 'atk_rtk') {
+            $payload['workflow_status'] = $request->status === 'approved' ? 'APPROVED_BY_MANAGER' : 'REJECTED_BY_MANAGER';
+            if ($request->status === 'approved') {
+                $payload['workflow_status'] = 'WAITING_BUM_REVIEW';
+            }
+        } elseif ($requestType === 'consumption') {
+            $payload['workflow_status'] = $request->status === 'approved' ? 'WAITING_BUM_VERIFICATION' : 'REJECTED_BY_MANAGER';
+        }
+        $ticket->update(['payload' => $payload]);
 
         $ticket->histories()->create([
             'user_id' => Auth::id(),
@@ -386,6 +885,148 @@ class TicketController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Persetujuan berhasil dicatat.');
+    }
+
+    public function bumReviewAtkRtk(Request $request, Ticket $ticket)
+    {
+        $data = $request->validate([
+            'workflow_status' => 'required|in:STOCK_CHECKED,WAITING_PROCUREMENT,READY_TO_HANDOVER,CANCELLED',
+            'approved_qty' => 'nullable|integer|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $payload = $ticket->payload ?? [];
+        $payload['workflow_status'] = $data['workflow_status'];
+        $payload['approved_qty'] = $data['approved_qty'] ?? data_get($payload, 'quantity');
+        $payload['bum_review_notes'] = $data['notes'] ?? null;
+        $payload['bum_reviewed_at'] = now()->toDateTimeString();
+
+        $ticket->update(['payload' => $payload]);
+        $ticket->histories()->create([
+            'user_id' => auth()->id(),
+            'action' => 'BUM review ATK/RTK: ' . $data['workflow_status'],
+        ]);
+
+        return back()->with('success', 'Review BUM berhasil dicatat.');
+    }
+
+    public function handoverAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
+    {
+        $data = $request->validate([
+            'item_id' => 'required|exists:consumable_items,id',
+            'fulfilled_qty' => 'required|integer|min:1',
+            'received_by' => 'required|string|max:150',
+            'notes' => 'nullable|string',
+        ]);
+
+        $payload = $ticket->payload ?? [];
+        $approvedQty = (int) (data_get($payload, 'approved_qty') ?: data_get($payload, 'quantity', 0));
+        if ($data['fulfilled_qty'] > $approvedQty) {
+            return back()->with('error', 'Qty fulfilled tidak boleh melebihi qty approved.');
+        }
+
+        try {
+            DB::transaction(function () use ($data, $ticket, $stockService, &$payload) {
+                $item = ConsumableItem::lockForUpdate()->findOrFail($data['item_id']);
+                $stockService->decrease($item, $data['fulfilled_qty'], 'atk_rtk_request', $ticket->id, 'Handover ' . $ticket->ticket_no, auth()->id());
+
+                $payload['item_id'] = $item->id;
+                $payload['item_name'] = $item->name;
+                $payload['fulfilled_qty'] = $data['fulfilled_qty'];
+                $payload['received_by'] = $data['received_by'];
+                $payload['handover_notes'] = $data['notes'] ?? null;
+                $payload['handover_date'] = now()->toDateString();
+                $payload['workflow_status'] = 'HANDED_OVER';
+                $ticket->update(['payload' => $payload]);
+                $ticket->histories()->create([
+                    'user_id' => auth()->id(),
+                    'action' => 'Barang ATK/RTK diserahkan dan stok berkurang.',
+                ]);
+            });
+        } catch (InvalidArgumentException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Handover berhasil dan stock card tercatat.');
+    }
+
+    public function updateConsumptionFlow(Request $request, Ticket $ticket)
+    {
+        $data = $request->validate([
+            'workflow_status' => 'required|in:APPROVED_BY_BUM,ORDERED_TO_VENDOR,RECEIVED,WAITING_ACCOUNTABILITY,REPORTED,CLOSED,CANCELLED',
+            'vendor_name' => 'nullable|string|max:150',
+            'order_date' => 'nullable|date',
+            'estimated_cost' => 'nullable|numeric|min:0',
+            'actual_cost' => 'nullable|numeric|min:0',
+            'receipt_date' => 'nullable|date',
+            'notes' => 'nullable|string',
+        ]);
+
+        $payload = array_merge($ticket->payload ?? [], array_filter($data, fn ($value) => $value !== null));
+        $payload['bum_updated_at'] = now()->toDateTimeString();
+        $ticket->update(['payload' => $payload]);
+        $ticket->histories()->create([
+            'user_id' => auth()->id(),
+            'action' => 'Update konsumsi rapat: ' . $data['workflow_status'],
+        ]);
+
+        return back()->with('success', 'Status konsumsi rapat berhasil diperbarui.');
+    }
+
+    public function uploadConsumptionEvidence(Request $request, Ticket $ticket)
+    {
+        $request->validate([
+            'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
+            'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
+            'activity_report_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'training_material_file' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx|max:5120',
+        ]);
+
+        if (!$request->hasFile('attendance_file') && !$request->hasFile('documentation_file') && !$request->hasFile('activity_report_file') && !$request->hasFile('training_material_file')) {
+            return back()->with('error', 'Minimal satu evidence pertanggungjawaban wajib diupload.');
+        }
+
+        $this->storeRequestAttachment($request, $ticket, 'attendance_file', 'attendance');
+        $this->storeRequestAttachment($request, $ticket, 'documentation_file', 'documentation');
+        $this->storeRequestAttachment($request, $ticket, 'activity_report_file', 'activity_report');
+        $this->storeRequestAttachment($request, $ticket, 'training_material_file', 'training_material');
+
+        $payload = $ticket->payload ?? [];
+        $payload['workflow_status'] = 'ACCOUNTABILITY_SUBMITTED';
+        $payload['accountability_submitted_at'] = now()->toDateTimeString();
+        $ticket->update(['payload' => $payload]);
+        $ticket->histories()->create([
+            'user_id' => auth()->id(),
+            'action' => 'Pertanggungjawaban konsumsi rapat diupload.',
+        ]);
+
+        return back()->with('success', 'Evidence pertanggungjawaban berhasil diupload.');
+    }
+
+    private function createManagerApproval(Ticket $ticket): void
+    {
+        $supervisorId = data_get($ticket->payload, 'supervisor_id');
+        $approver = $supervisorId
+            ? User::where('id', '!=', $ticket->requester_id)->find($supervisorId)
+            : null;
+
+        if (!$approver) {
+            $approver = User::where('id', '!=', $ticket->requester_id)
+                ->whereIn('role', ['approver', 'manager', 'admin'])
+                ->first();
+        }
+
+        if (!$approver) {
+            return;
+        }
+
+        Approval::firstOrCreate([
+            'request_id' => $ticket->id,
+            'level' => 1,
+        ], [
+            'approver_id' => $approver->id,
+            'status' => 'Pending',
+        ]);
     }
 
 }

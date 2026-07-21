@@ -11,7 +11,7 @@ class Approval extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['request_id', 'approver_id', 'status', 'note','level','decided_at'];
+    protected $fillable = ['request_id', 'approver_id', 'status', 'note', 'notes', 'level', 'decided_at'];
 
     public function request()
     {
