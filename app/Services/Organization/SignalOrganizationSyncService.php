@@ -39,6 +39,7 @@ class SignalOrganizationSyncService
         }
 
         $response = Http::timeout(config('services.signal_organization.timeout', 15))
+            ->withOptions(['verify' => $this->shouldVerifySsl()])
             ->acceptJson()
             ->get($url);
 
@@ -55,6 +56,11 @@ class SignalOrganizationSyncService
 
         return collect(is_array($items) ? $items : [])
             ->filter(fn ($item) => is_array($item));
+    }
+
+    private function shouldVerifySsl(): bool
+    {
+        return filter_var(config('services.signal_organization.verify_ssl', true), FILTER_VALIDATE_BOOLEAN);
     }
 
     private function syncDivisions(Collection $divisions): Collection

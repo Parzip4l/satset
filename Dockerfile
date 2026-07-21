@@ -3,6 +3,7 @@ FROM php:8.2-fpm
 # Install system dependencies
 # libldap2-dev wajib ada untuk LDAP
 RUN apt-get update && apt-get install -y \
+    ca-certificates \
     git \
     curl \
     libpng-dev \
@@ -11,7 +12,8 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     libldap2-dev \
-    libzip-dev
+    libzip-dev && \
+    update-ca-certificates
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*

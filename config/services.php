@@ -40,6 +40,7 @@ return [
         'divisions_url' => env('SIGNAL_ORGANIZATION_DIVISIONS_URL'),
         'departments_url' => env('SIGNAL_ORGANIZATION_DEPARTMENTS_URL'),
         'timeout' => (int) env('SIGNAL_ORGANIZATION_TIMEOUT', 15),
+        'verify_ssl' => env('SIGNAL_ORGANIZATION_VERIFY_SSL', true),
     ],
 
 ];
