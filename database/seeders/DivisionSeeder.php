@@ -2,18 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Services\Organization\SignalOrganizationSyncService;
 use Illuminate\Database\Seeder;
-use App\Models\Master\Divisions;
 
 class DivisionSeeder extends Seeder
 {
-    public function run(): void
+    public function run(SignalOrganizationSyncService $syncService): void
     {
-        Divisions::insert([
-            ['name' => 'Corporate'],
-            ['name' => 'IT'],
-            ['name' => 'Finance'],
-            ['name' => 'HR'],
-        ]);
+        $result = $syncService->sync();
+        $this->command?->info("Signal organization synced: {$result['divisions']} divisions, {$result['departments']} departments.");
     }
 }

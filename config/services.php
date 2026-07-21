@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'signal_organization' => [
+        'tree_url' => env('SIGNAL_ORGANIZATION_TREE_URL', 'https://signal.lrtjakarta.co.id/api/invoice-verification/organization/tree'),
+        'divisions_url' => env('SIGNAL_ORGANIZATION_DIVISIONS_URL', 'https://signal.lrtjakarta.co.id/api/invoice-verification/organization/divisions'),
+        'departments_url' => env('SIGNAL_ORGANIZATION_DEPARTMENTS_URL', 'https://signal.lrtjakarta.co.id/api/invoice-verification/organization/departments'),
+        'timeout' => (int) env('SIGNAL_ORGANIZATION_TIMEOUT', 15),
+    ],
+
 ];

@@ -10,7 +10,7 @@ class Department extends Model
 {
     use HasFactory;
     protected $table="departments";
-    protected $fillable = ['division_id', 'name', 'code','email'];
+    protected $fillable = ['signal_id', 'division_id', 'name', 'code','email'];
 
     public function division()
     {

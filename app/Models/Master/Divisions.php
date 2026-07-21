@@ -11,7 +11,7 @@ class Divisions extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['signal_id', 'code', 'name'];
 
     public function departments()
     {
