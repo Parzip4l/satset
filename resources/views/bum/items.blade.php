@@ -260,6 +260,9 @@
                 </thead>
                 <tbody>
                     @forelse($items as $item)
+                        @php
+                            $bigMinimum = (int) ceil(((int) $item->minimum_stock) / max(1, (int) $item->conversion_qty));
+                        @endphp
                         <tr>
                             <td class="fw-bold">{{ $item->code }}</td>
                             <td class="wrap">
@@ -269,10 +272,10 @@
                             <td><span class="badge bg-light text-dark border soft-badge">{{ $item->category }}</span></td>
                             <td>{{ $item->location ?? '-' }}</td>
                             <td class="text-end">
-                                <span class="stock-chip {{ $item->current_stock <= $item->minimum_stock ? 'low' : '' }}">{{ $item->current_stock }} {{ $item->large_uom }}</span>
+                                <span class="stock-chip {{ $item->current_stock <= $bigMinimum ? 'low' : '' }}">{{ $item->current_stock }} {{ $item->large_uom }}</span>
                             </td>
-                            <td class="text-end"><span class="stock-chip">{{ $item->small_stock }} {{ $item->small_uom }}</span></td>
-                            <td class="text-end">{{ $item->minimum_stock }} / {{ $item->buffer_stock }}</td>
+                            <td class="text-end"><span class="stock-chip {{ $item->small_stock <= $item->minimum_stock ? 'low' : '' }}">{{ $item->small_stock }} {{ $item->small_uom }}</span></td>
+                            <td class="text-end">{{ $item->minimum_stock }} / {{ $item->buffer_stock }} {{ $item->small_uom }}</td>
                             <td>
                                 @if($item->is_active)
                                     <span class="badge bg-success-subtle text-success soft-badge">Aktif</span>

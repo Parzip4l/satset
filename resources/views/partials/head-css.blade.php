@@ -95,4 +95,31 @@
     .bg-info-subtle { background-color: rgba(13, 202, 240, 0.1) !important; }
 
     .avatar-md { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
+
+    .modal-dialog {
+        max-height: calc(100vh - var(--bs-modal-margin) * 2);
+    }
+    .modal-content,
+    .modal-dialog-scrollable .modal-content {
+        max-height: calc(100vh - var(--bs-modal-margin) * 2);
+        overflow: hidden;
+    }
+    .modal-content > form,
+    .modal-dialog-scrollable .modal-content > form {
+        display: flex;
+        flex-direction: column;
+        max-height: 100%;
+        min-height: 0;
+    }
+    .modal-body,
+    .modal-dialog-scrollable .modal-content > form .modal-body {
+        overflow-y: auto;
+        min-height: 0;
+    }
+    .modal-header,
+    .modal-footer,
+    .modal-dialog-scrollable .modal-content > form .modal-header,
+    .modal-dialog-scrollable .modal-content > form .modal-footer {
+        flex-shrink: 0;
+    }
 </style>

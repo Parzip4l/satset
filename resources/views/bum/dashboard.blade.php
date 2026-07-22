@@ -488,8 +488,8 @@
             <div class="section-card h-100">
                 <div class="section-head">
                     <div>
-                        <div class="section-title">Item Stok Minimum</div>
-                        <p class="section-subtitle">Barang aktif yang sudah menyentuh batas minimum.</p>
+                        <div class="section-title">Item Stok Minimum Gudang Kecil</div>
+                        <p class="section-subtitle">Barang aktif di Gudang Kecil yang sudah menyentuh batas minimum.</p>
                     </div>
                 </div>
                 <div class="table-responsive clean-table">
@@ -499,7 +499,7 @@
                                 <th>Barang</th>
                                 <th>Kategori</th>
                                 <th>Lokasi</th>
-                                <th class="text-end">Stok</th>
+                                <th class="text-end">Gudang Kecil</th>
                                 <th class="text-end">Min</th>
                             </tr>
                         </thead>
@@ -509,8 +509,8 @@
                                     <td class="fw-semibold wrap">{{ $item->code }} - {{ $item->name }}</td>
                                     <td><span class="badge bg-light text-dark border soft-badge">{{ $item->category }}</span></td>
                                     <td>{{ $item->location ?? '-' }}</td>
-                                    <td class="text-end text-danger fw-bold">{{ $item->current_stock }}</td>
-                                    <td class="text-end">{{ $item->minimum_stock }}</td>
+                                    <td class="text-end text-danger fw-bold">{{ $item->small_stock }} {{ $item->small_uom }}</td>
+                                    <td class="text-end">{{ $item->minimum_stock }} {{ $item->small_uom }}</td>
                                 </tr>
                             @empty
                                 <tr><td colspan="5" class="text-center muted-text py-4">Tidak ada item di bawah minimum stok.</td></tr>

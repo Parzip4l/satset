@@ -301,12 +301,19 @@
                             <div class="form-section-title">Barang</div>
                             <div class="row g-3">
                                 <div class="col-12">
+                                    <label class="form-label">Gudang</label>
+                                    <select name="items[0][stock_location]" class="form-select" required>
+                                        <option value="small_warehouse" @selected(old('items.0.stock_location', 'small_warehouse') === 'small_warehouse')>Gudang Kecil</option>
+                                        <option value="big_warehouse" @selected(old('items.0.stock_location') === 'big_warehouse')>Gudang Besar</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
                                     <label class="form-label">Barang</label>
                                     <select name="items[0][item_id]" class="form-select opname-item-select" required>
                                         <option value="">Cari kode atau nama barang</option>
                                         @foreach($items as $item)
                                             <option value="{{ $item->id }}" @selected((string) old('items.0.item_id') === (string) $item->id)>
-                                                {{ $item->code }} - {{ $item->name }} (sistem: {{ $item->current_stock }})
+                                                {{ $item->code }} - {{ $item->name }} (GB: {{ $item->current_stock }} {{ $item->large_uom }}, GK: {{ $item->small_stock }} {{ $item->small_uom }})
                                             </option>
                                         @endforeach
                                     </select>

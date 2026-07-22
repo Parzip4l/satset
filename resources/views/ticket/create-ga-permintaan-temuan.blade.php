@@ -187,23 +187,23 @@
 
                 <div class="card-body p-4 p-lg-5">
                     @if($isPublic ?? false)
-                        <div class="section-label mb-3">Data Pelapor</div>
+                        <div class="section-label mb-3" id="gaContactSectionLabel">Data Pemohon</div>
                         <div class="row g-4 mb-4">
                             <div class="col-md-6">
-                                <label class="form-label">Nama Pelapor <span class="text-danger">*</span></label>
+                                <label class="form-label"><span id="gaNameLabel">Nama Pemohon</span> <span class="text-danger">*</span></label>
                                 <input type="text" name="reporter_name" class="form-control" value="{{ old('reporter_name') }}" placeholder="Nama lengkap" required>
                                 @error('reporter_name') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
 
                             <div class="col-md-6">
-                                <label class="form-label">Email Pelapor <span class="text-danger">*</span></label>
+                                <label class="form-label"><span id="gaEmailLabel">Email Pemohon</span> <span class="text-danger">*</span></label>
                                 <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
                                 @error('reporter_email') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
                         </div>
                     @endif
 
-                    <div class="section-label mb-3">Informasi Laporan</div>
+                    <div class="section-label mb-3" id="gaInfoSectionLabel">Informasi Permintaan</div>
                     <div class="row g-4">
                         <div class="col-md-6">
                             <label class="form-label">Jenis Laporan <span class="text-danger">*</span></label>
@@ -216,7 +216,7 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">Kontak Pelapor</label>
+                            <label class="form-label" id="gaPhoneLabel">Kontak Pemohon</label>
                             <input type="text" name="payload[reporter_phone]" class="form-control" value="{{ old('payload.reporter_phone') }}" placeholder="Nomor HP/extension">
                             @error('payload.reporter_phone') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
@@ -282,10 +282,35 @@
         const form = document.getElementById('gaReportForm');
         const reportType = document.getElementById('gaReportType');
         const choices = document.querySelectorAll('[data-ga-report-choice]');
+        const contactSectionLabel = document.getElementById('gaContactSectionLabel');
+        const nameLabel = document.getElementById('gaNameLabel');
+        const emailLabel = document.getElementById('gaEmailLabel');
+        const infoSectionLabel = document.getElementById('gaInfoSectionLabel');
+        const phoneLabel = document.getElementById('gaPhoneLabel');
+
+        function updateReportCopy(value) {
+            const isFinding = value === 'Temuan';
+            if (contactSectionLabel) {
+                contactSectionLabel.textContent = isFinding ? 'Data Pelapor' : 'Data Pemohon';
+            }
+            if (nameLabel) {
+                nameLabel.textContent = isFinding ? 'Nama Pelapor' : 'Nama Pemohon';
+            }
+            if (emailLabel) {
+                emailLabel.textContent = isFinding ? 'Email Pelapor' : 'Email Pemohon';
+            }
+            if (infoSectionLabel) {
+                infoSectionLabel.textContent = isFinding ? 'Informasi Laporan' : 'Informasi Permintaan';
+            }
+            if (phoneLabel) {
+                phoneLabel.textContent = isFinding ? 'Kontak Pelapor' : 'Kontak Pemohon';
+            }
+        }
 
         function selectReportType(value) {
             reportType.value = value;
             form.classList.remove('d-none');
+            updateReportCopy(value);
 
             choices.forEach((choice) => {
                 choice.classList.toggle('active', choice.dataset.gaReportChoice === value);
@@ -300,10 +325,20 @@
             });
         });
 
-        if (reportType.value) {
+        reportType.addEventListener('change', function () {
+            updateReportCopy(reportType.value);
             choices.forEach((choice) => {
                 choice.classList.toggle('active', choice.dataset.gaReportChoice === reportType.value);
             });
+        });
+
+        if (reportType.value) {
+            updateReportCopy(reportType.value);
+            choices.forEach((choice) => {
+                choice.classList.toggle('active', choice.dataset.gaReportChoice === reportType.value);
+            });
+        } else {
+            updateReportCopy('Permintaan');
         }
     });
 </script>

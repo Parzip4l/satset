@@ -298,8 +298,8 @@
     <div class="warehouse-card">
         <div class="warehouse-section-head">
             <div>
-                <div class="warehouse-section-title">Stok Minimum</div>
-                <div class="muted-text small">Item aktif yang perlu dicek sebelum handover atau dibuatkan pengadaan.</div>
+                <div class="warehouse-section-title">Stok Minimum Gudang Kecil</div>
+                <div class="muted-text small">Item aktif di Gudang Kecil yang perlu dicek sebelum handover atau transfer dari Gudang Besar.</div>
             </div>
             <div class="stock-tools">
                 <input id="lowStockSearch" class="form-control stock-search" placeholder="Cari kode, nama, kategori, lokasi">
@@ -319,7 +319,7 @@
                         <th class="sortable-head" data-low-stock-sort="name" data-sort-type="text" style="min-width: 360px;">Barang <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable-head" data-low-stock-sort="category" data-sort-type="text">Kategori <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable-head" data-low-stock-sort="location" data-sort-type="text">Lokasi <i class="bi bi-arrow-down-up text-muted"></i></th>
-                        <th class="sortable-head text-end" data-low-stock-sort="stock" data-sort-type="number">Stok <i class="bi bi-arrow-down-up text-muted"></i></th>
+                        <th class="sortable-head text-end" data-low-stock-sort="stock" data-sort-type="number">Gudang Kecil <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable-head text-end" data-low-stock-sort="minimum" data-sort-type="number">Minimum <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="sortable-head text-end" data-low-stock-sort="gap" data-sort-type="number">Selisih <i class="bi bi-arrow-down-up text-muted"></i></th>
                         <th class="text-end">Aksi</th>
@@ -332,18 +332,18 @@
                             data-name="{{ $item->name }}"
                             data-category="{{ $item->category }}"
                             data-location="{{ $item->location ?: '-' }}"
-                            data-stock="{{ (int) $item->current_stock }}"
+                            data-stock="{{ (int) $item->small_stock }}"
                             data-minimum="{{ (int) $item->minimum_stock }}"
-                            data-gap="{{ max(0, (int) $item->minimum_stock - (int) $item->current_stock) }}">
+                            data-gap="{{ max(0, (int) $item->minimum_stock - (int) $item->small_stock) }}">
                             <td class="wrap">
                                 <div class="fw-semibold">{{ $item->code }} - {{ $item->name }}</div>
-                                <div class="muted-text small">{{ $item->unit }} | Rp{{ number_format($item->unit_price, 0, ',', '.') }}</div>
+                                <div class="muted-text small">GB {{ number_format($item->current_stock) }} {{ $item->large_uom }} | Rp{{ number_format($item->unit_price, 0, ',', '.') }}/{{ $item->small_uom }}</div>
                             </td>
                             <td><span class="badge bg-light text-dark border soft-badge">{{ $item->category }}</span></td>
                             <td>{{ $item->location ?: '-' }}</td>
-                            <td class="text-end fw-bold text-danger">{{ number_format($item->current_stock) }}</td>
-                            <td class="text-end">{{ number_format($item->minimum_stock) }}</td>
-                            <td class="text-end">{{ number_format(max(0, $item->minimum_stock - $item->current_stock)) }}</td>
+                            <td class="text-end fw-bold text-danger">{{ number_format($item->small_stock) }} {{ $item->small_uom }}</td>
+                            <td class="text-end">{{ number_format($item->minimum_stock) }} {{ $item->small_uom }}</td>
+                            <td class="text-end">{{ number_format(max(0, $item->minimum_stock - $item->small_stock)) }} {{ $item->small_uom }}</td>
                             <td class="text-end">
                                 <a href="{{ route('bum.items.show', $item) }}" class="btn btn-sm btn-light border warehouse-btn">Detail</a>
                             </td>

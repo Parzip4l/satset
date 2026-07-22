@@ -305,7 +305,7 @@
     <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-end gap-3 mb-4">
         <div>
             <h3 class="page-title">Pengadaan & Penerimaan Barang</h3>
-            <p class="page-subtitle">Kelola PO, DO/SJ, GR, partial receive, reject, dan update stock card.</p>
+            <p class="page-subtitle">Kelola PO, DO/SJ, GR, partial receive, reject, dan update stock card Gudang Besar.</p>
         </div>
         <div class="receiving-actions">
             <a href="{{ route('bum.stock-card') }}" class="btn btn-outline-primary receiving-btn">Stock Card</a>
@@ -318,7 +318,7 @@
     <div class="info-strip mb-3">
         <div>
             <div class="fw-bold text-dark mb-1">Fungsi halaman ini</div>
-            <div class="muted-text small">Mencatat dokumen pengadaan dan penerimaan barang, lalu menambah stok berdasarkan qty yang benar-benar diterima.</div>
+            <div class="muted-text small">Mencatat dokumen pengadaan dan penerimaan barang, lalu menambah Gudang Besar berdasarkan qty yang benar-benar diterima.</div>
         </div>
         <div class="info-step">
             <div class="info-step-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-file-earmark-plus"></i></div>
@@ -337,8 +337,8 @@
         <div class="info-step">
             <div class="info-step-icon bg-success bg-opacity-10 text-success"><i class="bi bi-box-arrow-in-down"></i></div>
             <div>
-                <div class="info-step-title">3. Stok Bertambah</div>
-                <div class="info-step-desc small">Stock card otomatis mencatat selisih terima.</div>
+                <div class="info-step-title">3. Gudang Besar Bertambah</div>
+                <div class="info-step-desc small">Stock card otomatis mencatat selisih terima ke Gudang Besar.</div>
             </div>
         </div>
     </div>
@@ -347,7 +347,7 @@
         @foreach([
             ['label' => 'Dokumen Filter', 'value' => $receivingStats['documents'], 'icon' => 'bi-receipt', 'color' => 'primary', 'hint' => 'Dokumen tampil'],
             ['label' => 'Qty Order', 'value' => $receivingStats['order_qty'], 'icon' => 'bi-cart-check', 'color' => 'info', 'hint' => 'Total dipesan'],
-            ['label' => 'Qty Terima', 'value' => $receivingStats['received_qty'], 'icon' => 'bi-box-arrow-in-down', 'color' => 'success', 'hint' => 'Masuk ke stok'],
+            ['label' => 'Qty Terima', 'value' => $receivingStats['received_qty'], 'icon' => 'bi-box-arrow-in-down', 'color' => 'success', 'hint' => 'Masuk Gudang Besar'],
             ['label' => 'Qty Tolak', 'value' => $receivingStats['rejected_qty'], 'icon' => 'bi-x-octagon', 'color' => 'danger', 'hint' => 'Tidak masuk stok'],
         ] as $metric)
             <div class="col-xl-3 col-md-6">

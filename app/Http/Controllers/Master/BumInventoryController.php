@@ -45,10 +45,10 @@ class BumInventoryController extends Controller
         ])->every(fn ($table) => Schema::hasTable($table));
 
         if ($inventoryTablesReady) {
-            $lowStockCount = ConsumableItem::whereColumn('current_stock', '<=', 'minimum_stock')->where('is_active', true)->count();
+            $lowStockCount = ConsumableItem::whereColumn('small_stock', '<=', 'minimum_stock')->where('is_active', true)->count();
             $pendingReceiving = ProcurementReceiving::whereIn('status', ['DRAFT', 'SUBMITTED', 'PO_CREATED', 'PO_SENT_TO_VENDOR', 'DELIVERY_SCHEDULED'])->count();
             $currentOpname = StockOpname::where('period', now()->format('Y-m'))->latest()->first();
-            $lowStockItems = ConsumableItem::whereColumn('current_stock', '<=', 'minimum_stock')->orderBy('name')->take(8)->get();
+            $lowStockItems = ConsumableItem::whereColumn('small_stock', '<=', 'minimum_stock')->orderBy('name')->take(8)->get();
         } else {
             $lowStockCount = 0;
             $pendingReceiving = 0;
@@ -268,7 +268,7 @@ class BumInventoryController extends Controller
             'incoming_total' => (int) StockMovement::where('item_id', $item->id)->whereColumn('balance_after', '>', 'balance_before')->sum('qty'),
             'outgoing_total' => (int) StockMovement::where('item_id', $item->id)->whereColumn('balance_after', '<', 'balance_before')->sum('qty'),
             'last_movement_at' => optional(StockMovement::where('item_id', $item->id)->latest()->first())->created_at,
-            'stock_status' => $item->current_stock <= $item->minimum_stock ? 'LOW_STOCK' : 'AMAN',
+            'stock_status' => $item->small_stock <= $item->minimum_stock ? 'LOW_STOCK_GUDANG_KECIL' : 'AMAN',
         ];
 
         return view('bum.item-show', compact('item', 'movements', 'receivingLines', 'monthlyTrend', 'summary'));
@@ -518,6 +518,7 @@ class BumInventoryController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.item_id' => 'required|exists:consumable_items,id',
+            'items.*.stock_location' => 'required|in:big_warehouse,small_warehouse',
             'items.*.physical_stock' => 'required|integer|min:0',
             'items.*.notes' => 'nullable|string',
         ]);
@@ -532,12 +533,16 @@ class BumInventoryController extends Controller
 
             foreach ($data['items'] as $row) {
                 $item = ConsumableItem::lockForUpdate()->findOrFail($row['item_id']);
-                $systemStock = (int) $item->current_stock;
+                $stockLocation = $row['stock_location'];
+                $isSmallWarehouse = $stockLocation === 'small_warehouse';
+                $systemStock = (int) ($isSmallWarehouse ? $item->small_stock : $item->current_stock);
                 $physicalStock = (int) $row['physical_stock'];
                 $variance = $physicalStock - $systemStock;
+                $locationLabel = $isSmallWarehouse ? 'Gudang Kecil' : 'Gudang Besar';
 
                 $opname->items()->create([
                     'item_id' => $item->id,
+                    'stock_location' => $stockLocation,
                     'system_stock' => $systemStock,
                     'physical_stock' => $physicalStock,
                     'variance' => $variance,
@@ -545,7 +550,11 @@ class BumInventoryController extends Controller
                 ]);
 
                 if ($variance !== 0) {
-                    $stockService->adjustment($item, $variance, 'stock_opname', $opname->id, 'Adjustment stock opname ' . $data['period'], auth()->id());
+                    if ($isSmallWarehouse) {
+                        $stockService->adjustmentSmall($item, $variance, 'stock_opname', $opname->id, "Adjustment stock opname {$locationLabel} {$data['period']}", auth()->id());
+                    } else {
+                        $stockService->adjustment($item, $variance, 'stock_opname', $opname->id, "Adjustment stock opname {$locationLabel} {$data['period']}", auth()->id());
+                    }
                 }
             }
         });
@@ -562,6 +571,7 @@ class BumInventoryController extends Controller
 
         $usage = StockMovement::with('item')
             ->where('movement_type', 'OUT')
+            ->where('stock_location', 'small_warehouse')
             ->whereYear('created_at', $date->year)
             ->whereMonth('created_at', $date->month)
             ->get()

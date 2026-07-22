@@ -41,12 +41,15 @@ class BumAnalyticsService
             'item_id' => $input['item_id'] ?? null,
             'department_id' => $input['department_id'] ?? null,
             'forecast_days' => $forecastDays,
+            'stock_location' => in_array($input['stock_location'] ?? null, ['big_warehouse', 'small_warehouse'], true)
+                ? $input['stock_location']
+                : 'small_warehouse',
         ];
     }
 
     public function summary(array $filters): array
     {
-        $movementQuery = $this->movementQuery($filters)->where('movement_type', 'OUT');
+        $movementQuery = $this->outgoingMovementQuery($filters);
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
 
@@ -54,14 +57,29 @@ class BumAnalyticsService
         $recommendations = collect($this->procurementRecommendation($filters));
 
         return [
-            'total_usage_this_month' => (int) StockMovement::where('movement_type', 'OUT')->whereBetween('created_at', [$monthStart, $monthEnd])->sum('qty'),
+            'total_usage_this_month' => (int) $this->outgoingMovementQuery(array_merge($filters, [
+                'start_date' => $monthStart,
+                'end_date' => $monthEnd,
+            ]))->sum('qty'),
+            'big_warehouse_usage_this_month' => (int) $this->outgoingMovementQuery(array_merge($filters, [
+                'start_date' => $monthStart,
+                'end_date' => $monthEnd,
+                'stock_location' => 'big_warehouse',
+            ]))->sum('qty'),
+            'small_warehouse_usage_this_month' => (int) $this->outgoingMovementQuery(array_merge($filters, [
+                'start_date' => $monthStart,
+                'end_date' => $monthEnd,
+                'stock_location' => 'small_warehouse',
+            ]))->sum('qty'),
             'atk_rtk_requests_this_month' => Ticket::where('payload->request_type', 'atk_rtk')->whereBetween('created_at', [$monthStart, $monthEnd])->count(),
             'meeting_consumption_this_month' => Ticket::where('payload->request_type', 'consumption')->whereBetween('created_at', [$monthStart, $monthEnd])->count(),
             'receiving_this_month' => (int) DB::table('procurement_receiving_items')
                 ->join('procurement_receivings', 'procurement_receiving_items.receiving_id', '=', 'procurement_receivings.id')
                 ->whereBetween('procurement_receivings.received_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
                 ->sum('procurement_receiving_items.qty_received'),
-            'low_stock_items' => ConsumableItem::whereColumn('current_stock', '<=', 'minimum_stock')->where('is_active', true)->count(),
+            'low_stock_items' => $this->lowStockQuery($filters['stock_location'])->count(),
+            'low_stock_big_items' => $this->lowStockQuery('big_warehouse')->count(),
+            'low_stock_small_items' => $this->lowStockQuery('small_warehouse')->count(),
             'predicted_stock_out_30_days' => $stockForecast->filter(fn ($row) => in_array($row['risk_level'], ['CRITICAL', 'HIGH', 'MEDIUM'], true))->count(),
             'next_month_recommended_purchase_qty' => $recommendations->sum('recommended_purchase_qty'),
             'filtered_usage_total' => (int) $movementQuery->sum('qty'),
@@ -70,8 +88,7 @@ class BumAnalyticsService
 
     public function usageTrend(array $filters): array
     {
-        $rows = $this->movementQuery($filters)
-            ->where('movement_type', 'OUT')
+        $rows = $this->outgoingMovementQuery($filters)
             ->selectRaw('DATE(stock_movements.created_at) as usage_date, SUM(stock_movements.qty) as total_qty')
             ->groupBy('usage_date')
             ->orderBy('usage_date')
@@ -112,28 +129,41 @@ class BumAnalyticsService
             ->orderBy('name')
             ->get();
 
-        $usageByItem = $this->movementQuery($filters)
-            ->where('movement_type', 'OUT')
+        $usageByItem = $this->outgoingMovementQuery($filters)
             ->selectRaw('stock_movements.item_id, SUM(stock_movements.qty) as total_qty')
             ->groupBy('stock_movements.item_id')
             ->pluck('total_qty', 'item_id');
 
         return $items->map(function (ConsumableItem $item) use ($filters, $usageByItem) {
             $totalUsage = (int) ($usageByItem[$item->id] ?? 0);
+            $isSmallWarehouse = $filters['stock_location'] === 'small_warehouse';
+            $conversionQty = max(1, (int) $item->conversion_qty);
+            $stockQty = $isSmallWarehouse ? (int) $item->small_stock : (int) $item->current_stock;
+            $minimumQty = $isSmallWarehouse ? (int) $item->minimum_stock : (int) ceil(((int) $item->minimum_stock) / $conversionQty);
+            $bufferQty = $isSmallWarehouse ? (int) $item->buffer_stock : (int) ceil(((int) $item->buffer_stock) / $conversionQty);
+            $stockUom = $isSmallWarehouse ? $item->small_uom : $item->large_uom;
             $averageDailyUsage = $this->forecastHelper->calculateAverageUsage([$totalUsage], $filters['period_days']);
-            $daysUntilStockOut = $averageDailyUsage > 0 ? round($item->current_stock / $averageDailyUsage, 1) : null;
-            $stockOutDate = $this->forecastHelper->calculateStockOutDate((int) $item->current_stock, $averageDailyUsage);
-            $recommendedQty = $this->forecastHelper->calculateRecommendedPurchaseQty((int) $item->current_stock, (int) $item->minimum_stock, (int) $item->buffer_stock, $averageDailyUsage, $filters['forecast_days']);
-            $riskLevel = $this->forecastHelper->calculateRiskLevel((int) $item->current_stock, (int) $item->minimum_stock, $daysUntilStockOut);
+            $daysUntilStockOut = $averageDailyUsage > 0 ? round($stockQty / $averageDailyUsage, 1) : null;
+            $stockOutDate = $this->forecastHelper->calculateStockOutDate($stockQty, $averageDailyUsage);
+            $recommendedQty = $this->forecastHelper->calculateRecommendedPurchaseQty($stockQty, $minimumQty, $bufferQty, $averageDailyUsage, $filters['forecast_days']);
+            $riskLevel = $this->forecastHelper->calculateRiskLevel($stockQty, $minimumQty, $daysUntilStockOut);
 
             return [
                 'item_id' => $item->id,
                 'code' => $item->code,
                 'name' => $item->name,
                 'category' => $item->category,
-                'current_stock' => (int) $item->current_stock,
-                'minimum_stock' => (int) $item->minimum_stock,
-                'buffer_stock' => (int) $item->buffer_stock,
+                'stock_location' => $filters['stock_location'],
+                'stock_location_label' => $isSmallWarehouse ? 'Gudang Kecil' : 'Gudang Besar',
+                'stock_uom' => $stockUom,
+                'current_stock' => $stockQty,
+                'big_stock' => (int) $item->current_stock,
+                'small_stock' => (int) $item->small_stock,
+                'large_uom' => $item->large_uom,
+                'small_uom' => $item->small_uom,
+                'conversion_qty' => $conversionQty,
+                'minimum_stock' => $minimumQty,
+                'buffer_stock' => $bufferQty,
                 'average_daily_usage' => $averageDailyUsage,
                 'estimated_days_until_stock_out' => $daysUntilStockOut,
                 'estimated_stock_out_date' => $stockOutDate?->toDateString(),
@@ -254,8 +284,27 @@ class BumAnalyticsService
         return StockMovement::query()
             ->join('consumable_items', 'stock_movements.item_id', '=', 'consumable_items.id')
             ->whereBetween('stock_movements.created_at', [$filters['start_date'], $filters['end_date']])
+            ->where('stock_movements.stock_location', $filters['stock_location'])
             ->when($filters['category'], fn ($query, $category) => $query->where('consumable_items.category', $category))
             ->when($filters['item_id'], fn ($query, $itemId) => $query->where('stock_movements.item_id', $itemId));
+    }
+
+    private function outgoingMovementQuery(array $filters)
+    {
+        $types = $filters['stock_location'] === 'big_warehouse' ? ['OUT', 'TRANSFER_OUT'] : ['OUT'];
+
+        return $this->movementQuery($filters)->whereIn('movement_type', $types);
+    }
+
+    private function lowStockQuery(string $stockLocation)
+    {
+        $query = ConsumableItem::where('is_active', true);
+
+        if ($stockLocation === 'small_warehouse') {
+            return $query->whereColumn('small_stock', '<=', 'minimum_stock');
+        }
+
+        return $query->whereRaw('current_stock <= CEIL(minimum_stock / GREATEST(conversion_qty, 1))');
     }
 
     private function dailySeries(array $filters, Collection $rows, string $valueKey): array

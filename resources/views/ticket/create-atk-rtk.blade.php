@@ -145,7 +145,7 @@
             <div>
                 <span class="badge rounded-pill px-3 py-2 mb-3" style="background:rgba(226,26,26,.12); color:#b91c1c;">ATK / RTK Request</span>
                 <h3 class="fw-bold text-dark mb-2">Form kebutuhan ATK dan RTK.</h3>
-                <p class="text-muted mb-0">Menu ini disiapkan supaya kebutuhan operasional kantor punya jalur sendiri dan tidak bercampur dengan request general.</p>
+                <p class="text-muted mb-0">Ajukan kebutuhan operasional kantor melalui jalur ATK/RTK.</p>
             </div>
             @unless($isPublic ?? false)
                 <div class="d-flex gap-2">
@@ -297,7 +297,7 @@
                 <div class="col-xl-4">
                     <div class="atk-card p-4">
                         <h5 class="fw-bold text-dark mb-3">Ringkasan Alur</h5>
-                        <div class="small text-muted mb-3">ATK/RTK sekarang punya entry point sendiri dari menu Requests.</div>
+                        <div class="small text-muted mb-3">Alur permintaan ATK/RTK dari pengajuan sampai distribusi barang.</div>
                         <div class="border rounded-4 p-3 mb-3" style="background:#fffaf1;">
                             <div class="fw-semibold text-dark mb-1">1. Pengajuan</div>
                             <div class="text-muted small">Pemohon mengisi kebutuhan barang dan lokasi pengiriman.</div>

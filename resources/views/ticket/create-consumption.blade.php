@@ -137,7 +137,7 @@
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
             <div>
                 <span class="consumption-chip mb-3"><i class="bi bi-cup-hot"></i> Permintaan Konsumsi</span>
-                <h3 class="fw-bold text-dark mb-2">Form pengajuan konsumsi dengan alur approval yang jelas.</h3>    
+                <h3 class="fw-bold text-dark mb-2">Form Permintaan Konsumsi</h3>    
             </div>
             @unless($isPublic ?? false)
                 <div class="d-flex gap-2">
@@ -286,7 +286,7 @@
                             <span class="step">3</span>
                             <div>
                                 <div class="fw-bold">Pertanggungjawaban Setelah Kegiatan</div>
-                                <div class="text-muted fw-normal">Belum wajib diisi saat pengajuan, tapi sudah kami siapkan mengikuti flow di gambar.</div>
+                                <div class="text-muted fw-normal">Dokumen pendukung dapat dilengkapi setelah kegiatan selesai.</div>
                             </div>
                         </div>
 

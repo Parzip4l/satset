@@ -179,6 +179,13 @@
                     </select>
                 </div>
                 <div class="col-md-2">
+                    <label class="form-label small text-muted fw-bold">Gudang</label>
+                    <select name="stock_location" class="form-select" id="stockLocationFilter">
+                        <option value="small_warehouse" selected>Gudang Kecil</option>
+                        <option value="big_warehouse">Gudang Besar</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label class="form-label small text-muted fw-bold">Departemen</label>
                     <select name="department_id" class="form-select analytics-select" data-placeholder="Cari departemen">
                         <option value="">Semua</option>
@@ -199,10 +206,14 @@
     <div class="row g-3 mb-4" id="summaryCards">
         @foreach([
             ['key' => 'total_usage_this_month', 'label' => 'Pemakaian Bulan Ini', 'icon' => 'bi-box-arrow-up', 'color' => 'primary'],
+            ['key' => 'small_warehouse_usage_this_month', 'label' => 'Keluar Gudang Kecil', 'icon' => 'bi-box-arrow-up-right', 'color' => 'info'],
+            ['key' => 'big_warehouse_usage_this_month', 'label' => 'Keluar Gudang Besar', 'icon' => 'bi-box-arrow-up-right', 'color' => 'dark'],
             ['key' => 'atk_rtk_requests_this_month', 'label' => 'Request ATK/RTK', 'icon' => 'bi-clipboard-check', 'color' => 'warning'],
             ['key' => 'meeting_consumption_this_month', 'label' => 'Konsumsi Rapat', 'icon' => 'bi-cup-hot', 'color' => 'info'],
             ['key' => 'receiving_this_month', 'label' => 'Barang Diterima', 'icon' => 'bi-truck', 'color' => 'success'],
             ['key' => 'low_stock_items', 'label' => 'Low Stock', 'icon' => 'bi-exclamation-triangle', 'color' => 'danger'],
+            ['key' => 'low_stock_small_items', 'label' => 'Low Stock GK', 'icon' => 'bi-exclamation-triangle', 'color' => 'danger'],
+            ['key' => 'low_stock_big_items', 'label' => 'Low Stock GB', 'icon' => 'bi-exclamation-triangle', 'color' => 'warning'],
             ['key' => 'predicted_stock_out_30_days', 'label' => 'Habis <= 30 Hari', 'icon' => 'bi-hourglass-split', 'color' => 'danger'],
             ['key' => 'next_month_recommended_purchase_qty', 'label' => 'Rekomendasi Beli', 'icon' => 'bi-cart-plus', 'color' => 'dark'],
             ['key' => 'filtered_usage_total', 'label' => 'Pemakaian Filter', 'icon' => 'bi-funnel', 'color' => 'secondary'],
@@ -226,13 +237,13 @@
     <div class="row g-4 mb-4">
         <div class="col-xl-6">
             <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Tren Pemakaian Barang</div>
+                <div class="card-header bg-white fw-bold">Tren Keluar Barang <span class="text-muted fw-normal" data-stock-location-label></span></div>
                 <div class="card-body"><div id="usageTrendChart" style="min-height:320px;"></div></div>
             </div>
         </div>
         <div class="col-xl-6">
             <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white fw-bold">Actual vs Forecast Pemakaian</div>
+                <div class="card-header bg-white fw-bold">Actual vs Forecast Keluar Barang <span class="text-muted fw-normal" data-stock-location-label></span></div>
                 <div class="card-body"><div id="usageForecastChart" style="min-height:320px;"></div></div>
             </div>
         </div>
@@ -264,7 +275,7 @@
             <div class="card analytics-card h-100">
                 <div class="analytics-table-head">
                     <div>
-                        <div class="analytics-table-title">Forecast Stock-Out</div>
+                        <div class="analytics-table-title">Forecast Stock-Out <span class="text-muted fw-normal" data-stock-location-label></span></div>
                         <div class="analytics-table-subtitle" id="stockForecastSummary">Memuat data...</div>
                     </div>
                     <div class="analytics-page-size">
@@ -304,7 +315,7 @@
             <div class="card analytics-card h-100">
                 <div class="analytics-table-head">
                     <div>
-                        <div class="analytics-table-title">Rekomendasi Pengadaan</div>
+                        <div class="analytics-table-title">Rekomendasi Pengadaan <span class="text-muted fw-normal" data-stock-location-label></span></div>
                         <div class="analytics-table-subtitle" id="recommendationSummary">Memuat data...</div>
                     </div>
                     <div class="analytics-page-size">
@@ -367,6 +378,18 @@ const tableState = {
 
 function qs() {
     return new URLSearchParams(new FormData(document.getElementById('analyticsFilter'))).toString();
+}
+
+function selectedStockLocationLabel() {
+    const select = document.getElementById('stockLocationFilter');
+    return select?.selectedOptions?.[0]?.textContent || 'Gudang Kecil';
+}
+
+function refreshStockLocationLabels() {
+    const label = `(${selectedStockLocationLabel()})`;
+    document.querySelectorAll('[data-stock-location-label]').forEach(el => {
+        el.textContent = label;
+    });
 }
 
 function numberId(value) {
@@ -483,6 +506,7 @@ function emptyChart(id, text = 'Belum ada data') {
 
 async function loadSummary() {
     const data = await getJson(endpoints.summary);
+    refreshStockLocationLabels();
     document.querySelectorAll('[data-summary]').forEach(el => {
         el.textContent = numberId(data[el.dataset.summary] || 0);
     });
@@ -667,18 +691,18 @@ function renderPaginatedTable(key) {
 
     if (key === 'stockForecast') {
         document.getElementById('stockForecastSummary').textContent = range.total
-            ? `${numberId(range.total)} item aktif berdasarkan filter`
+            ? `${numberId(range.total)} item aktif berdasarkan filter ${selectedStockLocationLabel()}`
             : 'Belum ada item aktif';
         document.getElementById('stockForecastPageInfo').textContent = range.total
             ? `Menampilkan ${numberId(range.from)} - ${numberId(range.to)} dari ${numberId(range.total)} item`
             : 'Tidak ada data untuk ditampilkan';
         document.getElementById('stockForecastRows').innerHTML = range.total ? range.rows.map(row => `
             <tr>
-                <td><strong>${row.code}</strong><div class="text-muted small">${row.name}</div></td>
-                <td class="text-end fw-bold">${numberId(row.current_stock)}</td>
-                <td class="text-end">${numberId(row.average_daily_usage)}</td>
+                <td><strong>${row.code}</strong><div class="text-muted small">${row.name}</div><div class="text-muted small">1 ${row.large_uom || '-'} = ${numberId(row.conversion_qty || 1)} ${row.small_uom || '-'}</div></td>
+                <td class="text-end fw-bold">${numberId(row.current_stock)} ${row.stock_uom || ''}</td>
+                <td class="text-end">${numberId(row.average_daily_usage)} ${row.stock_uom || ''}</td>
                 <td>${row.estimated_stock_out_date || 'Belum ada tren pemakaian'}</td>
-                <td class="text-end">${numberId(row.recommended_purchase_qty)}</td>
+                <td class="text-end">${numberId(row.recommended_purchase_qty)} ${row.stock_uom || ''}</td>
                 <td>${riskBadge(row.risk_level)}</td>
             </tr>
         `).join('') : '<tr><td colspan="6" class="text-center text-muted py-4">Belum ada item aktif.</td></tr>';
@@ -692,8 +716,8 @@ function renderPaginatedTable(key) {
         document.getElementById('recommendationRows').innerHTML = range.total ? range.rows.map(row => `
             <tr>
                 <td><strong>${row.code}</strong><div class="text-muted small">${row.name}</div></td>
-                <td class="text-end">${numberId(row.current_stock)}</td>
-                <td class="text-end fw-bold">${numberId(row.recommended_purchase_qty)}</td>
+                <td class="text-end">${numberId(row.current_stock)} ${row.stock_uom || ''}</td>
+                <td class="text-end fw-bold">${numberId(row.recommended_purchase_qty)} ${row.stock_uom || ''}</td>
                 <td>${riskBadge(row.risk_level)}</td>
             </tr>
         `).join('') : '<tr><td colspan="4" class="text-center text-muted py-4">Belum ada rekomendasi pengadaan.</td></tr>';
@@ -735,6 +759,11 @@ async function loadAnalytics() {
 
 document.getElementById('analyticsFilter').addEventListener('submit', event => {
     event.preventDefault();
+    loadAnalytics();
+});
+
+document.getElementById('stockLocationFilter')?.addEventListener('change', () => {
+    refreshStockLocationLabels();
     loadAnalytics();
 });
 

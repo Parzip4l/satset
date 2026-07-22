@@ -173,7 +173,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::post('/laporan/{hashid}/review-pic', [App\Http\Controllers\Report\ReportController::class, 'reviewByPic'])->name('laporan.review.pic');
     Route::post('/laporan/{hashid}/submited-pic', [App\Http\Controllers\Report\ReportController::class, 'progresByPic'])->name('laporan.submit.pic');
     Route::post('/laporan/{hashid}/review-submit-pic', [App\Http\Controllers\Report\ReportController::class, 'reviewProgress'])->name('laporan.review-submit.pic');
-    Route::post('/delete-laporan/{hashid}', [App\Http\Controllers\Report\ReportController::class, 'destroy'])->name('laporan.destroy');
+    Route::post('/delete-laporan/{hashid}', [App\Http\Controllers\Report\ReportController::class, 'destroy'])->name('laporan.destroy.post');
 
     Route::get('/get-pic-by-division/{id}', [App\Http\Controllers\Report\ReportController::class, 'getPicByDivision']);
 

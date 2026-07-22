@@ -316,7 +316,7 @@
                 @foreach([
                     ['title' => 'Input Kebutuhan', 'desc' => 'User membuat laporan Permintaan/Temuan GA atau request ATK/RTK.'],
                     ['title' => 'Review & Approval', 'desc' => 'Approver/GA mengecek kebutuhan, stok, dan kelayakan request.'],
-                    ['title' => 'Mutasi Barang', 'desc' => 'Penerimaan menambah stok, handover mengurangi stok, semua tercatat.'],
+                    ['title' => 'Mutasi Barang', 'desc' => 'Penerimaan masuk Gudang Besar, transfer mengisi Gudang Kecil, handover mengurangi Gudang Kecil.'],
                     ['title' => 'Monitoring', 'desc' => 'Dashboard, forecast, opname, dan laporan dipakai untuk kontrol periodik.'],
                 ] as $index => $step)
                     <div class="flow-card">
@@ -342,9 +342,9 @@
                     ['icon' => 'bi-speedometer2', 'color' => 'primary', 'menu' => 'Ringkasan', 'use' => 'Monitoring KPI GA, request pending, stok minimum, penerimaan, dan opname.', 'steps' => 'Gunakan slicer Permintaan/Temuan untuk fokus laporan QR.', 'output' => 'Kondisi GA terbaru.', 'route' => route('bum.dashboard')],
                     ['icon' => 'bi-qr-code-scan', 'color' => 'info', 'menu' => 'Input Permintaan / Temuan', 'use' => 'Mencatat laporan QR Code GA seperti permintaan support atau temuan fasilitas.', 'steps' => 'Isi jenis laporan, lokasi, deskripsi, prioritas, dan lampiran.', 'output' => 'Ticket GA Permintaan/Temuan.', 'route' => route('ticket.ga-permintaan-temuan.create')],
                     ['icon' => 'bi-clipboard-plus', 'color' => 'warning', 'menu' => 'Request ATK / RTK', 'use' => 'User meminta barang ATK/RTK untuk kebutuhan operasional.', 'steps' => 'Isi barang, jumlah, lokasi, tanggal dibutuhkan, dan approver.', 'output' => 'Ticket ATK/RTK.', 'route' => route('ticket.atk-rtk.create')],
-                    ['icon' => 'bi-box-arrow-up', 'color' => 'success', 'menu' => 'Gudang ATK/RTK', 'use' => 'Admin GA memproses antrian request, review stok, dan handover barang.', 'steps' => 'Buka ticket, simpan review, lalu handover jika barang siap.', 'output' => 'Stok berkurang dan stock card tercatat.', 'route' => route('ticket.atk-rtk.warehouse')],
-                    ['icon' => 'bi-boxes', 'color' => 'primary', 'menu' => 'Master Barang', 'use' => 'Mengelola barang, stok minimum, buffer, lokasi, dan status aktif.', 'steps' => 'Tambah/edit barang, cek detail, atau adjustment manual.', 'output' => 'Master item dan saldo stok terkini.', 'route' => route('bum.items')],
-                    ['icon' => 'bi-truck', 'color' => 'success', 'menu' => 'Penerimaan Barang', 'use' => 'Mencatat barang masuk dari PO, DO/SJ, dan GR.', 'steps' => 'Buat dokumen, input item, lalu update qty terima/tolak.', 'output' => 'Stok bertambah sesuai qty diterima.', 'route' => route('bum.receivings')],
+                    ['icon' => 'bi-box-arrow-up', 'color' => 'success', 'menu' => 'Gudang ATK/RTK', 'use' => 'Admin GA memproses antrian request, review stok Gudang Kecil/Besar, transfer, dan handover barang.', 'steps' => 'Buka ticket, cek stok, transfer dari Gudang Besar jika perlu, lalu handover jika barang siap.', 'output' => 'Gudang Kecil berkurang dan stock card tercatat.', 'route' => route('ticket.atk-rtk.warehouse')],
+                    ['icon' => 'bi-boxes', 'color' => 'primary', 'menu' => 'Master Barang', 'use' => 'Mengelola barang, UOM besar/kecil, konversi, stok minimum, buffer, lokasi, dan status aktif.', 'steps' => 'Tambah/edit barang, cek detail, atau adjustment manual untuk Gudang Besar/Kecil.', 'output' => 'Master item dan saldo dua gudang terkini.', 'route' => route('bum.items')],
+                    ['icon' => 'bi-truck', 'color' => 'success', 'menu' => 'Penerimaan Barang', 'use' => 'Mencatat barang masuk dari PO, DO/SJ, dan GR.', 'steps' => 'Buat dokumen, input item, lalu update qty terima/tolak.', 'output' => 'Gudang Besar bertambah sesuai qty diterima.', 'route' => route('bum.receivings')],
                     ['icon' => 'bi-card-checklist', 'color' => 'info', 'menu' => 'Stock Card', 'use' => 'Audit histori mutasi stok masuk, keluar, adjustment, dan referensi.', 'steps' => 'Filter barang/tanggal, sort kolom, buka referensi dokumen.', 'output' => 'Audit trail stok per item.', 'route' => route('bum.stock-card')],
                     ['icon' => 'bi-clipboard-data', 'color' => 'warning', 'menu' => 'Stock Opname', 'use' => 'Mencocokkan stok sistem dengan stok fisik.', 'steps' => 'Pilih periode, pilih barang, isi stok fisik, simpan opname.', 'output' => 'Adjustment otomatis jika ada selisih.', 'route' => route('bum.opnames')],
                     ['icon' => 'bi-graph-up-arrow', 'color' => 'primary', 'menu' => 'Analytics & Forecast', 'use' => 'Melihat tren pemakaian, forecast stock-out, dan rekomendasi pengadaan.', 'steps' => 'Gunakan filter dan cek tabel forecast/rekomendasi.', 'output' => 'Insight restock dan risiko stok habis.', 'route' => route('bum.analytics')],
@@ -393,10 +393,10 @@
                 <div class="guide-section-body">
                     <div class="rule-grid">
                         @foreach([
-                            ['title' => 'Penerimaan', 'desc' => 'Qty diterima menambah stok. Qty ditolak tidak masuk stok.'],
-                            ['title' => 'Handover ATK/RTK', 'desc' => 'Qty fulfilled mengurangi stok dan tidak boleh melebihi qty approved.'],
-                            ['title' => 'Manual Adjustment', 'desc' => 'Tambah/kurangi stok manual dilakukan dari detail barang dan tercatat di stock card.'],
-                            ['title' => 'Stock Opname', 'desc' => 'Selisih fisik vs sistem otomatis menjadi movement adjustment.'],
+                            ['title' => 'Penerimaan', 'desc' => 'Qty diterima menambah Gudang Besar. Qty ditolak tidak masuk stok.'],
+                            ['title' => 'Transfer Gudang', 'desc' => 'Pengambilan dari Gudang Besar otomatis menambah Gudang Kecil sesuai konversi UOM.'],
+                            ['title' => 'Handover ATK/RTK', 'desc' => 'Qty fulfilled mengurangi Gudang Kecil dan tidak boleh melebihi qty approved.'],
+                            ['title' => 'Manual Adjustment & Opname', 'desc' => 'Adjustment dan opname bisa dipilih untuk Gudang Besar atau Gudang Kecil dan tercatat di stock card.'],
                         ] as $rule)
                             <div class="rule-card">
                                 <div class="rule-title">{{ $rule['title'] }}</div>

@@ -209,7 +209,7 @@ class TicketController extends Controller
             ->paginate(10);
 
         $lowStockItems = ConsumableItem::where('is_active', true)
-            ->whereColumn('current_stock', '<=', 'minimum_stock')
+            ->whereColumn('small_stock', '<=', 'minimum_stock')
             ->orderBy('name')
             ->take(8)
             ->get();

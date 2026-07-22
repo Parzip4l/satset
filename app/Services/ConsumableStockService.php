@@ -51,6 +51,11 @@ class ConsumableStockService
         return $this->move($item, 'ADJUSTMENT', $variance, $referenceType, $referenceId, $notes, $userId, 'big_warehouse');
     }
 
+    public function adjustmentSmall(ConsumableItem $item, int $variance, string $referenceType, ?int $referenceId, ?string $notes = null, ?int $userId = null): StockMovement
+    {
+        return $this->move($item, 'ADJUSTMENT', $variance, $referenceType, $referenceId, $notes, $userId, 'small_warehouse');
+    }
+
     private function move(
         ConsumableItem $item,
         string $type,

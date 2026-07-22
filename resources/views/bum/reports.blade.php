@@ -183,7 +183,7 @@
     <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-end gap-3 mb-4">
         <div>
             <h3 class="page-title">Laporan GA & Inventori</h3>
-            <p class="page-subtitle mb-0">Ringkasan pemakaian ATK/RTK, penerimaan barang, dan konsumsi rapat per periode.</p>
+            <p class="page-subtitle mb-0">Ringkasan pemakaian ATK/RTK dari Gudang Kecil, penerimaan barang ke Gudang Besar, dan konsumsi rapat per periode.</p>
         </div>
         <div class="d-flex flex-wrap gap-2 justify-content-end">
             <a href="{{ route('bum.dashboard') }}" class="btn btn-light border report-btn">Ringkasan</a>
@@ -205,8 +205,8 @@
 
     <div class="row g-3 mb-4">
         @foreach([
-            ['label' => 'Qty Keluar ATK/RTK', 'value' => number_format($usageTotal), 'icon' => 'bi-box-arrow-up', 'color' => 'primary'],
-            ['label' => 'Qty Barang Diterima', 'value' => number_format($receivedTotal), 'icon' => 'bi-truck', 'color' => 'success'],
+            ['label' => 'Qty Keluar Gudang Kecil', 'value' => number_format($usageTotal), 'icon' => 'bi-box-arrow-up', 'color' => 'primary'],
+            ['label' => 'Qty Masuk Gudang Besar', 'value' => number_format($receivedTotal), 'icon' => 'bi-truck', 'color' => 'success'],
             ['label' => 'Request Konsumsi', 'value' => number_format($consumptions->count()), 'icon' => 'bi-cup-hot', 'color' => 'info'],
             ['label' => 'Total Peserta Rapat', 'value' => number_format($consumptionParticipants), 'icon' => 'bi-people', 'color' => 'warning'],
         ] as $metric)
@@ -229,7 +229,7 @@
             <div class="report-card h-100" data-report-table="usage">
                 <div class="report-section-head">
                     <div>
-                        <div class="report-section-title">Pemakaian ATK/RTK</div>
+                        <div class="report-section-title">Pemakaian ATK/RTK Gudang Kecil</div>
                         <div class="muted-text small" data-report-summary>Memuat data...</div>
                     </div>
                     <div class="report-page-size">
@@ -254,7 +254,7 @@
                                 @php($first = $rows->first())
                                 <tr data-name="{{ $first->item->name ?? '-' }}" data-qty="{{ $rows->sum('qty') }}">
                                     <td class="wrap fw-semibold">{{ $first->item->code ?? '-' }} - {{ $first->item->name ?? '-' }}</td>
-                                    <td class="text-end fw-bold">{{ number_format($rows->sum('qty')) }}</td>
+                                    <td class="text-end fw-bold">{{ number_format($rows->sum('qty')) }} {{ $first->item->small_uom ?? '' }}</td>
                                 </tr>
                             @empty
                                 <tr data-empty-row><td colspan="2" class="text-center text-muted py-4">Belum ada pemakaian.</td></tr>
