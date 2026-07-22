@@ -36,12 +36,15 @@ class MicrosoftSsoController extends Controller
             $parameters['domain_hint'] = config('services.microsoft_sso.domain_hint');
         }
 
-        if (filled(config('services.microsoft_sso.prompt'))) {
+        if ($request->boolean('silent')) {
+            $parameters['prompt'] = 'none';
+        } elseif (filled(config('services.microsoft_sso.prompt'))) {
             $parameters['prompt'] = config('services.microsoft_sso.prompt');
         }
 
         if ($request->filled('login_hint')) {
             $parameters['login_hint'] = $request->query('login_hint');
+            $request->session()->put('microsoft_sso_login_hint', $request->query('login_hint'));
         }
 
         $query = http_build_query($parameters);
@@ -58,6 +61,12 @@ class MicrosoftSsoController extends Controller
                 'error' => $request->query('error'),
                 'description' => $request->query('error_description'),
             ]);
+
+            if ($this->shouldRetryInteractive($request)) {
+                return redirect()->route('auth.microsoft.redirect', [
+                    'login_hint' => $request->session()->pull('microsoft_sso_login_hint'),
+                ]);
+            }
 
             return redirect()->route('login')->withErrors([
                 'microsoft' => 'Login Microsoft gagal: ' . $request->query('error_description', $request->query('error')),
@@ -180,6 +189,15 @@ class MicrosoftSsoController extends Controller
     private function redirectUri(): string
     {
         return config('services.microsoft_sso.redirect_uri') ?: route('auth.microsoft.callback');
+    }
+
+    private function shouldRetryInteractive(Request $request): bool
+    {
+        $silentErrors = ['login_required', 'interaction_required', 'account_selection_required'];
+
+        return in_array($request->query('error'), $silentErrors, true)
+            && hash_equals((string) $request->session()->pull('microsoft_sso_state'), (string) $request->query('state'))
+            && filled($request->session()->get('microsoft_sso_login_hint'));
     }
 
     private function ensureConfigured(): void
