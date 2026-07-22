@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use InvalidArgumentException;
+use Illuminate\Support\Str;
 
 // Model
 use App\Models\Master\Status;
@@ -133,6 +135,18 @@ class TicketController extends Controller
     public function createGaRequestFinding()
     {
         return view('ticket.create-ga-permintaan-temuan', $this->getTicketFormData([
+            'serviceRequestId' => $this->getBumTicketCategoryId(),
+            'gaRequestFindingCategoryId' => $this->getGaRequestFindingCategoryId(),
+            'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
+            'mediumImpactId' => Impact::where('name', 'Medium')->value('id'),
+            'mediumUrgencyId' => Urgency::where('name', 'Medium')->value('id'),
+        ]));
+    }
+
+    public function createPublicGaRequestFinding()
+    {
+        return view('ticket.create-ga-permintaan-temuan', $this->getTicketFormData([
+            'isPublic' => true,
             'serviceRequestId' => $this->getBumTicketCategoryId(),
             'gaRequestFindingCategoryId' => $this->getGaRequestFindingCategoryId(),
             'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
@@ -470,7 +484,7 @@ class TicketController extends Controller
         return $query->first();
     }
 
-    private function storeRequestAttachment(Request $request, Ticket $ticket, string $fieldName, string $attachmentType): void
+    private function storeRequestAttachment(Request $request, Ticket $ticket, string $fieldName, string $attachmentType, ?User $uploader = null): void
     {
         if (!$request->hasFile($fieldName)) {
             return;
@@ -481,7 +495,7 @@ class TicketController extends Controller
 
         Attachment::create([
             'request_id' => $ticket->id,
-            'uploaded_by' => auth()->id(),
+            'uploaded_by' => $uploader?->id ?? auth()->id(),
             'file_name' => $file->getClientOriginalName(),
             'file_path' => $path,
             'mime_type' => $file->getClientMimeType(),
@@ -489,6 +503,127 @@ class TicketController extends Controller
             'attachment_type' => $attachmentType,
             'uploaded_at' => now(),
         ]);
+    }
+
+    private function findOrCreatePublicReporter(array $validated): User
+    {
+        $email = Str::lower($validated['reporter_email']);
+        $name = $validated['reporter_name'] ?: Str::before($email, '@');
+        $phone = data_get($validated, 'payload.reporter_phone') ?: '0';
+
+        $user = User::firstOrNew(['email' => $email]);
+
+        if (!$user->exists) {
+            $user->name = $name;
+            $user->username = Str::before($email, '@');
+            $user->password = Hash::make(Str::random(32));
+            $user->phone = $phone;
+            $user->role = 'pelapor';
+            $user->user_type = 'public';
+            $user->kartu_uang_1 = '-';
+        } else {
+            $user->name = $user->name ?: $name;
+            $user->phone = $user->phone ?: $phone;
+        }
+
+        $user->save();
+
+        return $user;
+    }
+
+    public function storePublicGaRequestFinding(Request $request)
+    {
+        $request->merge([
+            'request_type' => 'ga_request_finding',
+            'ticket_category_id' => $this->getBumTicketCategoryId(),
+            'category_id' => $this->getGaRequestFindingCategoryId(),
+            'priority_id' => $request->input('priority_id') ?: $this->getDefaultPriorityId(),
+            'impact_id' => $request->input('impact_id') ?: $this->getDefaultImpactId(),
+            'urgency_id' => $request->input('urgency_id') ?: $this->getDefaultUrgencyId(),
+        ]);
+
+        $validated = $request->validate([
+            'reporter_name' => 'required|string|max:150',
+            'reporter_email' => 'required|email|max:255',
+            'request_type' => 'required|in:ga_request_finding',
+            'category_id' => 'required|exists:problem_categories,id',
+            'priority_id' => 'nullable|exists:priorities,id',
+            'impact_id' => 'nullable|exists:impacts,id',
+            'urgency_id' => 'nullable|exists:urgencies,id',
+            'ticket_category_id' => 'nullable|exists:ticket_categories,id',
+            'payload' => 'nullable|array',
+            'payload.report_type' => 'required|in:Permintaan,Temuan',
+            'payload.location' => 'required|string|max:150',
+            'payload.detail_location' => 'nullable|string|max:150',
+            'payload.description' => 'required|string',
+            'payload.expected_action' => 'nullable|string|max:255',
+            'payload.reporter_phone' => 'nullable|string|max:30',
+            'evidence_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+
+        $requester = $this->findOrCreatePublicReporter($validated);
+        $payload = $this->buildPayload('ga_request_finding', array_merge($validated['payload'] ?? [], [
+            'reporter_name' => $requester->name,
+            'reporter_email' => $requester->email,
+            'submitted_from' => 'public',
+        ]));
+
+        $departments = DepartmentCategory::with('department')
+            ->where('category_id', $validated['category_id'])
+            ->get()
+            ->pluck('department')
+            ->filter();
+
+        $assignedDepartment = $departments->first()
+            ?: $this->findDepartmentByKeywords(['umum', 'general affairs', 'ga', 'procurement']);
+
+        $ticket = Ticket::create([
+            'ticket_no' => $this->generateTicketNo($validated['category_id']),
+            'requester_id' => $requester->id,
+            'department_id' => $assignedDepartment->id ?? null,
+            'assigned_department_id' => $assignedDepartment->id ?? null,
+            'category_id' => $validated['category_id'],
+            'title' => $this->resolveTitle('ga_request_finding', $validated, $payload),
+            'description' => $this->resolveDescription('ga_request_finding', $validated, $payload),
+            'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+            'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+            'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+            'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getBumTicketCategoryId(),
+            'payload' => $payload,
+            'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
+        ]);
+
+        TicketHistory::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => $requester->id,
+            'status_id' => $ticket->status_id,
+            'action' => 'Ticket dibuat (GA Permintaan & Temuan - Public)',
+        ]);
+
+        $this->storeRequestAttachment($request, $ticket, 'evidence_file', 'ga_report_evidence', $requester);
+
+        try {
+            Mail::to($ticket->requester->email)
+                ->send(new TicketCreated($ticket, 'requester'));
+            Log::info("Email ticket public terkirim ke pengaju: {$ticket->requester->email}");
+        } catch (\Exception $e) {
+            Log::error("Gagal kirim email ticket public ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
+        }
+
+        foreach ($departments as $dep) {
+            if ($dep && $dep->email) {
+                try {
+                    Mail::to($dep->email)
+                        ->send(new TicketCreated($ticket, 'department'));
+                    Log::info("Email ticket public terkirim ke departemen: {$dep->email}");
+                } catch (\Exception $e) {
+                    Log::error("Gagal kirim email ticket public ke departemen: {$dep->email}. Error: ".$e->getMessage());
+                }
+            }
+        }
+
+        return redirect()->route('public.ticket.ga-permintaan-temuan.create')
+            ->with('success', 'Laporan berhasil dikirim. Nomor ticket Anda: ' . $ticket->ticket_no);
     }
 
     /**

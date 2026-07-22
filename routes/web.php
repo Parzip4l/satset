@@ -40,6 +40,11 @@ Route::get('/auth/microsoft/redirect', [MicrosoftSsoController::class, 'redirect
 Route::get('/auth/microsoft/callback', [MicrosoftSsoController::class, 'callback'])
     ->middleware('guest')
     ->name('auth.microsoft.callback');
+Route::get('/public/ga-permintaan-temuan', [App\Http\Controllers\Master\TicketController::class, 'createPublicGaRequestFinding'])
+    ->name('public.ticket.ga-permintaan-temuan.create');
+Route::post('/public/ga-permintaan-temuan', [App\Http\Controllers\Master\TicketController::class, 'storePublicGaRequestFinding'])
+    ->middleware('throttle:30,1')
+    ->name('public.ticket.ga-permintaan-temuan.store');
 
 Route::get('/', function () {
     return redirect()->route('dashboard.index');

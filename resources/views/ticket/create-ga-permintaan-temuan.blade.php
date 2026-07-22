@@ -1,4 +1,4 @@
-@extends('partials.layouts.master')
+@extends(($isPublic ?? false) ? 'partials.layouts.master_auth' : 'partials.layouts.master')
 
 @section('title', 'GA Permintaan & Temuan')
 
@@ -13,6 +13,11 @@
     }
 
     body { background: #f8fafc; }
+
+    .ga-public-shell {
+        min-height: 100vh;
+        padding: 32px 0;
+    }
 
     .ga-panel {
         background: #fff;
@@ -57,7 +62,7 @@
     .form-control:focus,
     .form-select:focus {
         border-color: var(--ga-primary);
-        box-shadow: 0 0 0 4px rgba(109, 40, 217, .10);
+        box-shadow: 0 0 0 4px rgba(226, 26, 26, .10);
     }
 
     .btn-ga {
@@ -70,15 +75,16 @@
     }
 
     .btn-ga:hover {
-        background: #5b21b6;
-        border-color: #5b21b6;
+        background: #b91c1c;
+        border-color: #b91c1c;
         color: #fff;
     }
 </style>
 @endsection
 
 @section('content')
-<div class="container-fluid ga-form mt-8">
+<div class="{{ ($isPublic ?? false) ? 'ga-public-shell' : '' }}">
+<div class="container-fluid ga-form {{ ($isPublic ?? false) ? '' : 'mt-8' }}">
     <div class="row justify-content-center">
         <div class="col-xl-8 col-lg-10">
             @if(session('success'))
@@ -108,7 +114,7 @@
                 </div>
             </div>
 
-            <form action="{{ route('ticket.store') }}" method="POST" enctype="multipart/form-data" class="ga-panel">
+            <form action="{{ ($isPublic ?? false) ? route('public.ticket.ga-permintaan-temuan.store') : route('ticket.store') }}" method="POST" enctype="multipart/form-data" class="ga-panel">
                 @csrf
                 <input type="hidden" name="request_type" value="ga_request_finding">
                 <input type="hidden" name="ticket_category_id" value="{{ old('ticket_category_id', $serviceRequestId) }}">
@@ -118,6 +124,23 @@
                 <input type="hidden" name="urgency_id" value="{{ old('urgency_id', $mediumUrgencyId) }}">
 
                 <div class="card-body p-4 p-lg-5">
+                    @if($isPublic ?? false)
+                        <div class="section-label mb-3">Data Pelapor</div>
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Nama Pelapor <span class="text-danger">*</span></label>
+                                <input type="text" name="reporter_name" class="form-control" value="{{ old('reporter_name') }}" placeholder="Nama lengkap" required>
+                                @error('reporter_name') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Email Pelapor <span class="text-danger">*</span></label>
+                                <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
+                                @error('reporter_email') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="section-label mb-3">Informasi Laporan</div>
                     <div class="row g-4">
                         <div class="col-md-6">
@@ -174,7 +197,9 @@
                             Laporan akan masuk sebagai ticket BUM dengan status awal Open.
                         </div>
                         <div class="d-flex gap-2">
-                            <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Batal</a>
+                            @unless($isPublic ?? false)
+                                <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Batal</a>
+                            @endunless
                             <button type="submit" class="btn btn-ga">
                                 <i class="bi bi-send-fill me-1"></i> Kirim Laporan
                             </button>
@@ -184,5 +209,6 @@
             </form>
         </div>
     </div>
+</div>
 </div>
 @endsection
