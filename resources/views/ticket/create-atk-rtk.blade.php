@@ -158,10 +158,6 @@
                                         <label class="form-label">Email Pelapor</label>
                                         <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Kontak Pelapor</label>
-                                        <input type="text" name="payload[reporter_phone]" class="form-control" value="{{ old('payload.reporter_phone') }}" placeholder="Nomor HP/extension">
-                                    </div>
                                 </div>
                             </div>
                             <hr class="my-4">

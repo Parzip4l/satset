@@ -160,12 +160,9 @@
                 <div class="col-xl-8">
                     @if($isPublic ?? false)
                         <div class="consumption-form-card p-4 p-xl-5 mb-4">
-                            <div class="consumption-section-title">
-                                <span class="step">0</span>
-                                <div>
-                                    <div class="fw-bold">Data Pelapor</div>
-                                    <div class="text-muted fw-normal">Informasi kontak agar tim Bagian Umum dapat melakukan konfirmasi.</div>
-                                </div>
+                            <div class="mb-4">
+                                <div class="fw-bold text-dark">Data Pelapor</div>
+                                <div class="text-muted">Informasi kontak agar tim Bagian Umum dapat melakukan konfirmasi.</div>
                             </div>
 
                             <div class="row g-4">
@@ -176,10 +173,6 @@
                                 <div class="col-md-6">
                                     <label class="form-label">Email Pelapor</label>
                                     <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Kontak Pelapor</label>
-                                    <input type="text" name="payload[reporter_phone]" class="form-control" value="{{ old('payload.reporter_phone') }}" placeholder="Nomor HP/extension">
                                 </div>
                             </div>
                         </div>
