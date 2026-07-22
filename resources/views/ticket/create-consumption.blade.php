@@ -161,17 +161,17 @@
                     @if($isPublic ?? false)
                         <div class="consumption-form-card p-4 p-xl-5 mb-4">
                             <div class="mb-4">
-                                <div class="fw-bold text-dark">Data Pelapor</div>
-                                <div class="text-muted">Informasi kontak agar tim Bagian Umum dapat melakukan konfirmasi.</div>
+                                <div class="fw-bold text-dark">Data Pemohon</div>
+                                <div class="text-muted">Informasi pemohon agar tim Bagian Umum dapat mengonfirmasi permintaan.</div>
                             </div>
 
                             <div class="row g-4">
                                 <div class="col-md-6">
-                                    <label class="form-label">Nama Pelapor</label>
+                                    <label class="form-label">Nama Pemohon</label>
                                     <input type="text" name="reporter_name" class="form-control" value="{{ old('reporter_name') }}" placeholder="Nama lengkap" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Email Pelapor</label>
+                                    <label class="form-label">Email Pemohon</label>
                                     <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
                                 </div>
                             </div>

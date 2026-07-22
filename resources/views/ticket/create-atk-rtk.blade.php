@@ -169,14 +169,14 @@
                     <div class="atk-card p-4 p-xl-5">
                         @if($isPublic ?? false)
                             <div class="mb-4">
-                                <h5 class="fw-bold text-dark mb-3">Data Pelapor</h5>
+                                <h5 class="fw-bold text-dark mb-3">Data Pemohon</h5>
                                 <div class="row g-4">
                                     <div class="col-md-6">
-                                        <label class="form-label">Nama Pelapor</label>
+                                        <label class="form-label">Nama Pemohon</label>
                                         <input type="text" name="reporter_name" class="form-control" value="{{ old('reporter_name') }}" placeholder="Nama lengkap" required>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label">Email Pelapor</label>
+                                        <label class="form-label">Email Pemohon</label>
                                         <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
                                     </div>
                                 </div>

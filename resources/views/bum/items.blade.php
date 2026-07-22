@@ -122,6 +122,22 @@
             text-transform: uppercase;
         }
 
+        .item-form-section {
+            background: #fff;
+            border: 1px solid var(--item-line);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .conversion-preview {
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            color: #991b1b;
+            font-weight: 800;
+            padding: .75rem .9rem;
+        }
+
         .items-pagination {
             align-items: center;
             border-top: 1px solid var(--item-line);
@@ -201,6 +217,7 @@
         </div>
         <div class="items-actions">
             <a href="{{ route('bum.dashboard') }}" class="btn btn-light border items-btn">Dashboard</a>
+            <a href="{{ route('bum.uoms') }}" class="btn btn-light border items-btn">Master UOM</a>
             <button type="button" class="btn btn-primary items-btn" data-bs-toggle="modal" data-bs-target="#createItemModal">
                 <i class="bi bi-plus-lg me-1"></i> Tambah Barang
             </button>
@@ -301,8 +318,9 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row g-4">
+                    <div class="row g-3">
                         <div class="col-lg-6">
+                            <div class="item-form-section h-100">
                             <div class="form-section-title">Identitas Barang</div>
                             <div class="row g-3">
                                 <div class="col-md-6">
@@ -320,51 +338,77 @@
                                     <label class="form-label">Nama</label>
                                     <input name="name" class="form-control" value="{{ old('name') }}" required>
                                 </div>
+                            </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="item-form-section h-100">
+                            <div class="form-section-title">Konversi UOM</div>
+                            <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label">UOM Besar</label>
-                                    <input name="large_uom" class="form-control" value="{{ old('large_uom', 'box') }}" placeholder="box/dus/rim" required>
+                                    <select name="large_uom" id="largeUom" class="form-select" required>
+                                        @foreach($uoms as $uom)
+                                            <option value="{{ $uom->code }}" @selected(old('large_uom', 'box') === $uom->code)>{{ $uom->code }} - {{ $uom->name }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">UOM Kecil</label>
-                                    <input name="small_uom" class="form-control" value="{{ old('small_uom', 'pcs') }}" placeholder="pcs/lembar/buah" required>
+                                    <select name="small_uom" id="smallUom" class="form-select" required>
+                                        @foreach($uoms as $uom)
+                                            <option value="{{ $uom->code }}" @selected(old('small_uom', 'pcs') === $uom->code)>{{ $uom->code }} - {{ $uom->name }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Isi per UOM Besar</label>
-                                    <input name="conversion_qty" type="number" min="1" class="form-control" value="{{ old('conversion_qty', 1) }}" required>
+                                    <input name="conversion_qty" id="conversionQty" type="number" min="1" class="form-control" value="{{ old('conversion_qty', 1) }}" required>
+                                    <div class="text-muted small mt-1">Contoh: 1 box isi 12 pcs, isi angka 12 di sini.</div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Harga per UOM Kecil</label>
                                     <input name="unit_price" type="number" min="0" class="form-control" value="{{ old('unit_price', 0) }}">
                                 </div>
+                                <div class="col-12">
+                                    <div class="conversion-preview" id="conversionPreview">1 box = 1 pcs</div>
+                                </div>
+                            </div>
                             </div>
                         </div>
-                        <div class="col-lg-6">
+
+                        <div class="col-12">
+                            <div class="item-form-section">
                             <div class="form-section-title">Kontrol Stok</div>
                             <div class="row g-3">
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">Stok Awal Gudang Besar</label>
                                     <input name="current_stock" type="number" min="0" class="form-control" value="{{ old('current_stock', 0) }}" required>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">Stok Awal Gudang Kecil</label>
                                     <input name="small_stock" type="number" min="0" class="form-control" value="{{ old('small_stock', 0) }}">
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">Minimum</label>
                                     <input name="minimum_stock" type="number" min="0" class="form-control" value="{{ old('minimum_stock', 0) }}" required>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-lg-3 col-md-6">
                                     <label class="form-label">Buffer</label>
                                     <input name="buffer_stock" type="number" min="0" class="form-control" value="{{ old('buffer_stock', 0) }}" required>
                                 </div>
-                                <div class="col-12">
+                                <div class="col-md-9">
                                     <label class="form-label">Binloc</label>
                                     <input name="location" class="form-control" value="{{ old('location') }}" placeholder="Rak A-01">
                                 </div>
-                                <div class="col-12 form-check ms-2">
-                                    <input type="checkbox" name="is_active" value="1" class="form-check-input" @checked(old('is_active', 1))>
-                                    <label class="form-check-label">Aktif</label>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <div class="form-check mb-2">
+                                        <input type="checkbox" name="is_active" value="1" class="form-check-input" @checked(old('is_active', 1))>
+                                        <label class="form-check-label">Aktif</label>
+                                    </div>
                                 </div>
+                            </div>
                             </div>
                         </div>
                     </div>
@@ -385,6 +429,20 @@
         @if($errors->any() || request('create'))
             bootstrap.Modal.getOrCreateInstance(document.getElementById('createItemModal')).show();
         @endif
+
+        const largeUom = document.getElementById('largeUom');
+        const smallUom = document.getElementById('smallUom');
+        const conversionQty = document.getElementById('conversionQty');
+        const conversionPreview = document.getElementById('conversionPreview');
+
+        function updateConversionPreview() {
+            if (!largeUom || !smallUom || !conversionQty || !conversionPreview) return;
+            conversionPreview.textContent = `1 ${largeUom.value || '-'} = ${conversionQty.value || 0} ${smallUom.value || '-'}`;
+        }
+
+        [largeUom, smallUom, conversionQty].forEach((input) => input?.addEventListener('input', updateConversionPreview));
+        [largeUom, smallUom].forEach((input) => input?.addEventListener('change', updateConversionPreview));
+        updateConversionPreview();
     });
 </script>
 @endsection

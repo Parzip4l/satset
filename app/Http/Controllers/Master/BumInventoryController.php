@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Master;
 
 use App\Http\Controllers\Controller;
 use App\Models\Master\ConsumableItem;
+use App\Models\Master\ConsumableUom;
 use App\Models\Master\ProcurementReceiving;
 use App\Models\Master\ProcurementReceivingItem;
 use App\Models\Master\StockMovement;
@@ -125,7 +126,56 @@ class BumInventoryController extends Controller
             ->orderBy('name')
             ->paginate(15);
 
-        return view('bum.items', compact('items'));
+        $uoms = ConsumableUom::where('is_active', true)->orderBy('sort_order')->orderBy('code')->get();
+
+        return view('bum.items', compact('items', 'uoms'));
+    }
+
+    public function uoms(Request $request)
+    {
+        $uoms = ConsumableUom::query()
+            ->when($request->search, fn ($query, $search) => $query->where(fn ($q) => $q->where('code', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%")))
+            ->orderBy('sort_order')
+            ->orderBy('code')
+            ->paginate(20);
+
+        return view('bum.uoms', compact('uoms'));
+    }
+
+    public function storeUom(Request $request)
+    {
+        $data = $request->validate([
+            'code' => 'required|string|max:30|alpha_dash|unique:consumable_uoms,code',
+            'name' => 'required|string|max:80',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $data['code'] = strtolower($data['code']);
+        $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
+        $data['is_active'] = $request->boolean('is_active', true);
+
+        ConsumableUom::create($data);
+
+        return back()->with('success', 'UOM berhasil ditambahkan.');
+    }
+
+    public function updateUom(Request $request, ConsumableUom $uom)
+    {
+        $data = $request->validate([
+            'code' => 'required|string|max:30|alpha_dash|unique:consumable_uoms,code,' . $uom->id,
+            'name' => 'required|string|max:80',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $data['code'] = strtolower($data['code']);
+        $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
+        $data['is_active'] = $request->boolean('is_active');
+
+        $uom->update($data);
+
+        return back()->with('success', 'UOM berhasil diperbarui.');
     }
 
     public function storeItem(Request $request, ConsumableStockService $stockService)
@@ -134,8 +184,8 @@ class BumInventoryController extends Controller
             'code' => 'required|string|max:50|unique:consumable_items,code',
             'name' => 'required|string|max:150',
             'category' => 'required|in:ATK,RTK',
-            'large_uom' => 'required|string|max:30',
-            'small_uom' => 'required|string|max:30',
+            'large_uom' => 'required|exists:consumable_uoms,code',
+            'small_uom' => 'required|exists:consumable_uoms,code',
             'conversion_qty' => 'required|integer|min:1',
             'unit_price' => 'nullable|numeric|min:0',
             'minimum_stock' => 'required|integer|min:0',
@@ -230,8 +280,8 @@ class BumInventoryController extends Controller
             'code' => 'required|string|max:50|unique:consumable_items,code,' . $item->id,
             'name' => 'required|string|max:150',
             'category' => 'required|in:ATK,RTK',
-            'large_uom' => 'required|string|max:30',
-            'small_uom' => 'required|string|max:30',
+            'large_uom' => 'required|exists:consumable_uoms,code',
+            'small_uom' => 'required|exists:consumable_uoms,code',
             'conversion_qty' => 'required|integer|min:1',
             'unit_price' => 'nullable|numeric|min:0',
             'minimum_stock' => 'required|integer|min:0',

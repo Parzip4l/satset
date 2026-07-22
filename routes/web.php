@@ -105,6 +105,9 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
             Route::get('/receiving-trend', [BumAnalyticsController::class, 'receivingTrend'])->name('receiving-trend');
             Route::get('/procurement-recommendation', [BumAnalyticsController::class, 'procurementRecommendation'])->name('procurement-recommendation');
         });
+        Route::get('/uoms', [BumInventoryController::class, 'uoms'])->name('uoms');
+        Route::post('/uoms', [BumInventoryController::class, 'storeUom'])->name('uoms.store');
+        Route::put('/uoms/{uom}', [BumInventoryController::class, 'updateUom'])->name('uoms.update');
         Route::get('/items', [BumInventoryController::class, 'items'])->name('items');
         Route::post('/items', [BumInventoryController::class, 'storeItem'])->name('items.store');
         Route::post('/items/{item}/stock-adjustment', [BumInventoryController::class, 'adjustItemStock'])->name('items.stock-adjustment');
