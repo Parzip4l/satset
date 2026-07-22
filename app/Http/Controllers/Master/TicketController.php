@@ -118,12 +118,43 @@ class TicketController extends Controller
         ]));
     }
 
+    public function createPublicRequests()
+    {
+        return view('ticket.public-requests');
+    }
+
+    public function createPublicConsumption()
+    {
+        return view('ticket.create-consumption', $this->getTicketFormData([
+            'isPublic' => true,
+            'serviceRequestId' => $this->getBumTicketCategoryId(),
+            'consumptionCategoryId' => $this->getConsumptionCategoryId(),
+            'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
+            'mediumImpactId' => Impact::where('name', 'Medium')->value('id'),
+            'mediumUrgencyId' => Urgency::where('name', 'Medium')->value('id'),
+        ]));
+    }
+
     public function createAtkRtk()
     {
         return view('ticket.create-atk-rtk', $this->getTicketFormData([
             'serviceRequestId' => $this->getBumTicketCategoryId(),
             'atkRtkCategoryId' => $this->getAtkRtkCategoryId(),
             'approvers' => $this->getApproverUsers(),
+            'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
+            'mediumImpactId' => Impact::where('name', 'Medium')->value('id'),
+            'mediumUrgencyId' => Urgency::where('name', 'Medium')->value('id'),
+            'consumableItems' => ConsumableItem::where('is_active', true)->orderBy('name')->get(),
+            'approvalThreshold' => config('bum.atk_rtk_manager_approval_threshold', 100000),
+        ]));
+    }
+
+    public function createPublicAtkRtk()
+    {
+        return view('ticket.create-atk-rtk', $this->getTicketFormData([
+            'isPublic' => true,
+            'serviceRequestId' => $this->getBumTicketCategoryId(),
+            'atkRtkCategoryId' => $this->getAtkRtkCategoryId(),
             'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
             'mediumImpactId' => Impact::where('name', 'Medium')->value('id'),
             'mediumUrgencyId' => Urgency::where('name', 'Medium')->value('id'),
@@ -624,6 +655,180 @@ class TicketController extends Controller
 
         return redirect()->route('public.ticket.ga-permintaan-temuan.create')
             ->with('success', 'Laporan berhasil dikirim. Nomor ticket Anda: ' . $ticket->ticket_no);
+    }
+
+    private function createPublicTicketFromPayload(array $validated, array $payload, User $requester, string $requestType): Ticket
+    {
+        $departments = DepartmentCategory::with('department')
+            ->where('category_id', $validated['category_id'])
+            ->get()
+            ->pluck('department')
+            ->filter();
+
+        $assignedDepartment = $departments->first()
+            ?: $this->findDepartmentByKeywords(['umum', 'general affairs', 'ga', 'procurement']);
+
+        $ticket = Ticket::create([
+            'ticket_no' => $this->generateTicketNo($validated['category_id']),
+            'requester_id' => $requester->id,
+            'department_id' => $assignedDepartment->id ?? null,
+            'assigned_department_id' => $assignedDepartment->id ?? null,
+            'category_id' => $validated['category_id'],
+            'title' => $this->resolveTitle($requestType, $validated, $payload),
+            'description' => $this->resolveDescription($requestType, $validated, $payload),
+            'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+            'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+            'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+            'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getBumTicketCategoryId(),
+            'payload' => $payload,
+            'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
+        ]);
+
+        TicketHistory::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => $requester->id,
+            'status_id' => $ticket->status_id,
+            'action' => 'Ticket dibuat (' . $this->getRequestTypeLabel($requestType) . ' - Public)',
+        ]);
+
+        return $ticket;
+    }
+
+    private function sendPublicTicketEmails(Ticket $ticket, int $categoryId): void
+    {
+        try {
+            Mail::to($ticket->requester->email)
+                ->send(new TicketCreated($ticket, 'requester'));
+            Log::info("Email ticket public terkirim ke pengaju: {$ticket->requester->email}");
+        } catch (\Exception $e) {
+            Log::error("Gagal kirim email ticket public ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
+        }
+
+        $departments = DepartmentCategory::with('department')
+            ->where('category_id', $categoryId)
+            ->get()
+            ->pluck('department')
+            ->filter();
+
+        foreach ($departments as $dep) {
+            if ($dep && $dep->email) {
+                try {
+                    Mail::to($dep->email)
+                        ->send(new TicketCreated($ticket, 'department'));
+                    Log::info("Email ticket public terkirim ke departemen: {$dep->email}");
+                } catch (\Exception $e) {
+                    Log::error("Gagal kirim email ticket public ke departemen: {$dep->email}. Error: ".$e->getMessage());
+                }
+            }
+        }
+    }
+
+    public function storePublicConsumption(Request $request)
+    {
+        $request->merge([
+            'request_type' => 'consumption',
+            'ticket_category_id' => $this->getBumTicketCategoryId(),
+            'category_id' => $this->getConsumptionCategoryId(),
+            'priority_id' => $request->input('priority_id') ?: $this->getDefaultPriorityId(),
+            'impact_id' => $request->input('impact_id') ?: $this->getDefaultImpactId(),
+            'urgency_id' => $request->input('urgency_id') ?: $this->getDefaultUrgencyId(),
+        ]);
+
+        $validated = $request->validate([
+            'reporter_name' => 'required|string|max:150',
+            'reporter_email' => 'required|email|max:255',
+            'request_type' => 'required|in:consumption',
+            'category_id' => 'required|exists:problem_categories,id',
+            'priority_id' => 'nullable|exists:priorities,id',
+            'impact_id' => 'nullable|exists:impacts,id',
+            'urgency_id' => 'nullable|exists:urgencies,id',
+            'ticket_category_id' => 'nullable|exists:ticket_categories,id',
+            'payload' => 'nullable|array',
+            'payload.activity_name' => 'required|string|max:150',
+            'payload.event_type' => 'required|string|max:100',
+            'payload.event_date' => 'required|date',
+            'payload.start_time' => 'required|date_format:H:i',
+            'payload.end_time' => 'required|date_format:H:i',
+            'payload.location' => 'required|string|max:150',
+            'payload.participant_count' => 'required|integer|min:1',
+            'payload.consumption_type' => 'required|string|max:100',
+            'payload.request_reason' => 'required|string',
+            'payload.organizer_unit' => 'nullable|string|max:150',
+            'payload.pic_contact' => 'nullable|string|max:150',
+            'payload.consumption_notes' => 'nullable|string',
+            'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
+            'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
+            'activity_report_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'training_material_file' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx|max:5120',
+        ]);
+
+        $requester = $this->findOrCreatePublicReporter($validated);
+        $payload = $this->buildPayload('consumption', array_merge($validated['payload'] ?? [], [
+            'reporter_name' => $requester->name,
+            'reporter_email' => $requester->email,
+            'submitted_from' => 'public',
+        ]));
+        $payload['workflow_status'] = 'WAITING_BUM_REVIEW';
+
+        $ticket = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'consumption');
+
+        $this->storeRequestAttachment($request, $ticket, 'attendance_file', 'attendance', $requester);
+        $this->storeRequestAttachment($request, $ticket, 'documentation_file', 'documentation', $requester);
+        $this->storeRequestAttachment($request, $ticket, 'activity_report_file', 'activity_report', $requester);
+        $this->storeRequestAttachment($request, $ticket, 'training_material_file', 'training_material', $requester);
+        $this->sendPublicTicketEmails($ticket, $validated['category_id']);
+
+        return redirect()->route('public.ticket.konsumsi.create')
+            ->with('success', 'Permintaan konsumsi berhasil dikirim. Nomor ticket Anda: ' . $ticket->ticket_no);
+    }
+
+    public function storePublicAtkRtk(Request $request)
+    {
+        $request->merge([
+            'request_type' => 'atk_rtk',
+            'ticket_category_id' => $this->getBumTicketCategoryId(),
+            'category_id' => $this->getAtkRtkCategoryId(),
+            'priority_id' => $request->input('priority_id') ?: $this->getDefaultPriorityId(),
+            'impact_id' => $request->input('impact_id') ?: $this->getDefaultImpactId(),
+            'urgency_id' => $request->input('urgency_id') ?: $this->getDefaultUrgencyId(),
+        ]);
+
+        $validated = $request->validate([
+            'reporter_name' => 'required|string|max:150',
+            'reporter_email' => 'required|email|max:255',
+            'request_type' => 'required|in:atk_rtk',
+            'category_id' => 'required|exists:problem_categories,id',
+            'priority_id' => 'nullable|exists:priorities,id',
+            'impact_id' => 'nullable|exists:impacts,id',
+            'urgency_id' => 'nullable|exists:urgencies,id',
+            'ticket_category_id' => 'nullable|exists:ticket_categories,id',
+            'payload' => 'nullable|array',
+            'payload.request_subject' => 'required|string|max:150',
+            'payload.item_type' => 'required|string|max:100',
+            'payload.item_id' => 'nullable|exists:consumable_items,id',
+            'payload.quantity' => 'required|integer|min:1',
+            'payload.unit_price' => 'nullable|numeric|min:0',
+            'payload.needed_date' => 'required|date',
+            'payload.delivery_location' => 'required|string|max:150',
+            'payload.recipient_pic' => 'nullable|string|max:150',
+            'payload.item_details' => 'nullable|string',
+            'payload.justification' => 'required|string',
+            'payload.reporter_phone' => 'nullable|string|max:30',
+        ]);
+
+        $requester = $this->findOrCreatePublicReporter($validated);
+        $payload = $this->buildPayload('atk_rtk', array_merge($validated['payload'] ?? [], [
+            'reporter_name' => $requester->name,
+            'reporter_email' => $requester->email,
+            'submitted_from' => 'public',
+        ]));
+        $payload['workflow_status'] = 'WAITING_BUM_REVIEW';
+
+        $ticket = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'atk_rtk');
+        $this->sendPublicTicketEmails($ticket, $validated['category_id']);
+
+        return redirect()->route('public.ticket.atk-rtk.create')
+            ->with('success', 'Permintaan ATK/RTK berhasil dikirim. Nomor ticket Anda: ' . $ticket->ticket_no);
     }
 
     /**

@@ -1,4 +1,4 @@
-@extends('partials.layouts.master')
+@extends(($isPublic ?? false) ? 'partials.layouts.master_auth' : 'partials.layouts.master')
 
 @section('title', 'Permintaan Konsumsi')
 @section('pagetitle', 'Permintaan Konsumsi')
@@ -139,13 +139,15 @@
                 <span class="consumption-chip mb-3"><i class="bi bi-cup-hot"></i> Permintaan Konsumsi</span>
                 <h3 class="fw-bold text-dark mb-2">Form pengajuan konsumsi dengan alur approval yang jelas.</h3>    
             </div>
-            <div class="d-flex gap-2">
-                <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Menu Requests</a>
-                <a href="{{ route('ticket.general') }}" class="btn btn-outline-secondary rounded-pill px-4">Lihat General</a>
-            </div>
+            @unless($isPublic ?? false)
+                <div class="d-flex gap-2">
+                    <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Menu Requests</a>
+                    <a href="{{ route('ticket.general') }}" class="btn btn-outline-secondary rounded-pill px-4">Lihat General</a>
+                </div>
+            @endunless
         </div>
 
-        <form id="consumptionForm" action="{{ route('ticket.store') }}" method="POST" enctype="multipart/form-data">
+        <form id="consumptionForm" action="{{ ($isPublic ?? false) ? route('public.ticket.konsumsi.store') : route('ticket.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="request_type" value="consumption">
             <input type="hidden" name="category_id" value="{{ old('category_id', $consumptionCategoryId ?? '') }}">
@@ -156,6 +158,33 @@
 
             <div class="row g-4">
                 <div class="col-xl-8">
+                    @if($isPublic ?? false)
+                        <div class="consumption-form-card p-4 p-xl-5 mb-4">
+                            <div class="consumption-section-title">
+                                <span class="step">0</span>
+                                <div>
+                                    <div class="fw-bold">Data Pelapor</div>
+                                    <div class="text-muted fw-normal">Informasi kontak agar tim Bagian Umum dapat melakukan konfirmasi.</div>
+                                </div>
+                            </div>
+
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">Nama Pelapor</label>
+                                    <input type="text" name="reporter_name" class="form-control" value="{{ old('reporter_name') }}" placeholder="Nama lengkap" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email Pelapor</label>
+                                    <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Kontak Pelapor</label>
+                                    <input type="text" name="payload[reporter_phone]" class="form-control" value="{{ old('payload.reporter_phone') }}" placeholder="Nomor HP/extension">
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     <div class="consumption-form-card p-4 p-xl-5 mb-4">
                         <div class="consumption-section-title">
                             <span class="step">1</span>
@@ -199,17 +228,19 @@
                                 <label class="form-label">Jumlah Peserta</label>
                                 <input type="number" min="1" name="payload[participant_count]" class="form-control" value="{{ old('payload.participant_count') }}" placeholder="0" required>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Atasan yang Menyetujui</label>
-                                <select name="payload[supervisor_id]" class="form-select" required>
-                                    <option value="">Pilih atasan</option>
-                                    @foreach(($approvers ?? collect()) as $approver)
-                                        <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
-                                            {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            @unless($isPublic ?? false)
+                                <div class="col-md-6">
+                                    <label class="form-label">Atasan yang Menyetujui</label>
+                                    <select name="payload[supervisor_id]" class="form-select" required>
+                                        <option value="">Pilih atasan</option>
+                                        @foreach(($approvers ?? collect()) as $approver)
+                                            <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
+                                                {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endunless
                             <div class="col-md-6">
                                 <label class="form-label">Unit / Penyelenggara</label>
                                 <input type="text" name="payload[organizer_unit]" class="form-control" value="{{ old('payload.organizer_unit') }}" placeholder="Unit penyelenggara kegiatan">
@@ -297,7 +328,9 @@
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-4">
                         <p class="text-muted small mb-0">Request akan disimpan sebagai <strong>Permintaan Konsumsi</strong> dengan default klasifikasi service request.</p>
                         <div class="d-flex gap-2">
-                            <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Batal</a>
+                            @unless($isPublic ?? false)
+                                <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Batal</a>
+                            @endunless
                             <button type="submit" class="btn rounded-pill px-4 text-white" style="background:#0e7490;">
                                 <i class="bi bi-send me-1"></i> Kirim Permintaan
                             </button>

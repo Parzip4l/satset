@@ -1,4 +1,4 @@
-@extends('partials.layouts.master')
+@extends(($isPublic ?? false) ? 'partials.layouts.master_auth' : 'partials.layouts.master')
 
 @section('title', 'Permintaan ATK / RTK')
 @section('pagetitle', 'ATK / RTK')
@@ -126,13 +126,15 @@
                 <h3 class="fw-bold text-dark mb-2">Form kebutuhan ATK dan RTK.</h3>
                 <p class="text-muted mb-0">Menu ini disiapkan supaya kebutuhan operasional kantor punya jalur sendiri dan tidak bercampur dengan request general.</p>
             </div>
-            <div class="d-flex gap-2">
-                <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Menu Requests</a>
-                <a href="{{ route('ticket.general') }}" class="btn btn-outline-secondary rounded-pill px-4">Lihat General</a>
-            </div>
+            @unless($isPublic ?? false)
+                <div class="d-flex gap-2">
+                    <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Menu Requests</a>
+                    <a href="{{ route('ticket.general') }}" class="btn btn-outline-secondary rounded-pill px-4">Lihat General</a>
+                </div>
+            @endunless
         </div>
 
-        <form action="{{ route('ticket.store') }}" method="POST">
+        <form action="{{ ($isPublic ?? false) ? route('public.ticket.atk-rtk.store') : route('ticket.store') }}" method="POST">
             @csrf
             <input type="hidden" name="request_type" value="atk_rtk">
             <input type="hidden" name="ticket_category_id" value="{{ $serviceRequestId ?? '' }}">
@@ -144,6 +146,27 @@
             <div class="row g-4">
                 <div class="col-xl-8">
                     <div class="atk-card p-4 p-xl-5">
+                        @if($isPublic ?? false)
+                            <div class="mb-4">
+                                <h5 class="fw-bold text-dark mb-3">Data Pelapor</h5>
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Nama Pelapor</label>
+                                        <input type="text" name="reporter_name" class="form-control" value="{{ old('reporter_name') }}" placeholder="Nama lengkap" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email Pelapor</label>
+                                        <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Kontak Pelapor</label>
+                                        <input type="text" name="payload[reporter_phone]" class="form-control" value="{{ old('payload.reporter_phone') }}" placeholder="Nomor HP/extension">
+                                    </div>
+                                </div>
+                            </div>
+                            <hr class="my-4">
+                        @endif
+
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <label class="form-label">Judul Permintaan</label>
@@ -187,18 +210,20 @@
                                 <label class="form-label">PIC Penerima</label>
                                 <input type="text" name="payload[recipient_pic]" class="form-control" value="{{ old('payload.recipient_pic') }}" placeholder="Nama PIC penerima barang">
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Atasan yang Menyetujui</label>
-                                <select name="payload[supervisor_id]" class="form-select atk-select" data-placeholder="Cari nama approver">
-                                    <option value="">Tidak perlu approval atasan</option>
-                                    @foreach(($approvers ?? collect()) as $approver)
-                                        <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
-                                            {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <div class="text-muted small mt-2">Wajib dipilih jika estimasi permintaan mencapai threshold approval.</div>
-                            </div>
+                            @unless($isPublic ?? false)
+                                <div class="col-md-6">
+                                    <label class="form-label">Atasan yang Menyetujui</label>
+                                    <select name="payload[supervisor_id]" class="form-select atk-select" data-placeholder="Cari nama approver">
+                                        <option value="">Tidak perlu approval atasan</option>
+                                        @foreach(($approvers ?? collect()) as $approver)
+                                            <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
+                                                {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="text-muted small mt-2">Wajib dipilih jika estimasi permintaan mencapai threshold approval.</div>
+                                </div>
+                            @endunless
                             <div class="col-12">
                                 <label class="form-label">Daftar Barang / Spesifikasi</label>
                                 <textarea name="payload[item_details]" class="form-control" placeholder="Tuliskan item, merek, ukuran, atau catatan barang yang dibutuhkan.">{{ old('payload.item_details') }}</textarea>
@@ -212,7 +237,9 @@
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-4">
                             <p class="text-muted small mb-0">Threshold approval atasan: <strong>Rp{{ number_format($approvalThreshold ?? 100000, 0, ',', '.') }}</strong>.</p>
                             <div class="d-flex gap-2">
-                                <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Batal</a>
+                                @unless($isPublic ?? false)
+                                    <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Batal</a>
+                                @endunless
                                 <button type="submit" class="btn rounded-pill px-4 text-white" style="background:#e21a1a;">
                                     <i class="bi bi-send me-1"></i> Kirim Permintaan
                                 </button>

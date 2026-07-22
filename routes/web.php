@@ -40,6 +40,22 @@ Route::get('/auth/microsoft/redirect', [MicrosoftSsoController::class, 'redirect
 Route::get('/auth/microsoft/callback', [MicrosoftSsoController::class, 'callback'])
     ->middleware('guest')
     ->name('auth.microsoft.callback');
+Route::get('/public', fn () => redirect()->route('public.requests'))
+    ->name('public.index');
+Route::get('/public/requests', [App\Http\Controllers\Master\TicketController::class, 'createPublicRequests'])
+    ->name('public.requests');
+Route::get('/public/requests/konsumsi', [App\Http\Controllers\Master\TicketController::class, 'createPublicConsumption'])
+    ->name('public.ticket.konsumsi.create');
+Route::post('/public/requests/konsumsi', [App\Http\Controllers\Master\TicketController::class, 'storePublicConsumption'])
+    ->middleware('throttle:30,1')
+    ->name('public.ticket.konsumsi.store');
+Route::get('/public/requests/atk-rtk', [App\Http\Controllers\Master\TicketController::class, 'createPublicAtkRtk'])
+    ->name('public.ticket.atk-rtk.create');
+Route::post('/public/requests/atk-rtk', [App\Http\Controllers\Master\TicketController::class, 'storePublicAtkRtk'])
+    ->middleware('throttle:30,1')
+    ->name('public.ticket.atk-rtk.store');
+Route::get('/public/requests/ga-permintaan-temuan', [App\Http\Controllers\Master\TicketController::class, 'createPublicGaRequestFinding'])
+    ->name('public.ticket.ga-permintaan-temuan.alias');
 Route::get('/public/ga-permintaan-temuan', [App\Http\Controllers\Master\TicketController::class, 'createPublicGaRequestFinding'])
     ->name('public.ticket.ga-permintaan-temuan.create');
 Route::post('/public/ga-permintaan-temuan', [App\Http\Controllers\Master\TicketController::class, 'storePublicGaRequestFinding'])
