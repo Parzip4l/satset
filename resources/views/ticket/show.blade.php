@@ -270,7 +270,8 @@
                             $detailPayload = collect([
                                 'Judul Permintaan' => data_get($ticket->payload, 'request_subject'),
                                 'Jenis Barang' => data_get($ticket->payload, 'item_type'),
-                                'Jumlah Diminta' => data_get($ticket->payload, 'quantity'),
+                                'Total Qty Diminta' => data_get($ticket->payload, 'total_quantity', data_get($ticket->payload, 'quantity')),
+                                'Total Estimasi' => data_get($ticket->payload, 'total_estimated_amount') ? 'Rp' . number_format((float) data_get($ticket->payload, 'total_estimated_amount'), 0, ',', '.') : null,
                                 'Jumlah Disetujui' => data_get($ticket->payload, 'approved_qty'),
                                 'Jumlah Diserahkan' => data_get($ticket->payload, 'fulfilled_qty'),
                                 'Tanggal Dibutuhkan' => data_get($ticket->payload, 'needed_date'),
@@ -306,6 +307,37 @@
                                     </div>
                                 </div>
                             @endforeach
+                        </div>
+                    @endif
+
+                    @if($requestType === 'atk_rtk' && !empty(data_get($ticket->payload, 'items')))
+                        <div class="mt-4">
+                            <div class="text-muted text-uppercase small fw-bold mb-2">Daftar Barang</div>
+                            <div class="table-responsive border rounded-3">
+                                <table class="table mb-0 align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Barang</th>
+                                            <th class="text-end">Qty</th>
+                                            <th class="text-end">Harga Master</th>
+                                            <th class="text-end">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach(data_get($ticket->payload, 'items', []) as $item)
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold">{{ data_get($item, 'item_name') }}</div>
+                                                    <div class="text-muted small">{{ data_get($item, 'item_code') }}{{ data_get($item, 'unit') ? ' | ' . data_get($item, 'unit') : '' }}</div>
+                                                </td>
+                                                <td class="text-end">{{ number_format((int) data_get($item, 'quantity', 0)) }}</td>
+                                                <td class="text-end">Rp{{ number_format((float) data_get($item, 'unit_price', 0), 0, ',', '.') }}</td>
+                                                <td class="text-end fw-semibold">Rp{{ number_format((float) data_get($item, 'line_total', 0), 0, ',', '.') }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     @endif
 

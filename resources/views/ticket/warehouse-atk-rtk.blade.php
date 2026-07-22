@@ -257,6 +257,10 @@
                         @php
                             $payload = $ticket->payload ?? [];
                             $workflow = data_get($payload, 'workflow_status', '-');
+                            $itemSummary = collect(data_get($payload, 'items', []))
+                                ->map(fn ($item) => data_get($item, 'item_name') . ' x ' . data_get($item, 'quantity'))
+                                ->filter()
+                                ->implode(', ');
                         @endphp
                         <tr>
                             <td>
@@ -266,9 +270,9 @@
                             <td>{{ $ticket->requester->name ?? '-' }}</td>
                             <td class="wrap">
                                 <div class="fw-semibold">{{ data_get($payload, 'request_subject', data_get($payload, 'item_type', '-')) }}</div>
-                                <div class="muted-text small">{{ data_get($payload, 'item_details', data_get($payload, 'delivery_location', '-')) }}</div>
+                                <div class="muted-text small">{{ $itemSummary ?: data_get($payload, 'delivery_location', '-') }}</div>
                             </td>
-                            <td class="text-end fw-bold">{{ number_format((int) data_get($payload, 'quantity', 0)) }}</td>
+                            <td class="text-end fw-bold">{{ number_format((int) data_get($payload, 'total_quantity', data_get($payload, 'quantity', 0))) }}</td>
                             <td><span class="badge bg-light text-dark border soft-badge">{{ $workflow }}</span></td>
                             <td>{{ data_get($payload, 'needed_date') ?: '-' }}</td>
                             <td class="text-end">

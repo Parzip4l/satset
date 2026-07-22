@@ -114,10 +114,31 @@
         min-height: 42px;
         padding: .5rem .8rem;
     }
+
+    .atk-item-row {
+        background: #fffdf9;
+        border: 1px solid var(--atk-line);
+        border-radius: 18px;
+        padding: 16px;
+    }
+
+    .atk-item-total {
+        background: rgba(226, 26, 26, .08);
+        border-radius: 16px;
+        color: #991b1b;
+        font-weight: 800;
+        padding: 14px 16px;
+    }
 </style>
 @endsection
 
 @section('content')
+@php
+    $oldItems = old('payload.items', [['item_id' => '', 'quantity' => 1]]);
+    if (!is_array($oldItems) || count($oldItems) === 0) {
+        $oldItems = [['item_id' => '', 'quantity' => 1]];
+    }
+@endphp
 <div class="container-fluid atk-page">
     <div class="atk-shell p-4 p-xl-5">
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
@@ -177,22 +198,56 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Jumlah</label>
-                                <input type="number" min="1" name="payload[quantity]" class="form-control" value="{{ old('payload.quantity') }}" placeholder="0" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Item Master</label>
-                                <select name="payload[item_id]" class="form-select atk-select" data-placeholder="Cari kode atau nama barang">
-                                    <option value="">Belum ditentukan</option>
-                                    @foreach(($consumableItems ?? collect()) as $item)
-                                        <option value="{{ $item->id }}" {{ old('payload.item_id') == $item->id ? 'selected' : '' }}>{{ $item->code }} - {{ $item->name }}</option>
+                            <div class="col-12">
+                                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
+                                    <div>
+                                        <label class="form-label mb-1">Barang yang Diminta</label>
+                                        <div class="text-muted small">Harga otomatis mengikuti master barang. Tambahkan baris jika request lebih dari satu barang.</div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-danger rounded-pill px-3" id="addAtkItem">
+                                        <i class="bi bi-plus-lg me-1"></i> Tambah Barang
+                                    </button>
+                                </div>
+
+                                <div id="atkItems" class="d-grid gap-3">
+                                    @foreach($oldItems as $index => $row)
+                                        <div class="atk-item-row" data-atk-item-row>
+                                            <div class="row g-3 align-items-end">
+                                                <div class="col-md-7">
+                                                    <label class="form-label">Item Master</label>
+                                                    <select name="payload[items][{{ $index }}][item_id]" class="form-select atk-item-select" data-placeholder="Cari kode atau nama barang" required>
+                                                        <option value="">Pilih barang</option>
+                                                        @foreach(($consumableItems ?? collect()) as $item)
+                                                            <option value="{{ $item->id }}"
+                                                                data-price="{{ (float) $item->unit_price }}"
+                                                                data-unit="{{ $item->unit }}"
+                                                                @selected((string) data_get($row, 'item_id') === (string) $item->id)>
+                                                                {{ $item->code }} - {{ $item->name }} | Rp{{ number_format((float) $item->unit_price, 0, ',', '.') }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label">Qty</label>
+                                                    <input type="number" min="1" name="payload[items][{{ $index }}][quantity]" class="form-control atk-item-qty" value="{{ data_get($row, 'quantity', 1) }}" required>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-light border rounded-pill w-100" data-remove-atk-item>
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="text-muted small" data-atk-line-total>Subtotal: Rp0</div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Harga Estimasi/Unit</label>
-                                <input type="number" min="0" name="payload[unit_price]" class="form-control" value="{{ old('payload.unit_price', 0) }}">
+                                </div>
+
+                                <div class="atk-item-total mt-3 d-flex justify-content-between align-items-center">
+                                    <span>Total Estimasi</span>
+                                    <span id="atkGrandTotal">Rp0</span>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Tanggal Dibutuhkan</label>
@@ -220,14 +275,6 @@
                                     <div class="text-muted small mt-2">Wajib dipilih jika estimasi permintaan mencapai threshold approval.</div>
                                 </div>
                             @endunless
-                            <div class="col-12">
-                                <label class="form-label">Daftar Barang / Spesifikasi</label>
-                                <textarea name="payload[item_details]" class="form-control" placeholder="Tuliskan item, merek, ukuran, atau catatan barang yang dibutuhkan.">{{ old('payload.item_details') }}</textarea>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Justifikasi Kebutuhan</label>
-                                <textarea name="payload[justification]" class="form-control" placeholder="Jelaskan alasan pengadaan atau kebutuhan operasionalnya." required>{{ old('payload.justification') }}</textarea>
-                            </div>
                         </div>
 
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-4">
@@ -254,7 +301,7 @@
                         </div>
                         <div class="border rounded-4 p-3 mb-3" style="background:#fffaf1;">
                             <div class="fw-semibold text-dark mb-1">2. Verifikasi</div>
-                            <div class="text-muted small">Unit terkait meninjau item dan justifikasi yang dibutuhkan.</div>
+                            <div class="text-muted small">Unit terkait meninjau daftar barang, qty, stok, dan estimasi dari master.</div>
                         </div>
                         <div class="border rounded-4 p-3" style="background:#fffaf1;">
                             <div class="fw-semibold text-dark mb-1">3. Distribusi</div>
@@ -273,14 +320,87 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    $('.atk-select').select2({
-        theme: 'bootstrap-5',
-        width: '100%',
-        allowClear: true,
-        placeholder: function () {
-            return $(this).data('placeholder') || 'Pilih data';
-        }
+    let atkItemIndex = {{ count($oldItems) }};
+
+    function rupiah(value) {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            maximumFractionDigits: 0
+        }).format(value || 0);
+    }
+
+    function initAtkSelect(context = document) {
+        $(context).find('.atk-select, .atk-item-select').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            allowClear: true,
+            placeholder: function () {
+                return $(this).data('placeholder') || 'Pilih data';
+            }
+        });
+    }
+
+    function updateAtkTotals() {
+        let grandTotal = 0;
+
+        $('[data-atk-item-row]').each(function () {
+            const row = $(this);
+            const option = row.find('.atk-item-select option:selected');
+            const price = Number(option.data('price') || 0);
+            const unit = option.data('unit') || '';
+            const qty = Number(row.find('.atk-item-qty').val() || 0);
+            const subtotal = price * qty;
+            grandTotal += subtotal;
+
+            row.find('[data-atk-line-total]').text(
+                `Harga master: ${rupiah(price)}${unit ? ' / ' + unit : ''} | Subtotal: ${rupiah(subtotal)}`
+            );
+        });
+
+        $('#atkGrandTotal').text(rupiah(grandTotal));
+    }
+
+    function reindexAtkItems() {
+        $('[data-atk-item-row]').each(function (index) {
+            $(this).find('.atk-item-select').attr('name', `payload[items][${index}][item_id]`);
+            $(this).find('.atk-item-qty').attr('name', `payload[items][${index}][quantity]`);
+        });
+        atkItemIndex = $('[data-atk-item-row]').length;
+    }
+
+    $('#addAtkItem').on('click', function () {
+        const firstRow = $('[data-atk-item-row]').first();
+        const newRow = firstRow.clone(false);
+
+        newRow.find('.select2-container').remove();
+        newRow.find('select').removeClass('select2-hidden-accessible').removeAttr('data-select2-id aria-hidden tabindex').val('');
+        newRow.find('option').removeAttr('data-select2-id');
+        newRow.find('.atk-item-qty').val(1);
+        newRow.find('[data-atk-line-total]').text('Subtotal: Rp0');
+
+        $('#atkItems').append(newRow);
+        reindexAtkItems();
+        initAtkSelect(newRow);
+        updateAtkTotals();
     });
+
+    $(document).on('click', '[data-remove-atk-item]', function () {
+        if ($('[data-atk-item-row]').length === 1) {
+            $(this).closest('[data-atk-item-row]').find('.atk-item-select').val('').trigger('change');
+            $(this).closest('[data-atk-item-row]').find('.atk-item-qty').val(1);
+            updateAtkTotals();
+            return;
+        }
+
+        $(this).closest('[data-atk-item-row]').remove();
+        reindexAtkItems();
+        updateAtkTotals();
+    });
+
+    $(document).on('change keyup', '.atk-item-select, .atk-item-qty', updateAtkTotals);
+    initAtkSelect();
+    updateAtkTotals();
 
     @if ($errors->any())
         Swal.fire({

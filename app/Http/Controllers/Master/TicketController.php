@@ -434,9 +434,15 @@ class TicketController extends Controller
         ]);
 
         if ($requestType === 'atk_rtk') {
-            $total = ((int) ($payload['quantity'] ?? 0)) * ((float) ($payload['unit_price'] ?? 0));
+            $total = array_sum(array_map(fn ($item) => (float) ($item['line_total'] ?? 0), $payload['items'] ?? []));
+            $totalQty = array_sum(array_map(fn ($item) => (int) ($item['quantity'] ?? 0), $payload['items'] ?? []));
+            if ($total <= 0) {
+                $total = ((int) ($payload['quantity'] ?? 0)) * ((float) ($payload['unit_price'] ?? 0));
+                $totalQty = (int) ($payload['quantity'] ?? 0);
+            }
             $threshold = config('bum.atk_rtk_manager_approval_threshold', 100000);
             $payload['total_estimated_amount'] = $total;
+            $payload['total_quantity'] = $totalQty;
             $payload['approval_threshold'] = $threshold;
             $payload['workflow_status'] = $total >= $threshold ? 'WAITING_MANAGER_APPROVAL' : 'WAITING_BUM_REVIEW';
         } elseif ($requestType === 'consumption') {
@@ -481,13 +487,17 @@ class TicketController extends Controller
         }
 
         if ($requestType === 'atk_rtk') {
+            $itemSummary = collect($payload['items'] ?? [])
+                ->map(fn ($item) => ($item['item_name'] ?? 'Barang') . ' x ' . ($item['quantity'] ?? 0))
+                ->implode(', ');
+
             return sprintf(
-                'Permintaan %s sebanyak %s unit untuk %s. Catatan: %s.',
+                'Permintaan %s untuk %s. Total qty: %s. Estimasi: Rp%s.',
                 $payload['item_type'] ?? 'barang',
-                $payload['quantity'] ?? '-',
                 $payload['delivery_location'] ?? '-',
-                $payload['justification'] ?? '-'
-            );
+                $payload['total_quantity'] ?? '-',
+                number_format((float) ($payload['total_estimated_amount'] ?? 0), 0, ',', '.')
+            ) . ($itemSummary ? ' Item: ' . $itemSummary . '.' : '');
         }
 
         if ($requestType === 'ga_request_finding') {
@@ -501,6 +511,55 @@ class TicketController extends Controller
         }
 
         return $validated['description'] ?? null;
+    }
+
+    private function enrichAtkRtkPayload(array $payload): array
+    {
+        $rows = collect($payload['items'] ?? [])
+            ->filter(fn ($row) => !empty($row['item_id']) && (int) ($row['quantity'] ?? 0) > 0)
+            ->values();
+
+        if ($rows->isEmpty() && !empty($payload['item_id'])) {
+            $rows = collect([[
+                'item_id' => $payload['item_id'],
+                'quantity' => $payload['quantity'] ?? 1,
+            ]]);
+        }
+
+        $masterItems = ConsumableItem::whereIn('id', $rows->pluck('item_id')->all())
+            ->get()
+            ->keyBy('id');
+
+        $payload['items'] = $rows
+            ->map(function ($row) use ($masterItems) {
+                $item = $masterItems->get((int) $row['item_id']);
+                if (!$item) {
+                    return null;
+                }
+
+                $quantity = (int) $row['quantity'];
+                $unitPrice = (float) $item->unit_price;
+
+                return [
+                    'item_id' => $item->id,
+                    'item_code' => $item->code,
+                    'item_name' => $item->name,
+                    'unit' => $item->unit,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'line_total' => $quantity * $unitPrice,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        $payload['quantity'] = array_sum(array_map(fn ($row) => (int) ($row['quantity'] ?? 0), $payload['items']));
+        $payload['unit_price'] = null;
+        $payload['item_id'] = data_get($payload, 'items.0.item_id');
+        $payload['item_name'] = data_get($payload, 'items.0.item_name');
+
+        return $payload;
     }
 
     private function findDepartmentByKeywords(array $keywords): ?Department
@@ -805,23 +864,21 @@ class TicketController extends Controller
             'payload' => 'nullable|array',
             'payload.request_subject' => 'required|string|max:150',
             'payload.item_type' => 'required|string|max:100',
-            'payload.item_id' => 'nullable|exists:consumable_items,id',
-            'payload.quantity' => 'required|integer|min:1',
-            'payload.unit_price' => 'nullable|numeric|min:0',
+            'payload.items' => 'required|array|min:1',
+            'payload.items.*.item_id' => 'required|exists:consumable_items,id',
+            'payload.items.*.quantity' => 'required|integer|min:1',
             'payload.needed_date' => 'required|date',
             'payload.delivery_location' => 'required|string|max:150',
             'payload.recipient_pic' => 'nullable|string|max:150',
-            'payload.item_details' => 'nullable|string',
-            'payload.justification' => 'required|string',
             'payload.reporter_phone' => 'nullable|string|max:30',
         ]);
 
         $requester = $this->findOrCreatePublicReporter($validated);
-        $payload = $this->buildPayload('atk_rtk', array_merge($validated['payload'] ?? [], [
+        $payload = $this->buildPayload('atk_rtk', $this->enrichAtkRtkPayload(array_merge($validated['payload'] ?? [], [
             'reporter_name' => $requester->name,
             'reporter_email' => $requester->email,
             'submitted_from' => 'public',
-        ]));
+        ])));
         $payload['workflow_status'] = 'WAITING_BUM_REVIEW';
 
         $ticket = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'atk_rtk');
@@ -869,13 +926,12 @@ class TicketController extends Controller
             $rules = array_merge($rules, [
                 'payload.request_subject' => 'required|string|max:150',
                 'payload.item_type' => 'required|string|max:100',
-                'payload.item_id' => 'nullable|exists:consumable_items,id',
-                'payload.quantity' => 'required|integer|min:1',
-                'payload.unit_price' => 'nullable|numeric|min:0',
+                'payload.items' => 'required|array|min:1',
+                'payload.items.*.item_id' => 'required|exists:consumable_items,id',
+                'payload.items.*.quantity' => 'required|integer|min:1',
                 'payload.supervisor_id' => 'nullable|exists:users,id',
                 'payload.needed_date' => 'required|date',
                 'payload.delivery_location' => 'required|string|max:150',
-                'payload.justification' => 'required|string',
             ]);
         } elseif ($requestType === 'ga_request_finding') {
             $rules = array_merge($rules, [
@@ -897,7 +953,12 @@ class TicketController extends Controller
         $validated = $request->validate($rules);
 
         if ($requestType === 'atk_rtk') {
-            $estimatedAmount = ((int) data_get($validated, 'payload.quantity', 0)) * ((float) data_get($validated, 'payload.unit_price', 0));
+            $validated['payload'] = $this->enrichAtkRtkPayload($validated['payload'] ?? []);
+            $estimatedAmount = (float) data_get($validated, 'payload.total_estimated_amount', 0);
+            if ($estimatedAmount <= 0) {
+                $estimatedPayload = $this->buildPayload('atk_rtk', $validated['payload']);
+                $estimatedAmount = (float) data_get($estimatedPayload, 'total_estimated_amount', 0);
+            }
             $threshold = config('bum.atk_rtk_manager_approval_threshold', 100000);
             if ($estimatedAmount >= $threshold && empty(data_get($validated, 'payload.supervisor_id'))) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
