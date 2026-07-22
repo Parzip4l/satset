@@ -197,7 +197,7 @@
     <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-end gap-3 mb-4">
         <div>
             <h3 class="page-title">Master Barang Habis Pakai</h3>
-            <p class="page-subtitle mb-0">Kelola ATK/RTK, stok minimum, buffer, saldo, dan binloc.</p>
+            <p class="page-subtitle mb-0">Kelola ATK/RTK, UOM besar-kecil, stok Gudang Besar, Gudang Kecil, dan binloc.</p>
         </div>
         <div class="items-actions">
             <a href="{{ route('bum.dashboard') }}" class="btn btn-light border items-btn">Dashboard</a>
@@ -234,7 +234,8 @@
                         <th style="min-width: 320px;"><a href="{{ $sortLink('name') }}" class="text-dark text-decoration-none">Nama <i class="bi {{ $sortIcon('name') }}"></i></a></th>
                         <th><a href="{{ $sortLink('category') }}" class="text-dark text-decoration-none">Kategori <i class="bi {{ $sortIcon('category') }}"></i></a></th>
                         <th><a href="{{ $sortLink('location') }}" class="text-dark text-decoration-none">Lokasi <i class="bi {{ $sortIcon('location') }}"></i></a></th>
-                        <th class="text-end"><a href="{{ $sortLink('current_stock') }}" class="text-dark text-decoration-none">Stok <i class="bi {{ $sortIcon('current_stock') }}"></i></a></th>
+                        <th class="text-end"><a href="{{ $sortLink('current_stock') }}" class="text-dark text-decoration-none">Gudang Besar <i class="bi {{ $sortIcon('current_stock') }}"></i></a></th>
+                        <th class="text-end">Gudang Kecil</th>
                         <th class="text-end"><a href="{{ $sortLink('minimum_stock') }}" class="text-dark text-decoration-none">Min/Buffer <i class="bi {{ $sortIcon('minimum_stock') }}"></i></a></th>
                         <th><a href="{{ $sortLink('is_active') }}" class="text-dark text-decoration-none">Status <i class="bi {{ $sortIcon('is_active') }}"></i></a></th>
                         <th class="text-end">Aksi</th>
@@ -246,13 +247,14 @@
                             <td class="fw-bold">{{ $item->code }}</td>
                             <td class="wrap">
                                 <div class="fw-semibold">{{ $item->name }}</div>
-                                <div class="muted-text small">{{ $item->unit }} | Rp{{ number_format($item->unit_price, 0, ',', '.') }}</div>
+                                <div class="muted-text small">1 {{ $item->large_uom }} = {{ $item->conversion_qty }} {{ $item->small_uom }} | Rp{{ number_format($item->unit_price, 0, ',', '.') }}/{{ $item->small_uom }}</div>
                             </td>
                             <td><span class="badge bg-light text-dark border soft-badge">{{ $item->category }}</span></td>
                             <td>{{ $item->location ?? '-' }}</td>
                             <td class="text-end">
-                                <span class="stock-chip {{ $item->current_stock <= $item->minimum_stock ? 'low' : '' }}">{{ $item->current_stock }}</span>
+                                <span class="stock-chip {{ $item->current_stock <= $item->minimum_stock ? 'low' : '' }}">{{ $item->current_stock }} {{ $item->large_uom }}</span>
                             </td>
+                            <td class="text-end"><span class="stock-chip">{{ $item->small_stock }} {{ $item->small_uom }}</span></td>
                             <td class="text-end">{{ $item->minimum_stock }} / {{ $item->buffer_stock }}</td>
                             <td>
                                 @if($item->is_active)
@@ -269,7 +271,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <div class="empty-state">Belum ada master barang.</div>
                             </td>
                         </tr>
@@ -319,11 +321,19 @@
                                     <input name="name" class="form-control" value="{{ old('name') }}" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Satuan</label>
-                                    <input name="unit" class="form-control" value="{{ old('unit') }}" placeholder="pcs/box" required>
+                                    <label class="form-label">UOM Besar</label>
+                                    <input name="large_uom" class="form-control" value="{{ old('large_uom', 'box') }}" placeholder="box/dus/rim" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Harga Est.</label>
+                                    <label class="form-label">UOM Kecil</label>
+                                    <input name="small_uom" class="form-control" value="{{ old('small_uom', 'pcs') }}" placeholder="pcs/lembar/buah" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Isi per UOM Besar</label>
+                                    <input name="conversion_qty" type="number" min="1" class="form-control" value="{{ old('conversion_qty', 1) }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Harga per UOM Kecil</label>
                                     <input name="unit_price" type="number" min="0" class="form-control" value="{{ old('unit_price', 0) }}">
                                 </div>
                             </div>
@@ -332,8 +342,12 @@
                             <div class="form-section-title">Kontrol Stok</div>
                             <div class="row g-3">
                                 <div class="col-md-4">
-                                    <label class="form-label">Stok Awal</label>
+                                    <label class="form-label">Stok Awal Gudang Besar</label>
                                     <input name="current_stock" type="number" min="0" class="form-control" value="{{ old('current_stock', 0) }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Stok Awal Gudang Kecil</label>
+                                    <input name="small_stock" type="number" min="0" class="form-control" value="{{ old('small_stock', 0) }}">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Minimum</label>

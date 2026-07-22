@@ -28,10 +28,14 @@ class ConsumableStockServiceTest extends TestCase
             $table->string('name');
             $table->string('category');
             $table->string('unit');
+            $table->string('large_uom')->default('box');
+            $table->string('small_uom')->default('pcs');
+            $table->unsignedInteger('conversion_qty')->default(1);
             $table->decimal('unit_price', 15, 2)->default(0);
             $table->integer('minimum_stock')->default(0);
             $table->integer('buffer_stock')->default(0);
             $table->integer('current_stock')->default(0);
+            $table->integer('small_stock')->default(0);
             $table->string('location')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
@@ -41,9 +45,13 @@ class ConsumableStockServiceTest extends TestCase
             $table->id();
             $table->foreignId('item_id');
             $table->string('movement_type');
+            $table->string('stock_location')->default('big_warehouse');
+            $table->string('source_stock_location')->nullable();
+            $table->string('destination_stock_location')->nullable();
             $table->integer('qty');
             $table->integer('balance_before');
             $table->integer('balance_after');
+            $table->string('balance_uom')->nullable();
             $table->string('reference_type')->nullable();
             $table->unsignedBigInteger('reference_id')->nullable();
             $table->text('notes')->nullable();
@@ -123,6 +131,35 @@ class ConsumableStockServiceTest extends TestCase
         $service->decrease($item->fresh(), 2, 'atk_rtk_request', 99, 'Over handover');
     }
 
+    public function test_transfer_big_to_small_records_both_warehouse_movements(): void
+    {
+        $item = $this->item([
+            'current_stock' => 2,
+            'small_stock' => 1,
+            'large_uom' => 'box',
+            'small_uom' => 'pcs',
+            'conversion_qty' => 12,
+        ]);
+
+        app(ConsumableStockService::class)->transferBigToSmall($item, 1, 'atk_rtk_replenishment', 99, 'Transfer');
+
+        $fresh = $item->fresh();
+        $this->assertSame(1, $fresh->current_stock);
+        $this->assertSame(13, $fresh->small_stock);
+        $this->assertDatabaseHas('stock_movements', [
+            'movement_type' => 'TRANSFER_OUT',
+            'stock_location' => 'big_warehouse',
+            'qty' => 1,
+            'balance_after' => 1,
+        ]);
+        $this->assertDatabaseHas('stock_movements', [
+            'movement_type' => 'TRANSFER_IN',
+            'stock_location' => 'small_warehouse',
+            'qty' => 12,
+            'balance_after' => 13,
+        ]);
+    }
+
     public function test_stock_opname_adjustment_records_adjustment_movement(): void
     {
         $item = $this->item(['current_stock' => 10]);
@@ -145,9 +182,13 @@ class ConsumableStockServiceTest extends TestCase
             'name' => 'Pulpen Test',
             'category' => 'ATK',
             'unit' => 'pcs',
+            'large_uom' => 'box',
+            'small_uom' => 'pcs',
+            'conversion_qty' => 1,
             'minimum_stock' => 1,
             'buffer_stock' => 2,
             'current_stock' => 0,
+            'small_stock' => 0,
             'is_active' => true,
         ], $attributes));
     }

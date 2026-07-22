@@ -319,16 +319,19 @@
                                         <tr>
                                             <th>Barang</th>
                                             <th class="text-end">Qty</th>
-                                            <th class="text-end">Harga Master</th>
+                                            <th class="text-end">Harga per UOM Kecil</th>
                                             <th class="text-end">Subtotal</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach(data_get($ticket->payload, 'items', []) as $item)
+                                            @php
+                                                $stockItem = $consumableItems->firstWhere('id', data_get($item, 'item_id'));
+                                            @endphp
                                             <tr>
                                                 <td>
                                                     <div class="fw-semibold">{{ data_get($item, 'item_name') }}</div>
-                                                    <div class="text-muted small">{{ data_get($item, 'item_code') }}{{ data_get($item, 'unit') ? ' | ' . data_get($item, 'unit') : '' }}</div>
+                                                    <div class="text-muted small">{{ data_get($item, 'item_code') }}{{ data_get($item, 'small_uom') ? ' | ' . data_get($item, 'small_uom') : '' }}</div>
                                                 </td>
                                                 <td class="text-end">{{ number_format((int) data_get($item, 'quantity', 0)) }}</td>
                                                 <td class="text-end">Rp{{ number_format((float) data_get($item, 'unit_price', 0), 0, ',', '.') }}</td>
@@ -590,22 +593,84 @@
                         <div class="col-12"><button class="btn btn-outline-primary w-100">Simpan Review</button></div>
                     </form>
 
-                    <form action="{{ route('ticket.atk-rtk.handover', $ticket) }}" method="POST" class="row g-2">
-                        @csrf
-                        <div class="col-12">
-                            <label class="meta-label">Handover Barang</label>
-                            <select name="item_id" class="form-select select2-bs5" data-placeholder="Cari item stok" required>
-                                <option value="">Pilih item stok</option>
-                                @foreach($consumableItems as $item)
-                                    <option value="{{ $item->id }}" @selected(data_get($ticket->payload, 'item_id') == $item->id)>{{ $item->code }} - {{ $item->name }} (stok {{ $item->current_stock }})</option>
-                                @endforeach
-                            </select>
+                    @if(!empty(data_get($ticket->payload, 'items')))
+                        <div class="border rounded-3 mb-4 overflow-hidden">
+                            <div class="table-responsive">
+                                <table class="table mb-0 align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Barang</th>
+                                            <th class="text-end">Diminta</th>
+                                            <th class="text-end">Gudang Kecil</th>
+                                            <th class="text-end">Gudang Besar</th>
+                                            <th class="text-end">Rekomendasi</th>
+                                            <th class="text-end">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach(data_get($ticket->payload, 'items', []) as $row)
+                                            @php
+                                                $stockItem = $consumableItems->firstWhere('id', data_get($row, 'item_id'));
+                                                $requestedQty = (int) data_get($row, 'quantity', 0);
+                                                $smallStock = (int) ($stockItem->small_stock ?? 0);
+                                                $bigStock = (int) ($stockItem->current_stock ?? 0);
+                                                $conversionQty = max(1, (int) ($stockItem->conversion_qty ?? data_get($row, 'conversion_qty', 1)));
+                                                $shortage = max(0, $requestedQty - $smallStock);
+                                                $recommendedLargeQty = $shortage > 0 ? (int) ceil($shortage / $conversionQty) : 0;
+                                            @endphp
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-semibold">{{ data_get($row, 'item_name') }}</div>
+                                                    <div class="text-muted small">1 {{ $stockItem->large_uom ?? data_get($row, 'large_uom') }} = {{ $conversionQty }} {{ $stockItem->small_uom ?? data_get($row, 'small_uom') }}</div>
+                                                </td>
+                                                <td class="text-end">{{ number_format($requestedQty) }} {{ $stockItem->small_uom ?? data_get($row, 'small_uom') }}</td>
+                                                <td class="text-end">{{ number_format($smallStock) }} {{ $stockItem->small_uom ?? data_get($row, 'small_uom') }}</td>
+                                                <td class="text-end">{{ number_format($bigStock) }} {{ $stockItem->large_uom ?? data_get($row, 'large_uom') }}</td>
+                                                <td class="text-end">{{ $recommendedLargeQty ? number_format($recommendedLargeQty) . ' ' . ($stockItem->large_uom ?? data_get($row, 'large_uom')) : 'Cukup' }}</td>
+                                                <td class="text-end">
+                                                    @if($recommendedLargeQty > 0 && $bigStock > 0)
+                                                        <form action="{{ route('ticket.atk-rtk.replenish', $ticket) }}" method="POST" class="d-inline-flex gap-1">
+                                                            @csrf
+                                                            <input type="hidden" name="item_id" value="{{ data_get($row, 'item_id') }}">
+                                                            <input type="number" min="1" max="{{ $bigStock }}" name="large_qty" value="{{ min($recommendedLargeQty, max(1, $bigStock)) }}" class="form-control form-control-sm" style="width:76px;" required>
+                                                            <button class="btn btn-sm btn-outline-danger">Ambil</button>
+                                                        </form>
+                                                    @elseif($recommendedLargeQty > 0)
+                                                        <span class="badge bg-danger-subtle text-danger">Gudang Besar kosong</span>
+                                                    @else
+                                                        <span class="badge bg-success-subtle text-success">Siap</span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div class="col-6"><input type="number" min="1" name="fulfilled_qty" class="form-control" value="{{ data_get($ticket->payload, 'approved_qty', data_get($ticket->payload, 'quantity', 1)) }}" required></div>
-                        <div class="col-6"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
-                        <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
-                        <div class="col-12"><button class="btn btn-primary w-100">Handover & Kurangi Stok</button></div>
-                    </form>
+                        <form action="{{ route('ticket.atk-rtk.handover', $ticket) }}" method="POST" class="row g-2">
+                            @csrf
+                            <div class="col-12"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
+                            <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
+                            <div class="col-12"><button class="btn btn-primary w-100">Handover Semua & Kurangi Gudang Kecil</button></div>
+                        </form>
+                    @else
+                        <form action="{{ route('ticket.atk-rtk.handover', $ticket) }}" method="POST" class="row g-2">
+                            @csrf
+                            <div class="col-12">
+                                <label class="meta-label">Handover Barang</label>
+                                <select name="item_id" class="form-select select2-bs5" data-placeholder="Cari item stok" required>
+                                    <option value="">Pilih item stok</option>
+                                    @foreach($consumableItems as $item)
+                                        <option value="{{ $item->id }}" @selected(data_get($ticket->payload, 'item_id') == $item->id)>{{ $item->code }} - {{ $item->name }} (gudang kecil {{ $item->small_stock }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-6"><input type="number" min="1" name="fulfilled_qty" class="form-control" value="{{ data_get($ticket->payload, 'approved_qty', data_get($ticket->payload, 'quantity', 1)) }}" required></div>
+                            <div class="col-6"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
+                            <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
+                            <div class="col-12"><button class="btn btn-primary w-100">Handover & Kurangi Gudang Kecil</button></div>
+                        </form>
+                    @endif
                 </div>
             </div>
             @endif

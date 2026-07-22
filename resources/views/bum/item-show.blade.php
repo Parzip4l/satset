@@ -162,7 +162,7 @@
         <div>
             <div class="text-muted small fw-bold mb-1">{{ $item->code }} | {{ $item->category }}</div>
             <h3 class="detail-title">{{ $item->name }}</h3>
-            <p class="text-muted mb-0">{{ $item->unit }} | Rp{{ number_format($item->unit_price, 0, ',', '.') }} | Binloc {{ $item->location ?? '-' }}</p>
+            <p class="text-muted mb-0">1 {{ $item->large_uom }} = {{ $item->conversion_qty }} {{ $item->small_uom }} | Rp{{ number_format($item->unit_price, 0, ',', '.') }}/{{ $item->small_uom }} | Binloc {{ $item->location ?? '-' }}</p>
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('bum.items') }}" class="btn btn-light border">Kembali</a>
@@ -175,10 +175,10 @@
 
     <div class="row g-3 mb-4">
         @foreach([
-            ['label' => 'Stok Saat Ini', 'value' => number_format($item->current_stock), 'hint' => $summary['stock_status']],
+            ['label' => 'Gudang Besar', 'value' => number_format($item->current_stock) . ' ' . $item->large_uom, 'hint' => $summary['stock_status']],
+            ['label' => 'Gudang Kecil', 'value' => number_format($item->small_stock) . ' ' . $item->small_uom, 'hint' => 'Stok request user'],
             ['label' => 'Minimum / Buffer', 'value' => number_format($item->minimum_stock) . ' / ' . number_format($item->buffer_stock), 'hint' => 'Batas kontrol'],
-            ['label' => 'Total Masuk', 'value' => number_format($summary['incoming_total']), 'hint' => 'Semua pergerakan'],
-            ['label' => 'Total Keluar', 'value' => number_format($summary['outgoing_total']), 'hint' => 'Semua pergerakan'],
+            ['label' => 'Movement Keluar', 'value' => number_format($summary['outgoing_total']), 'hint' => 'Semua gudang'],
         ] as $metric)
             <div class="col-xl-3 col-md-6">
                 <div class="metric-card">
@@ -230,6 +230,7 @@
                             <tr>
                                 <th><a href="{{ $sortLink('created_at') }}" class="text-dark text-decoration-none">Tanggal <i class="bi {{ $sortIcon('created_at') }}"></i></a></th>
                                 <th><a href="{{ $sortLink('movement_type') }}" class="text-dark text-decoration-none">Tipe <i class="bi {{ $sortIcon('movement_type') }}"></i></a></th>
+                                <th>Gudang</th>
                                 <th class="text-end"><a href="{{ $sortLink('qty') }}" class="text-dark text-decoration-none">Qty <i class="bi {{ $sortIcon('qty') }}"></i></a></th>
                                 <th class="text-end"><a href="{{ $sortLink('balance_after') }}" class="text-dark text-decoration-none">Saldo <i class="bi {{ $sortIcon('balance_after') }}"></i></a></th>
                                 <th>Catatan</th>
@@ -241,14 +242,15 @@
                                 <tr>
                                     <td>{{ $movement->created_at->format('d M Y H:i') }}</td>
                                     <td><span class="badge bg-light text-dark border soft-badge">{{ $movement->movement_type }}</span></td>
+                                    <td>{{ $movement->stock_location === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar' }}</td>
                                     <td class="text-end fw-bold {{ $isOutgoing ? 'text-danger' : 'text-success' }}">
-                                        {{ $isOutgoing ? '-' : '+' }}{{ $movement->qty }}
+                                        {{ $isOutgoing ? '-' : '+' }}{{ $movement->qty }} {{ $movement->balance_uom }}
                                     </td>
-                                    <td class="text-end">{{ $movement->balance_after }}</td>
+                                    <td class="text-end">{{ $movement->balance_after }} {{ $movement->balance_uom }}</td>
                                     <td class="wrap">{{ $movement->notes ?? '-' }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="5" class="text-center text-muted py-4">Belum ada stock movement.</td></tr>
+                                <tr><td colspan="6" class="text-center text-muted py-4">Belum ada stock movement.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -311,9 +313,16 @@
                     <div class="stock-note mb-3">
                         <div class="text-muted small fw-bold mb-1">{{ $item->code }}</div>
                         <div class="fw-bold">{{ $item->name }}</div>
-                        <div class="text-muted small mt-1">Stok saat ini: <strong class="text-dark">{{ number_format($item->current_stock) }}</strong> {{ $item->unit }}</div>
+                        <div class="text-muted small mt-1">Gudang Besar: <strong class="text-dark">{{ number_format($item->current_stock) }}</strong> {{ $item->large_uom }} | Gudang Kecil: <strong class="text-dark">{{ number_format($item->small_stock) }}</strong> {{ $item->small_uom }}</div>
                     </div>
                     <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Gudang</label>
+                            <select name="stock_location" class="form-select" required>
+                                <option value="big_warehouse" @selected(old('stock_location') === 'big_warehouse')>Gudang Besar ({{ $item->large_uom }})</option>
+                                <option value="small_warehouse" @selected(old('stock_location') === 'small_warehouse')>Gudang Kecil ({{ $item->small_uom }})</option>
+                            </select>
+                        </div>
                         <div class="col-md-6">
                             <label class="form-label">Jenis Mutasi</label>
                             <select name="direction" class="form-select" required>

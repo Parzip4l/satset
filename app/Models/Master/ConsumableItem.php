@@ -14,10 +14,14 @@ class ConsumableItem extends Model
         'name',
         'category',
         'unit',
+        'large_uom',
+        'small_uom',
+        'conversion_qty',
         'unit_price',
         'minimum_stock',
         'buffer_stock',
         'current_stock',
+        'small_stock',
         'location',
         'is_active',
     ];
@@ -25,6 +29,9 @@ class ConsumableItem extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'unit_price' => 'decimal:2',
+        'conversion_qty' => 'integer',
+        'current_stock' => 'integer',
+        'small_stock' => 'integer',
     ];
 
     public function movements()

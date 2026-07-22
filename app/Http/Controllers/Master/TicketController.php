@@ -538,16 +538,23 @@ class TicketController extends Controller
                 }
 
                 $quantity = (int) $row['quantity'];
-                $unitPrice = (float) $item->unit_price;
+                $smallUnitPrice = (float) $item->unit_price;
+                $conversionQty = max(1, (int) $item->conversion_qty);
+                $largeUnitPrice = $smallUnitPrice * $conversionQty;
 
                 return [
                     'item_id' => $item->id,
                     'item_code' => $item->code,
                     'item_name' => $item->name,
-                    'unit' => $item->unit,
+                    'large_uom' => $item->large_uom,
+                    'small_uom' => $item->small_uom,
+                    'conversion_qty' => $conversionQty,
                     'quantity' => $quantity,
-                    'unit_price' => $unitPrice,
-                    'line_total' => $quantity * $unitPrice,
+                    'unit_price' => $smallUnitPrice,
+                    'large_unit_price' => $largeUnitPrice,
+                    'line_total' => $quantity * $smallUnitPrice,
+                    'small_stock_at_request' => (int) $item->small_stock,
+                    'big_stock_at_request' => (int) $item->current_stock,
                 ];
             })
             ->filter()
@@ -1311,29 +1318,103 @@ class TicketController extends Controller
         return back()->with('success', 'Review BUM berhasil dicatat.');
     }
 
-    public function handoverAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
+    public function replenishAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
     {
         $data = $request->validate([
             'item_id' => 'required|exists:consumable_items,id',
-            'fulfilled_qty' => 'required|integer|min:1',
-            'received_by' => 'required|string|max:150',
+            'large_qty' => 'required|integer|min:1',
             'notes' => 'nullable|string',
         ]);
 
         $payload = $ticket->payload ?? [];
-        $approvedQty = (int) (data_get($payload, 'approved_qty') ?: data_get($payload, 'quantity', 0));
-        if ($data['fulfilled_qty'] > $approvedQty) {
-            return back()->with('error', 'Qty fulfilled tidak boleh melebihi qty approved.');
+        $payloadItems = collect(data_get($payload, 'items', []));
+        if ($payloadItems->isNotEmpty() && !$payloadItems->contains(fn ($row) => (int) data_get($row, 'item_id') === (int) $data['item_id'])) {
+            return back()->with('error', 'Barang tidak ada di daftar permintaan ticket ini.');
         }
 
         try {
             DB::transaction(function () use ($data, $ticket, $stockService, &$payload) {
                 $item = ConsumableItem::lockForUpdate()->findOrFail($data['item_id']);
-                $stockService->decrease($item, $data['fulfilled_qty'], 'atk_rtk_request', $ticket->id, 'Handover ' . $ticket->ticket_no, auth()->id());
+                $largeQty = (int) $data['large_qty'];
+                $smallQty = $largeQty * max(1, (int) $item->conversion_qty);
 
-                $payload['item_id'] = $item->id;
-                $payload['item_name'] = $item->name;
-                $payload['fulfilled_qty'] = $data['fulfilled_qty'];
+                $stockService->transferBigToSmall(
+                    $item,
+                    $largeQty,
+                    'atk_rtk_replenishment',
+                    $ticket->id,
+                    $data['notes'] ?: 'Transfer Gudang Besar ke Gudang Kecil untuk ' . $ticket->ticket_no,
+                    auth()->id()
+                );
+
+                $payload['replenishments'][] = [
+                    'item_id' => $item->id,
+                    'item_name' => $item->name,
+                    'large_qty' => $largeQty,
+                    'large_uom' => $item->large_uom,
+                    'small_qty' => $smallQty,
+                    'small_uom' => $item->small_uom,
+                    'notes' => $data['notes'] ?? null,
+                    'transferred_at' => now()->toDateTimeString(),
+                    'transferred_by' => auth()->id(),
+                ];
+                $payload['workflow_status'] = 'STOCK_CHECKED';
+                $ticket->update(['payload' => $payload]);
+                $ticket->histories()->create([
+                    'user_id' => auth()->id(),
+                    'action' => "Transfer {$largeQty} {$item->large_uom} ke Gudang Kecil ({$smallQty} {$item->small_uom}).",
+                ]);
+            });
+        } catch (InvalidArgumentException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Barang berhasil diambil dari Gudang Besar dan masuk ke Gudang Kecil.');
+    }
+
+    public function handoverAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
+    {
+        $data = $request->validate([
+            'item_id' => 'nullable|exists:consumable_items,id',
+            'fulfilled_qty' => 'nullable|integer|min:1',
+            'received_by' => 'required|string|max:150',
+            'notes' => 'nullable|string',
+        ]);
+
+        $payload = $ticket->payload ?? [];
+        $payloadItems = collect(data_get($payload, 'items', []));
+
+        if ($payloadItems->isEmpty()) {
+            $approvedQty = (int) (data_get($payload, 'approved_qty') ?: data_get($payload, 'quantity', 0));
+            if ((int) $data['fulfilled_qty'] > $approvedQty) {
+                return back()->with('error', 'Qty fulfilled tidak boleh melebihi qty approved.');
+            }
+        }
+
+        try {
+            DB::transaction(function () use ($data, $ticket, $stockService, &$payload, $payloadItems) {
+                if ($payloadItems->isNotEmpty()) {
+                    foreach ($payloadItems as $row) {
+                        $item = ConsumableItem::lockForUpdate()->findOrFail((int) data_get($row, 'item_id'));
+                        $qty = (int) data_get($row, 'quantity', 0);
+                        $stockService->decreaseSmall($item, $qty, 'atk_rtk_request', $ticket->id, 'Handover ' . $ticket->ticket_no, auth()->id());
+                    }
+
+                    $payload['fulfilled_qty'] = (int) data_get($payload, 'total_quantity', $payloadItems->sum(fn ($row) => (int) data_get($row, 'quantity', 0)));
+                    $payload['fulfilled_items'] = $payloadItems->map(fn ($row) => [
+                        'item_id' => data_get($row, 'item_id'),
+                        'item_name' => data_get($row, 'item_name'),
+                        'quantity' => (int) data_get($row, 'quantity', 0),
+                        'small_uom' => data_get($row, 'small_uom'),
+                    ])->values()->all();
+                } else {
+                    $item = ConsumableItem::lockForUpdate()->findOrFail($data['item_id']);
+                    $stockService->decreaseSmall($item, (int) $data['fulfilled_qty'], 'atk_rtk_request', $ticket->id, 'Handover ' . $ticket->ticket_no, auth()->id());
+                    $payload['item_id'] = $item->id;
+                    $payload['item_name'] = $item->name;
+                    $payload['fulfilled_qty'] = $data['fulfilled_qty'];
+                }
+
                 $payload['received_by'] = $data['received_by'];
                 $payload['handover_notes'] = $data['notes'] ?? null;
                 $payload['handover_date'] = now()->toDateString();

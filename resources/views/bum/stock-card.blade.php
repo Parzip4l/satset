@@ -189,6 +189,7 @@
                         <th><a href="{{ $sortLink('created_at') }}" class="text-dark text-decoration-none">Tanggal <i class="bi {{ $sortIcon('created_at') }}"></i></a></th>
                         <th><a href="{{ $sortLink('item_id') }}" class="text-dark text-decoration-none">Barang <i class="bi {{ $sortIcon('item_id') }}"></i></a></th>
                         <th><a href="{{ $sortLink('movement_type') }}" class="text-dark text-decoration-none">Tipe <i class="bi {{ $sortIcon('movement_type') }}"></i></a></th>
+                        <th>Gudang</th>
                         <th class="text-end"><a href="{{ $sortLink('qty') }}" class="text-dark text-decoration-none">Qty <i class="bi {{ $sortIcon('qty') }}"></i></a></th>
                         <th class="text-end"><a href="{{ $sortLink('balance_before') }}" class="text-dark text-decoration-none">Stok Sebelum <i class="bi {{ $sortIcon('balance_before') }}"></i></a></th>
                         <th class="text-end"><a href="{{ $sortLink('balance_after') }}" class="text-dark text-decoration-none">Stok Sesudah <i class="bi {{ $sortIcon('balance_after') }}"></i></a></th>
@@ -204,6 +205,7 @@
                                 : '-';
                             $referenceUrl = match ($movement->reference_type) {
                                 'atk_rtk_request' => $movement->reference_id ? route('ticket.show', $movement->reference_id) : null,
+                                'atk_rtk_replenishment' => $movement->reference_id ? route('ticket.show', $movement->reference_id) : null,
                                 'procurement_receiving' => route('bum.receivings') . '#receiving-' . $movement->reference_id,
                                 'stock_opname' => route('bum.opnames') . '#opname-' . $movement->reference_id,
                                 'initial_stock' => route('bum.items'),
@@ -214,9 +216,10 @@
                             <td data-label="Tanggal">{{ $movement->created_at->format('d M Y H:i') }}</td>
                             <td data-label="Barang" class="fw-semibold wrap">{{ $movement->item->code ?? '-' }} - {{ $movement->item->name ?? '-' }}</td>
                             <td data-label="Tipe"><span class="badge bg-light text-dark border soft-badge">{{ $movement->movement_type }}</span></td>
-                            <td data-label="Qty" class="text-end">{{ $movement->qty }}</td>
-                            <td data-label="Stok Sebelum" class="text-end">{{ $movement->balance_before }}</td>
-                            <td data-label="Stok Sesudah" class="text-end fw-bold">{{ $movement->balance_after }}</td>
+                            <td data-label="Gudang">{{ $movement->stock_location === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar' }}</td>
+                            <td data-label="Qty" class="text-end">{{ $movement->qty }} {{ $movement->balance_uom }}</td>
+                            <td data-label="Stok Sebelum" class="text-end">{{ $movement->balance_before }} {{ $movement->balance_uom }}</td>
+                            <td data-label="Stok Sesudah" class="text-end fw-bold">{{ $movement->balance_after }} {{ $movement->balance_uom }}</td>
                             <td data-label="Referensi">
                                 @if($referenceUrl)
                                     <a href="{{ $referenceUrl }}" class="fw-semibold text-primary text-decoration-none">{{ $referenceLabel }}</a>
@@ -227,7 +230,7 @@
                             <td data-label="Catatan" class="wrap">{{ $movement->notes ?: '-' }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="text-center text-muted py-4">Belum ada mutasi stok.</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted py-4">Belum ada mutasi stok.</td></tr>
                     @endforelse
                 </tbody>
             </table>

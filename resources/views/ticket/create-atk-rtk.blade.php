@@ -218,11 +218,14 @@
                                                     <select name="payload[items][{{ $index }}][item_id]" class="form-select atk-item-select" data-placeholder="Cari kode atau nama barang" required>
                                                         <option value="">Pilih barang</option>
                                                         @foreach(($consumableItems ?? collect()) as $item)
-                                                            <option value="{{ $item->id }}"
+                                                        <option value="{{ $item->id }}"
                                                                 data-price="{{ (float) $item->unit_price }}"
-                                                                data-unit="{{ $item->unit }}"
+                                                                data-large-price="{{ (float) $item->unit_price * max(1, (int) $item->conversion_qty) }}"
+                                                                data-unit="{{ $item->small_uom }}"
+                                                                data-large-unit="{{ $item->large_uom }}"
+                                                                data-conversion="{{ max(1, (int) $item->conversion_qty) }}"
                                                                 @selected((string) data_get($row, 'item_id') === (string) $item->id)>
-                                                                {{ $item->code }} - {{ $item->name }} | Rp{{ number_format((float) $item->unit_price, 0, ',', '.') }}
+                                                                {{ $item->code }} - {{ $item->name }} | Rp{{ number_format((float) $item->unit_price, 0, ',', '.') }}/{{ $item->small_uom }} (1 {{ $item->large_uom }} = {{ $item->conversion_qty }} {{ $item->small_uom }})
                                                             </option>
                                                         @endforeach
                                                     </select>
@@ -348,13 +351,16 @@
             const row = $(this);
             const option = row.find('.atk-item-select option:selected');
             const price = Number(option.data('price') || 0);
+            const largePrice = Number(option.data('large-price') || 0);
             const unit = option.data('unit') || '';
+            const largeUnit = option.data('large-unit') || '';
+            const conversion = Number(option.data('conversion') || 1);
             const qty = Number(row.find('.atk-item-qty').val() || 0);
             const subtotal = price * qty;
             grandTotal += subtotal;
 
             row.find('[data-atk-line-total]').text(
-                `Harga master: ${rupiah(price)}${unit ? ' / ' + unit : ''} | Subtotal: ${rupiah(subtotal)}`
+                `Harga satuan kecil: ${rupiah(price)}${unit ? ' / ' + unit : ''} | Estimasi ${largeUnit}: ${rupiah(largePrice)} (${conversion} ${unit}) | Subtotal: ${rupiah(subtotal)}`
             );
         });
 

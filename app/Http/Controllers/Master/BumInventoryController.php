@@ -134,22 +134,32 @@ class BumInventoryController extends Controller
             'code' => 'required|string|max:50|unique:consumable_items,code',
             'name' => 'required|string|max:150',
             'category' => 'required|in:ATK,RTK',
-            'unit' => 'required|string|max:30',
+            'large_uom' => 'required|string|max:30',
+            'small_uom' => 'required|string|max:30',
+            'conversion_qty' => 'required|integer|min:1',
             'unit_price' => 'nullable|numeric|min:0',
             'minimum_stock' => 'required|integer|min:0',
             'buffer_stock' => 'required|integer|min:0',
             'current_stock' => 'required|integer|min:0',
+            'small_stock' => 'nullable|integer|min:0',
             'location' => 'nullable|string|max:100',
             'is_active' => 'nullable|boolean',
         ]);
 
         $initialStock = (int) $data['current_stock'];
+        $initialSmallStock = (int) ($data['small_stock'] ?? 0);
+        $data['unit'] = $data['small_uom'];
         $data['current_stock'] = 0;
+        $data['small_stock'] = 0;
         $data['is_active'] = $request->boolean('is_active', true);
         $item = ConsumableItem::create($data);
 
         if ($initialStock > 0) {
-            $stockService->increase($item, $initialStock, 'initial_stock', $item->id, 'Stok awal master barang', auth()->id());
+            $stockService->increase($item, $initialStock, 'initial_stock', $item->id, 'Stok awal Gudang Besar', auth()->id());
+        }
+
+        if ($initialSmallStock > 0) {
+            $stockService->increaseSmall($item, $initialSmallStock, 'initial_stock', $item->id, 'Stok awal Gudang Kecil', auth()->id());
         }
 
         return redirect()
@@ -220,7 +230,9 @@ class BumInventoryController extends Controller
             'code' => 'required|string|max:50|unique:consumable_items,code,' . $item->id,
             'name' => 'required|string|max:150',
             'category' => 'required|in:ATK,RTK',
-            'unit' => 'required|string|max:30',
+            'large_uom' => 'required|string|max:30',
+            'small_uom' => 'required|string|max:30',
+            'conversion_qty' => 'required|integer|min:1',
             'unit_price' => 'nullable|numeric|min:0',
             'minimum_stock' => 'required|integer|min:0',
             'buffer_stock' => 'required|integer|min:0',
@@ -229,6 +241,7 @@ class BumInventoryController extends Controller
         ]);
 
         $data['is_active'] = $request->boolean('is_active');
+        $data['unit'] = $data['small_uom'];
         $item->update($data);
 
         return back()->with('success', 'Master barang berhasil diperbarui.');
@@ -238,14 +251,20 @@ class BumInventoryController extends Controller
     {
         $data = $request->validate([
             'direction' => 'required|in:in,out',
+            'stock_location' => 'required|in:big_warehouse,small_warehouse',
             'qty' => 'required|integer|min:1',
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $notes = $data['notes'] ?: ($data['direction'] === 'in' ? 'Penambahan stok manual' : 'Pengurangan stok manual');
+        $locationLabel = $data['stock_location'] === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar';
+        $notes = $data['notes'] ?: ($data['direction'] === 'in' ? "Penambahan stok manual {$locationLabel}" : "Pengurangan stok manual {$locationLabel}");
 
         try {
-            if ($data['direction'] === 'in') {
+            if ($data['stock_location'] === 'small_warehouse' && $data['direction'] === 'in') {
+                $stockService->increaseSmall($item, (int) $data['qty'], 'manual_adjustment', $item->id, $notes, auth()->id());
+            } elseif ($data['stock_location'] === 'small_warehouse') {
+                $stockService->decreaseSmall($item, (int) $data['qty'], 'manual_adjustment', $item->id, $notes, auth()->id());
+            } elseif ($data['direction'] === 'in') {
                 $stockService->increase($item, (int) $data['qty'], 'manual_adjustment', $item->id, $notes, auth()->id());
             } else {
                 $stockService->decrease($item, (int) $data['qty'], 'manual_adjustment', $item->id, $notes, auth()->id());
