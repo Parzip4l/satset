@@ -79,6 +79,36 @@
         border-color: #b91c1c;
         color: #fff;
     }
+
+    .ga-choice {
+        width: 100%;
+        text-align: left;
+        background: #fff;
+        border: 1px solid var(--ga-line);
+        border-radius: 14px;
+        padding: 18px;
+        transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    }
+
+    .ga-choice:hover,
+    .ga-choice.active {
+        border-color: var(--ga-primary);
+        box-shadow: 0 14px 30px rgba(226, 26, 26, .12);
+        transform: translateY(-1px);
+    }
+
+    .ga-choice-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #fee2e2;
+        color: var(--ga-primary);
+        font-size: 1.35rem;
+        flex: 0 0 auto;
+    }
 </style>
 @endsection
 
@@ -114,7 +144,39 @@
                 </div>
             </div>
 
-            <form action="{{ ($isPublic ?? false) ? route('public.ticket.ga-permintaan-temuan.store') : route('ticket.store') }}" method="POST" enctype="multipart/form-data" class="ga-panel">
+            @if($isPublic ?? false)
+                <div class="ga-panel mb-4" id="gaChoicePanel">
+                    <div class="card-body p-4 p-lg-5">
+                        <div class="section-label mb-3">Pilih Jenis Laporan</div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <button type="button" class="ga-choice" data-ga-report-choice="Permintaan">
+                                    <span class="d-flex gap-3 align-items-start">
+                                        <span class="ga-choice-icon"><i class="bi bi-clipboard-plus"></i></span>
+                                        <span>
+                                            <span class="d-block fw-bold text-dark mb-1">Permintaan</span>
+                                            <span class="d-block text-muted small">Ajukan bantuan, dukungan fasilitas, kebutuhan area, atau layanan Bagian Umum.</span>
+                                        </span>
+                                    </span>
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <button type="button" class="ga-choice" data-ga-report-choice="Temuan">
+                                    <span class="d-flex gap-3 align-items-start">
+                                        <span class="ga-choice-icon"><i class="bi bi-exclamation-triangle"></i></span>
+                                        <span>
+                                            <span class="d-block fw-bold text-dark mb-1">Temuan</span>
+                                            <span class="d-block text-muted small">Laporkan kerusakan, kondisi tidak sesuai, kebersihan, atau hal yang perlu ditindaklanjuti.</span>
+                                        </span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <form action="{{ ($isPublic ?? false) ? route('public.ticket.ga-permintaan-temuan.store') : route('ticket.store') }}" method="POST" enctype="multipart/form-data" class="ga-panel {{ ($isPublic ?? false) && !old('payload.report_type') && !$errors->any() ? 'd-none' : '' }}" id="gaReportForm">
                 @csrf
                 <input type="hidden" name="request_type" value="ga_request_finding">
                 <input type="hidden" name="ticket_category_id" value="{{ old('ticket_category_id', $serviceRequestId) }}">
@@ -145,7 +207,7 @@
                     <div class="row g-4">
                         <div class="col-md-6">
                             <label class="form-label">Jenis Laporan <span class="text-danger">*</span></label>
-                            <select name="payload[report_type]" class="form-select" required>
+                            <select name="payload[report_type]" class="form-select" id="gaReportType" required>
                                 <option value="">Pilih jenis laporan</option>
                                 <option value="Permintaan" @selected(old('payload.report_type') === 'Permintaan')>Permintaan</option>
                                 <option value="Temuan" @selected(old('payload.report_type') === 'Temuan')>Temuan</option>
@@ -212,3 +274,38 @@
 </div>
 </div>
 @endsection
+
+@if($isPublic ?? false)
+@section('js')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('gaReportForm');
+        const reportType = document.getElementById('gaReportType');
+        const choices = document.querySelectorAll('[data-ga-report-choice]');
+
+        function selectReportType(value) {
+            reportType.value = value;
+            form.classList.remove('d-none');
+
+            choices.forEach((choice) => {
+                choice.classList.toggle('active', choice.dataset.gaReportChoice === value);
+            });
+
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        choices.forEach((choice) => {
+            choice.addEventListener('click', function () {
+                selectReportType(choice.dataset.gaReportChoice);
+            });
+        });
+
+        if (reportType.value) {
+            choices.forEach((choice) => {
+                choice.classList.toggle('active', choice.dataset.gaReportChoice === reportType.value);
+            });
+        }
+    });
+</script>
+@endsection
+@endif
