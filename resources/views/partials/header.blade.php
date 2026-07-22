@@ -102,7 +102,14 @@
                             <li><a class="dropdown-item" href="javascript:void(0)"><i class="bi bi-headset me-1"></i> Support</a></li>
                         </ul>
                         <ul class="list-unstyled mb-0">
-                            <li><a class="dropdown-item" href="javascript:void(0)"><i class="bi bi-box-arrow-right me-1"></i> Sign Out</a></li>
+                            <li>
+                                <form method="POST" action="{{ route('logout') }}" class="m-0">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="bi bi-box-arrow-right me-1"></i> Sign Out
+                                    </button>
+                                </form>
+                            </li>
                         </ul>
                     </div>
                 </div>
