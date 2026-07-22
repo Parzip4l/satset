@@ -5,6 +5,7 @@ use App\Http\Controllers\Produck\ProdukController;
 use App\Http\Controllers\General\dashboardController;
 use App\Http\Controllers\General\userController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\MicrosoftSsoController;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Master\TicketFormSchema;
@@ -33,6 +34,12 @@ require __DIR__ . '/auth.php';
 
 Route::get('/login', [LdapLoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LdapLoginController::class, 'login'])->name('login.attempt');
+Route::get('/auth/microsoft/redirect', [MicrosoftSsoController::class, 'redirect'])
+    ->middleware('guest')
+    ->name('auth.microsoft.redirect');
+Route::get('/auth/microsoft/callback', [MicrosoftSsoController::class, 'callback'])
+    ->middleware('guest')
+    ->name('auth.microsoft.callback');
 
 Route::get('/', function () {
     return redirect()->route('dashboard.index');

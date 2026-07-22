@@ -28,6 +28,25 @@
                                 </div>
                             @endif
 
+                            @if (config('services.microsoft_sso.enabled'))
+                                <a href="{{ route('auth.microsoft.redirect') }}"
+                                    class="btn btn-light border w-full mb-5 d-flex align-items-center justify-content-center gap-2 fw-semibold">
+                                    <span class="d-inline-grid" style="grid-template-columns: repeat(2, 10px); gap: 2px;">
+                                        <span style="width: 10px; height: 10px; background: #f25022;"></span>
+                                        <span style="width: 10px; height: 10px; background: #7fba00;"></span>
+                                        <span style="width: 10px; height: 10px; background: #00a4ef;"></span>
+                                        <span style="width: 10px; height: 10px; background: #ffb900;"></span>
+                                    </span>
+                                    Sign in with Microsoft
+                                </a>
+
+                                <div class="d-flex align-items-center gap-3 mb-5">
+                                    <span class="border-top flex-grow-1"></span>
+                                    <span class="text-muted fs-12">or use LDAP</span>
+                                    <span class="border-top flex-grow-1"></span>
+                                </div>
+                            @endif
+
                             <form method="POST" action="{{ route('login.attempt') }}" class="authentication-form">
                                 @csrf
                                 <div class="row g-4">
