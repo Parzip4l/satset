@@ -13,12 +13,6 @@
         <div class="d-flex align-items-center">
             <div class="me-auto">
                 <div class="d-inline-flex align-items-center gap-5">
-                    <a href="index" class="fs-18 fw-semibold">
-                        <img height="30" class="pe-app-sidebar-logo-default d-none" alt="Logo" src="{{ asset('assets/images/logo-lrtj.png') }}">
-                        <img height="30" class="pe-app-sidebar-logo-light d-none" alt="Logo" src="{{ asset('assets/images/logo-lrtj.png') }}">
-                        <img height="30" class="pe-app-sidebar-logo-minimize d-none" alt="Logo" src="{{ asset('assets/images/lrtj.png') }}">
-                        <img height="30" class="pe-app-sidebar-logo-minimize-light d-none" alt="Logo" src="{{ asset('assets/images/lrtj.png') }}">
-                    </a>
                     <button type="button" class="vertical-toggle btn btn-light-light text-muted icon-btn fs-5 rounded-pill" id="toggleSidebar">
                         <i class="bi bi-arrow-bar-left header-icon"></i>
                     </button>
