@@ -127,10 +127,18 @@ class MobileSatsetTicketService
 
     public function addComment(User $user, Ticket $ticket, string $message): Comment
     {
-        return $ticket->comments()->create([
+        $comment = $ticket->comments()->create([
             'user_id' => $user->id,
             'message' => $message,
         ]);
+
+        $ticket->histories()->create([
+            'user_id' => $user->id,
+            'status_id' => $ticket->status_id,
+            'action' => 'Komentar ditambahkan',
+        ]);
+
+        return $comment;
     }
 
     public function approve(User $user, Ticket $ticket, Approval $approval, string $status, ?string $note): Ticket
@@ -203,7 +211,22 @@ class MobileSatsetTicketService
 
     public function serializeTicket(Ticket $ticket): array
     {
-        $ticket->loadMissing(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department', 'assignedUser', 'assignedDepartment', 'attachments', 'approvals.approver']);
+        $ticket->loadMissing([
+            'requester',
+            'category',
+            'priority',
+            'status',
+            'impact',
+            'urgency',
+            'department',
+            'assignedUser',
+            'assignedDepartment',
+            'attachments',
+            'approvals.approver',
+            'comments.user',
+            'histories.user',
+            'histories.status',
+        ]);
 
         return [
             'id' => $ticket->id,
@@ -231,6 +254,33 @@ class MobileSatsetTicketService
                 'uploaded_at' => optional($attachment->uploaded_at)->toIso8601String(),
                 'url' => Storage::disk('public')->url($attachment->file_path),
             ])->values(),
+            'comments' => $ticket->comments
+                ->sortBy('created_at')
+                ->map(fn (Comment $comment) => [
+                    'id' => $comment->id,
+                    'message' => $comment->message,
+                    'created_at' => optional($comment->created_at)->toIso8601String(),
+                    'user' => $this->userSummary($comment->user),
+                ])
+                ->values(),
+            'history' => $ticket->histories
+                ->sortByDesc('created_at')
+                ->map(fn (TicketHistory $history) => [
+                    'id' => $history->id,
+                    'action' => $history->action,
+                    'created_at' => optional($history->created_at)->toIso8601String(),
+                    'user' => $history->user ? [
+                        'id' => $history->user->id,
+                        'name' => $history->user->name,
+                        'email' => $history->user->email,
+                    ] : null,
+                    'status' => $history->status ? [
+                        'id' => $history->status->id,
+                        'name' => $history->status->name,
+                        'code' => $history->status->code,
+                    ] : null,
+                ])
+                ->values(),
             'approvals' => $ticket->approvals->map(fn (Approval $approval) => [
                 'id' => $approval->id,
                 'level' => $approval->level,

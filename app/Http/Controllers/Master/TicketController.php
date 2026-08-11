@@ -1255,6 +1255,12 @@ class TicketController extends Controller
                 'message' => $request->message
             ]);
 
+            $ticket->histories()->create([
+                'user_id' => auth()->id(),
+                'status_id' => $ticket->status_id,
+                'action' => 'Komentar ditambahkan',
+            ]);
+
             return redirect()->back()->with('success', 'Komentar berhasil ditambahkan.');
         } catch (\Exception $e) {
             // Bisa log error juga
