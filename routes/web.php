@@ -110,6 +110,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::put('/uoms/{uom}', [BumInventoryController::class, 'updateUom'])->name('uoms.update');
         Route::get('/items', [BumInventoryController::class, 'items'])->name('items');
         Route::post('/items', [BumInventoryController::class, 'storeItem'])->name('items.store');
+        Route::post('/items/import', [BumInventoryController::class, 'importItems'])->name('items.import');
         Route::post('/items/{item}/stock-adjustment', [BumInventoryController::class, 'adjustItemStock'])->name('items.stock-adjustment');
         Route::get('/items/{item}', [BumInventoryController::class, 'showItem'])->name('items.show');
         Route::put('/items/{item}', [BumInventoryController::class, 'updateItem'])->name('items.update');

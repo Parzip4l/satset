@@ -138,6 +138,16 @@
             padding: .75rem .9rem;
         }
 
+        .upload-note {
+            background: #f8fafc;
+            border: 1px solid var(--item-line);
+            border-radius: 8px;
+            color: #4b5563;
+            font-size: .84rem;
+            line-height: 1.55;
+            padding: .85rem 1rem;
+        }
+
         .items-pagination {
             align-items: center;
             border-top: 1px solid var(--item-line);
@@ -206,6 +216,9 @@
     @if(session('success'))
         <div class="alert alert-success border-0 shadow-sm rounded-3">{{ session('success') }}</div>
     @endif
+    @if($errors->itemImport->any())
+        <div class="alert alert-danger border-0 shadow-sm rounded-3">{{ $errors->itemImport->first() }}</div>
+    @endif
     @if($errors->any())
         <div class="alert alert-danger border-0 shadow-sm rounded-3">{{ $errors->first() }}</div>
     @endif
@@ -218,6 +231,9 @@
         <div class="items-actions">
             <a href="{{ route('bum.dashboard') }}" class="btn btn-light border items-btn">Dashboard</a>
             <a href="{{ route('bum.uoms') }}" class="btn btn-light border items-btn">Master UOM</a>
+            <button type="button" class="btn btn-light border items-btn" data-bs-toggle="modal" data-bs-target="#importItemsModal">
+                <i class="bi bi-upload me-1"></i> Upload Master
+            </button>
             <button type="button" class="btn btn-primary items-btn" data-bs-toggle="modal" data-bs-target="#createItemModal">
                 <i class="bi bi-plus-lg me-1"></i> Tambah Barang
             </button>
@@ -304,6 +320,50 @@
                 Menampilkan {{ $items->firstItem() ?? 0 }} - {{ $items->lastItem() ?? 0 }} dari {{ $items->total() }} barang
             </div>
             {{ $items->appends(request()->query())->links('pagination::bootstrap-5') }}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade item-modal" id="importItemsModal" tabindex="-1" aria-labelledby="importItemsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ route('bum.items.import') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-header align-items-start">
+                    <div>
+                        <h5 class="modal-title" id="importItemsModalLabel">Upload Master Barang</h5>
+                        <div class="text-muted small">Item dengan kode yang sama akan di-update, bukan dibuat duplikat.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">File master</label>
+                            <input type="file" name="file" class="form-control" accept=".xlsx,.csv" required>
+                            <div class="text-muted small mt-1">Untuk file Excel GA, sistem membaca sheet <strong>Catalog Master mini</strong>. CSV juga didukung.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Perlakuan stok dari file</label>
+                            <select name="stock_mode" class="form-select" required>
+                                <option value="keep" @selected(old('stock_mode', 'keep') === 'keep')>Pertahankan stok existing; item baru stok 0</option>
+                                <option value="small" @selected(old('stock_mode') === 'small')>Overwrite Gudang Kecil</option>
+                                <option value="big" @selected(old('stock_mode') === 'big')>Overwrite Gudang Besar</option>
+                                <option value="both" @selected(old('stock_mode') === 'both')>Overwrite Gudang Besar & Gudang Kecil</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="upload-note">
+                                Angka stok diambil dari kolom <strong>SOH/Saldo Berjalan</strong>, atau <strong>Saldo Awal</strong> jika SOH tidak ada. Perubahan stok dicatat sebagai adjustment di stock card agar riwayat tetap terbaca.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex flex-column flex-md-row gap-2">
+                    <button class="btn btn-primary items-btn flex-fill">Upload & Proses</button>
+                    <button type="button" class="btn btn-light border items-btn" data-bs-dismiss="modal">Batal</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -429,6 +489,10 @@
 @section('js')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        @if($errors->itemImport->any())
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('importItemsModal')).show();
+        @endif
+
         @if($errors->any() || request('create'))
             bootstrap.Modal.getOrCreateInstance(document.getElementById('createItemModal')).show();
         @endif

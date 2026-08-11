@@ -10,12 +10,14 @@ use App\Models\Master\ProcurementReceivingItem;
 use App\Models\Master\StockMovement;
 use App\Models\Master\StockOpname;
 use App\Models\Master\Ticket;
+use App\Services\ConsumableItemImportService;
 use App\Services\ConsumableStockService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
+use Throwable;
 
 class BumInventoryController extends Controller
 {
@@ -215,6 +217,34 @@ class BumInventoryController extends Controller
         return redirect()
             ->route('bum.items', ['create' => 1])
             ->with('success', 'Master barang berhasil ditambahkan. Silakan input barang berikutnya jika ada.');
+    }
+
+    public function importItems(Request $request, ConsumableItemImportService $importService)
+    {
+        $data = $request->validateWithBag('itemImport', [
+            'file' => 'required|file|mimes:xlsx,csv,txt|max:10240',
+            'stock_mode' => 'required|in:keep,big,small,both',
+        ]);
+
+        try {
+            $summary = $importService->import($data['file'], [
+                'sheet_name' => 'Catalog Master mini',
+                'stock_mode' => $data['stock_mode'],
+            ], auth()->id());
+        } catch (Throwable $exception) {
+            return back()
+                ->withErrors(['file' => $exception->getMessage()], 'itemImport')
+                ->withInput();
+        }
+
+        $message = "Upload master selesai. Baru: {$summary['created']}, update: {$summary['updated']}, stok disesuaikan: {$summary['stock_adjusted']}, dilewati: {$summary['skipped']}.";
+        if (!empty($summary['errors'])) {
+            $message .= ' Catatan: ' . implode(' ', array_slice($summary['errors'], 0, 3));
+        }
+
+        return redirect()
+            ->route('bum.items')
+            ->with('success', $message);
     }
 
     public function showItem(Request $request, ConsumableItem $item)
