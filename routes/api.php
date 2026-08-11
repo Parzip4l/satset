@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\MasterApiController;
 use App\Http\Controllers\Api\V1\TicketApiController;
 use App\Http\Controllers\Api\V1\BumAnalyticsApiController;
+use App\Http\Controllers\Api\Mobile\Satset\MobileSatsetAuthController;
+use App\Http\Controllers\Api\Mobile\Satset\MobileSatsetTicketController;
 use App\Models\Master\TicketFormSchema;
 use App\Http\Controllers\Master\TicketFormSchemaController;
 /*
@@ -32,6 +34,26 @@ Route::prefix('/bum/analytics')->group(function () {
     Route::get('/meeting-consumption-trend', [BumAnalyticsApiController::class, 'meetingConsumptionTrend']);
     Route::get('/receiving-trend', [BumAnalyticsApiController::class, 'receivingTrend']);
     Route::get('/procurement-recommendation', [BumAnalyticsApiController::class, 'procurementRecommendation']);
+});
+
+Route::prefix('mobile/v1/satset')->group(function () {
+    Route::post('/auth/sso-exchange', [MobileSatsetAuthController::class, 'exchange']);
+
+    Route::middleware('satset.mobile')->group(function () {
+        Route::post('/auth/logout', [MobileSatsetAuthController::class, 'logout']);
+        Route::get('/me', [MobileSatsetTicketController::class, 'me']);
+        Route::get('/bootstrap', [MobileSatsetTicketController::class, 'bootstrap']);
+        Route::get('/tickets', [MobileSatsetTicketController::class, 'index']);
+        Route::get('/tickets/{ticket}', [MobileSatsetTicketController::class, 'show']);
+        Route::get('/tickets/{ticket}/history', [MobileSatsetTicketController::class, 'history']);
+        Route::post('/tickets/general', [MobileSatsetTicketController::class, 'storeGeneral']);
+        Route::post('/tickets/consumption', [MobileSatsetTicketController::class, 'storeConsumption']);
+        Route::post('/tickets/atk-rtk', [MobileSatsetTicketController::class, 'storeAtkRtk']);
+        Route::post('/tickets/ga-request-finding', [MobileSatsetTicketController::class, 'storeGaRequestFinding']);
+        Route::post('/tickets/{ticket}/comments', [MobileSatsetTicketController::class, 'comment']);
+        Route::post('/tickets/{ticket}/attachments', [MobileSatsetTicketController::class, 'uploadAttachment']);
+        Route::post('/tickets/{ticket}/approvals/{approval}', [MobileSatsetTicketController::class, 'approve']);
+    });
 });
 
 // ========================================================================
