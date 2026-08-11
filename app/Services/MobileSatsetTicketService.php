@@ -28,6 +28,10 @@ use Illuminate\Support\Facades\Storage;
 
 class MobileSatsetTicketService
 {
+    public function __construct(private readonly LrtjSpaceMobileNotificationService $notifications)
+    {
+    }
+
     public function bootstrap(User $user): array
     {
         return [
@@ -150,6 +154,7 @@ class MobileSatsetTicketService
         ]);
 
         $payload = $ticket->payload ?? [];
+        $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $requestType = data_get($payload, 'request_type');
         if ($requestType === 'atk_rtk') {
             $payload['workflow_status'] = $status === 'approved' ? 'WAITING_BUM_REVIEW' : 'REJECTED_BY_MANAGER';
@@ -163,7 +168,10 @@ class MobileSatsetTicketService
             'action' => ucfirst($status) . " approval level {$approval->level} via LRTJ Space Mobile",
         ]);
 
-        return $ticket->fresh();
+        $updated = $ticket->fresh(['requester', 'status']);
+        $this->notifications->notifyTicketStatusChanged($updated, $user, $previousStatus);
+
+        return $updated;
     }
 
     public function storeAttachment(User $user, Ticket $ticket, UploadedFile $file, string $attachmentType): Attachment
@@ -490,13 +498,17 @@ class MobileSatsetTicketService
             return;
         }
 
-        Approval::firstOrCreate([
+        $approval = Approval::firstOrCreate([
             'request_id' => $ticket->id,
             'level' => 1,
         ], [
             'approver_id' => $approver->id,
             'status' => 'Pending',
         ]);
+
+        if ($approval->wasRecentlyCreated) {
+            $this->notifications->notifyApprovalRequested($ticket, $approval);
+        }
     }
 
     private function generateTicketNo(int $categoryId): string

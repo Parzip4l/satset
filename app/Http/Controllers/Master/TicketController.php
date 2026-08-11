@@ -32,6 +32,7 @@ use App\Models\Master\TicketFormSchema;
 use App\Models\Master\Attachment;
 use App\Models\Master\ConsumableItem;
 use App\Services\ConsumableStockService;
+use App\Services\LrtjSpaceMobileNotificationService;
 
 
 use App\Models\Master\TicketHistory;
@@ -1165,6 +1166,8 @@ class TicketController extends Controller
             'status_id' => 'required|exists:statuses,id',
         ]);
 
+        $previousStatus = $ticket->status?->name;
+
         // update status ticket
         $ticket->status_id = $request->status_id;
         $ticket->save();
@@ -1184,6 +1187,8 @@ class TicketController extends Controller
         } catch (\Exception $e) {
             Log::error("Gagal kirim email update status ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
         }
+
+        $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
 
         return redirect()->back()->with('success', 'Status tiket berhasil diupdate dan email dikirim.');
     }
@@ -1229,6 +1234,10 @@ class TicketController extends Controller
             'user_id' => auth()->id(),
             'action'  => $action,
         ]);
+
+        if ($assignedUser = $ticket->assignedUser()->first()) {
+            $this->mobileNotifications()->notifyTicketAssigned($ticket->fresh(['status']), $assignedUser);
+        }
 
         return redirect()->back()->with('success', $action . '.');
     }
@@ -1276,6 +1285,7 @@ class TicketController extends Controller
         ]);
 
         $payload = $ticket->payload ?? [];
+        $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $requestType = data_get($payload, 'request_type');
         if ($requestType === 'atk_rtk') {
             $payload['workflow_status'] = $request->status === 'approved' ? 'APPROVED_BY_MANAGER' : 'REJECTED_BY_MANAGER';
@@ -1292,6 +1302,8 @@ class TicketController extends Controller
             'action' => ucfirst($request->status) . " approval at level " . $approval->level,
         ]);
 
+        $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
+
         return redirect()->back()->with('success', 'Persetujuan berhasil dicatat.');
     }
 
@@ -1304,6 +1316,7 @@ class TicketController extends Controller
         ]);
 
         $payload = $ticket->payload ?? [];
+        $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $payload['workflow_status'] = $data['workflow_status'];
         $payload['approved_qty'] = $data['approved_qty'] ?? data_get($payload, 'quantity');
         $payload['bum_review_notes'] = $data['notes'] ?? null;
@@ -1314,6 +1327,8 @@ class TicketController extends Controller
             'user_id' => auth()->id(),
             'action' => 'BUM review ATK/RTK: ' . $data['workflow_status'],
         ]);
+
+        $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
 
         return back()->with('success', 'Review BUM berhasil dicatat.');
     }
@@ -1327,6 +1342,7 @@ class TicketController extends Controller
         ]);
 
         $payload = $ticket->payload ?? [];
+        $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $payloadItems = collect(data_get($payload, 'items', []));
         if ($payloadItems->isNotEmpty() && !$payloadItems->contains(fn ($row) => (int) data_get($row, 'item_id') === (int) $data['item_id'])) {
             return back()->with('error', 'Barang tidak ada di daftar permintaan ticket ini.');
@@ -1369,6 +1385,8 @@ class TicketController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
+        $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
+
         return back()->with('success', 'Barang berhasil diambil dari Gudang Besar dan masuk ke Gudang Kecil.');
     }
 
@@ -1382,6 +1400,7 @@ class TicketController extends Controller
         ]);
 
         $payload = $ticket->payload ?? [];
+        $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $payloadItems = collect(data_get($payload, 'items', []));
 
         if ($payloadItems->isEmpty()) {
@@ -1429,6 +1448,8 @@ class TicketController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
+        $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
+
         return back()->with('success', 'Handover berhasil dan stock card tercatat.');
     }
 
@@ -1444,6 +1465,7 @@ class TicketController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        $previousStatus = data_get($ticket->payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $payload = array_merge($ticket->payload ?? [], array_filter($data, fn ($value) => $value !== null));
         $payload['bum_updated_at'] = now()->toDateTimeString();
         $ticket->update(['payload' => $payload]);
@@ -1451,6 +1473,8 @@ class TicketController extends Controller
             'user_id' => auth()->id(),
             'action' => 'Update konsumsi rapat: ' . $data['workflow_status'],
         ]);
+
+        $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
 
         return back()->with('success', 'Status konsumsi rapat berhasil diperbarui.');
     }
@@ -1474,6 +1498,7 @@ class TicketController extends Controller
         $this->storeRequestAttachment($request, $ticket, 'training_material_file', 'training_material');
 
         $payload = $ticket->payload ?? [];
+        $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $payload['workflow_status'] = 'ACCOUNTABILITY_SUBMITTED';
         $payload['accountability_submitted_at'] = now()->toDateTimeString();
         $ticket->update(['payload' => $payload]);
@@ -1481,6 +1506,8 @@ class TicketController extends Controller
             'user_id' => auth()->id(),
             'action' => 'Pertanggungjawaban konsumsi rapat diupload.',
         ]);
+
+        $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
 
         return back()->with('success', 'Evidence pertanggungjawaban berhasil diupload.');
     }
@@ -1502,13 +1529,22 @@ class TicketController extends Controller
             return;
         }
 
-        Approval::firstOrCreate([
+        $approval = Approval::firstOrCreate([
             'request_id' => $ticket->id,
             'level' => 1,
         ], [
             'approver_id' => $approver->id,
             'status' => 'Pending',
         ]);
+
+        if ($approval->wasRecentlyCreated) {
+            $this->mobileNotifications()->notifyApprovalRequested($ticket, $approval);
+        }
+    }
+
+    private function mobileNotifications(): LrtjSpaceMobileNotificationService
+    {
+        return app(LrtjSpaceMobileNotificationService::class);
     }
 
 }
