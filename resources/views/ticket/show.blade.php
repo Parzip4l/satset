@@ -173,6 +173,12 @@
         $isBumRequest = in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true);
         $canManageGaOperations = \App\Support\GaAccess::allowed(auth()->user());
         $canUploadConsumptionEvidence = (int) $ticket->requester_id === (int) auth()->id() || $canManageGaOperations;
+        $atkRtkEstimatedAmount = (float) data_get($ticket->payload, 'total_estimated_amount', 0);
+        $atkRtkApprovalThreshold = (float) data_get($ticket->payload, 'approval_threshold', config('bum.atk_rtk_manager_approval_threshold', 100000));
+        $atkRtkRequiresManagerApproval = $requestType === 'atk_rtk' && $atkRtkEstimatedAmount >= $atkRtkApprovalThreshold;
+        $atkRtkManagerApproved = $ticket->approvals->where('status', 'approved')->isNotEmpty();
+        $atkRtkManagerRejected = $ticket->approvals->where('status', 'rejected')->isNotEmpty() || $workflowStatus === 'REJECTED_BY_MANAGER';
+        $canProcessAtkRtk = $canManageGaOperations && (!$atkRtkRequiresManagerApproval || $atkRtkManagerApproved);
         $categoryLabel = match ($requestType) {
             'consumption' => 'Permintaan Konsumsi Rapat',
             'atk_rtk' => 'Permintaan ATK/RTK',
@@ -579,7 +585,7 @@
                     <span class="badge bg-light text-dark border">{{ $workflowStatus }}</span>
                 </div>
                 <div class="card-body p-4">
-                    @if($canManageGaOperations)
+                    @if($canProcessAtkRtk)
                     <form action="{{ route('ticket.atk-rtk.bum-review', $ticket) }}" method="POST" class="row g-2 mb-4">
                         @csrf
                         <div class="col-12">
@@ -675,6 +681,15 @@
                         </form>
                     @endif
                     @else
+                    @if($canManageGaOperations && $atkRtkRequiresManagerApproval && !$atkRtkManagerApproved)
+                    <div class="alert border-0 mb-4" style="background:#fff7ed; color:#9a3412;">
+                        @if($atkRtkManagerRejected)
+                            Permintaan ATK/RTK ini di atas Rp{{ number_format($atkRtkApprovalThreshold, 0, ',', '.') }} dan ditolak atasan. Proses stok GA tidak dapat dilanjutkan.
+                        @else
+                            Permintaan ATK/RTK ini di atas Rp{{ number_format($atkRtkApprovalThreshold, 0, ',', '.') }} dan masih menunggu persetujuan atasan. Proses stok GA baru aktif setelah atasan approve.
+                        @endif
+                    </div>
+                    @endif
                     <div class="row g-3">
                         <div class="col-md-6">
                             <span class="meta-label">Status Proses</span>

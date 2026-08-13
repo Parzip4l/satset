@@ -1337,6 +1337,7 @@ class TicketController extends Controller
     public function bumReviewAtkRtk(Request $request, Ticket $ticket)
     {
         $this->ensureGaOperationAccess();
+        $this->ensureAtkRtkManagerApprovalCleared($ticket);
 
         $data = $request->validate([
             'workflow_status' => 'required|in:STOCK_CHECKED,WAITING_PROCUREMENT,READY_TO_HANDOVER,CANCELLED',
@@ -1365,6 +1366,7 @@ class TicketController extends Controller
     public function replenishAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
     {
         $this->ensureGaOperationAccess();
+        $this->ensureAtkRtkManagerApprovalCleared($ticket);
 
         $data = $request->validate([
             'item_id' => 'required|exists:consumable_items,id',
@@ -1424,6 +1426,7 @@ class TicketController extends Controller
     public function handoverAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
     {
         $this->ensureGaOperationAccess();
+        $this->ensureAtkRtkManagerApprovalCleared($ticket);
 
         $data = $request->validate([
             'item_id' => 'nullable|exists:consumable_items,id',
@@ -1597,6 +1600,28 @@ class TicketController extends Controller
     {
         if (!GaAccess::allowed(auth()->user())) {
             abort(403, 'Aksi operasional GA hanya untuk tim GA.');
+        }
+    }
+
+    private function ensureAtkRtkManagerApprovalCleared(Ticket $ticket): void
+    {
+        if (data_get($ticket->payload, 'request_type') !== 'atk_rtk') {
+            return;
+        }
+
+        $estimatedAmount = (float) data_get($ticket->payload, 'total_estimated_amount', 0);
+        $threshold = (float) data_get($ticket->payload, 'approval_threshold', config('bum.atk_rtk_manager_approval_threshold', 100000));
+
+        if ($estimatedAmount < $threshold) {
+            return;
+        }
+
+        $hasApprovedManagerApproval = $ticket->approvals()
+            ->where('status', 'approved')
+            ->exists();
+
+        if (!$hasApprovedManagerApproval) {
+            abort(403, 'Permintaan ATK/RTK di atas threshold harus disetujui atasan sebelum diproses GA.');
         }
     }
 
