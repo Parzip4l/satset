@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 use Illuminate\Support\Str;
 
@@ -613,20 +614,29 @@ class TicketController extends Controller
 
         if (!$user->exists) {
             $user->name = $name;
-            $user->username = Str::before($email, '@');
             $user->password = Hash::make(Str::random(32));
-            $user->phone = $phone;
-            $user->role = 'pelapor';
-            $user->user_type = 'public';
-            $user->kartu_uang_1 = '-';
+            $this->setUserColumnIfExists($user, 'username', Str::before($email, '@'));
+            $this->setUserColumnIfExists($user, 'phone', $phone);
+            $this->setUserColumnIfExists($user, 'role', 'pelapor');
+            $this->setUserColumnIfExists($user, 'user_type', 'public');
+            $this->setUserColumnIfExists($user, 'kartu_uang_1', '-');
         } else {
             $user->name = $user->name ?: $name;
-            $user->phone = $user->phone ?: $phone;
+            if (Schema::hasColumn('users', 'phone')) {
+                $user->phone = $user->phone ?: $phone;
+            }
         }
 
         $user->save();
 
         return $user;
+    }
+
+    private function setUserColumnIfExists(User $user, string $column, mixed $value): void
+    {
+        if (Schema::hasColumn('users', $column)) {
+            $user->{$column} = $value;
+        }
     }
 
     public function storePublicGaRequestFinding(Request $request)
