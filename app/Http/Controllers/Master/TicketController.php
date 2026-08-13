@@ -56,9 +56,34 @@ class TicketController extends Controller
             'open' => (clone $baseQuery)->whereHas('status', fn($query) => $query->where('name', 'Open'))->count(),
             'in_progress' => (clone $baseQuery)->whereHas('status', fn($query) => $query->where('name', 'In Progress'))->count(),
             'completed' => (clone $baseQuery)->whereHas('status', fn($query) => $query->whereIn('name', ['Resolved', 'Closed']))->count(),
+            'pending_approvals' => Approval::query()
+                ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
+                ->where('status', 'Pending')
+                ->count(),
         ];
 
         return view('ticket.menu', compact('stats'));
+    }
+
+    public function approvalsIndex(Request $request)
+    {
+        $user = auth()->user();
+        $statusFilter = $request->get('approval_status', 'Pending');
+
+        $approvals = Approval::query()
+            ->with(['request.requester', 'request.status', 'request.priority', 'approver'])
+            ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
+            ->when($statusFilter !== 'all', fn ($query) => $query->where('status', $statusFilter))
+            ->whereHas('request')
+            ->latest()
+            ->paginate(10);
+
+        $pendingCount = Approval::query()
+            ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
+            ->where('status', 'Pending')
+            ->count();
+
+        return view('ticket.approvals', compact('approvals', 'pendingCount', 'statusFilter'));
     }
 
     /**

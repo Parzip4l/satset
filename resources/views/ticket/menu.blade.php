@@ -157,6 +157,12 @@
                             <div class="fs-3 fw-bold" style="color:#e21a1a;">{{ $stats['completed'] ?? 0 }}</div>
                         </div>
                     </div>
+                    <div class="col-12">
+                        <div class="request-stat">
+                            <div class="text-muted small mb-1">Approval Pending</div>
+                            <div class="fs-3 fw-bold" style="color:#d97706;">{{ $stats['pending_approvals'] ?? 0 }}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -209,6 +215,23 @@
                     </p>
                     <a href="{{ route('ticket.atk-rtk.create') }}" class="btn rounded-pill px-4 text-white" style="background:#e21a1a;">
                         Buka Form ATK/RTK
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6">
+            <div class="request-card general">
+                <div class="card-body p-4 p-xl-5">
+                    <div class="request-icon mb-4" style="background: rgba(217,119,6,.12); color:#d97706;">
+                        <i class="bi bi-check2-square"></i>
+                    </div>
+                    <h4 class="fw-bold mb-2">Approval Saya</h4>
+                    <p class="text-muted mb-4">
+                        Lihat request yang menunggu persetujuan atasan dan proses approve atau reject dari detail tiket.
+                    </p>
+                    <a href="{{ route('ticket.approvals') }}" class="btn rounded-pill px-4 text-white" style="background:#d97706;">
+                        Buka Approval
                     </a>
                 </div>
             </div>

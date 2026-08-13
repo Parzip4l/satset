@@ -127,6 +127,8 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     });
     Route::post('/mail/test-email', [App\Http\Controllers\Master\TicketController::class, 'sendTestEmail'])
         ->name('mail.test.send');
+    Route::get('/ticket/approvals', [App\Http\Controllers\Master\TicketController::class, 'approvalsIndex'])
+        ->name('ticket.approvals');
     Route::resource('ticket', App\Http\Controllers\Master\TicketController::class);
     Route::put('/tickets/{ticket}/status', [App\Http\Controllers\Master\TicketController::class, 'updateStatus'])
         ->name('ticket.updateStatus');
