@@ -171,6 +171,8 @@
         $workflowStatus = data_get($ticket->payload, 'workflow_status', '-');
         $pendingApproval = $ticket->approvals->where('status', 'Pending')->first();
         $isBumRequest = in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true);
+        $canManageGaOperations = \App\Support\GaAccess::allowed(auth()->user());
+        $canUploadConsumptionEvidence = (int) $ticket->requester_id === (int) auth()->id() || $canManageGaOperations;
         $categoryLabel = match ($requestType) {
             'consumption' => 'Permintaan Konsumsi Rapat',
             'atk_rtk' => 'Permintaan ATK/RTK',
@@ -577,6 +579,7 @@
                     <span class="badge bg-light text-dark border">{{ $workflowStatus }}</span>
                 </div>
                 <div class="card-body p-4">
+                    @if($canManageGaOperations)
                     <form action="{{ route('ticket.atk-rtk.bum-review', $ticket) }}" method="POST" class="row g-2 mb-4">
                         @csrf
                         <div class="col-12">
@@ -671,6 +674,18 @@
                             <div class="col-12"><button class="btn btn-primary w-100">Handover & Kurangi Gudang Kecil</button></div>
                         </form>
                     @endif
+                    @else
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <span class="meta-label">Status Proses</span>
+                            <div class="meta-value">{{ $workflowStatus }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <span class="meta-label">Qty Disetujui</span>
+                            <div class="meta-value">{{ data_get($ticket->payload, 'approved_qty', data_get($ticket->payload, 'quantity', '-')) }}</div>
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
             @endif
@@ -682,9 +697,17 @@
                     <span class="badge bg-light text-dark border">{{ $workflowStatus }}</span>
                 </div>
                 <div class="card-body p-4">
+                    @if($canManageGaOperations)
                     <form action="{{ route('ticket.consumption.flow', $ticket) }}" method="POST" class="row g-2 mb-4">
                         @csrf
-                        <div class="col-12"><select name="workflow_status" class="form-select"><option>APPROVED_BY_BUM</option><option>ORDERED_TO_VENDOR</option><option>RECEIVED</option><option>WAITING_ACCOUNTABILITY</option><option>REPORTED</option><option>CLOSED</option><option>CANCELLED</option></select></div>
+                        <div class="col-12">
+                            <label class="meta-label">Status Proses</label>
+                            <select name="workflow_status" class="form-select">
+                                @foreach(['APPROVED_BY_BUM', 'ORDERED_TO_VENDOR', 'RECEIVED', 'WAITING_ACCOUNTABILITY', 'REPORTED', 'CLOSED', 'CANCELLED'] as $statusOption)
+                                    <option value="{{ $statusOption }}" @selected($workflowStatus === $statusOption)>{{ $statusOption }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                         <div class="col-12"><input name="vendor_name" class="form-control" value="{{ data_get($ticket->payload, 'vendor_name') }}" placeholder="Vendor"></div>
                         <div class="col-6"><input type="date" name="order_date" class="form-control" value="{{ data_get($ticket->payload, 'order_date') }}"></div>
                         <div class="col-6"><input type="date" name="receipt_date" class="form-control" value="{{ data_get($ticket->payload, 'receipt_date') }}"></div>
@@ -693,15 +716,50 @@
                         <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan order/verifikasi">{{ data_get($ticket->payload, 'notes') }}</textarea></div>
                         <div class="col-12"><button class="btn btn-outline-primary w-100">Update Konsumsi</button></div>
                     </form>
+                    @else
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <span class="meta-label">Vendor</span>
+                            <div class="meta-value">{{ data_get($ticket->payload, 'vendor_name', '-') ?: '-' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <span class="meta-label">Tanggal Pesanan</span>
+                            <div class="meta-value">{{ data_get($ticket->payload, 'order_date', '-') ?: '-' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <span class="meta-label">Tanggal Diterima</span>
+                            <div class="meta-value">{{ data_get($ticket->payload, 'receipt_date', '-') ?: '-' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <span class="meta-label">Biaya Aktual</span>
+                            <div class="meta-value">{{ data_get($ticket->payload, 'actual_cost') ? 'Rp' . number_format((float) data_get($ticket->payload, 'actual_cost'), 0, ',', '.') : '-' }}</div>
+                        </div>
+                    </div>
+                    @endif
 
+                    @if($canUploadConsumptionEvidence)
                     <form action="{{ route('ticket.consumption.evidence', $ticket) }}" method="POST" enctype="multipart/form-data" class="row g-2">
                         @csrf
                         <div class="col-12"><label class="meta-label">Upload Pertanggungjawaban</label></div>
-                        <div class="col-12"><input type="file" name="attendance_file" class="form-control"></div>
-                        <div class="col-12"><input type="file" name="documentation_file" class="form-control"></div>
-                        <div class="col-12"><input type="file" name="activity_report_file" class="form-control"></div>
-                        <div class="col-12"><button class="btn btn-primary w-100">Upload Evidence</button></div>
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1">Daftar hadir peserta</label>
+                            <input type="file" name="attendance_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1">Dokumentasi kegiatan</label>
+                            <input type="file" name="documentation_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.zip,.rar">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1">Laporan kegiatan</label>
+                            <input type="file" name="activity_report_file" class="form-control" accept=".pdf,.doc,.docx">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-muted mb-1">Materi training / pendukung</label>
+                            <input type="file" name="training_material_file" class="form-control" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx">
+                        </div>
+                        <div class="col-12"><button class="btn btn-primary w-100">Upload Pertanggungjawaban</button></div>
                     </form>
+                    @endif
                 </div>
             </div>
             @endif

@@ -34,6 +34,7 @@ use App\Models\Master\Attachment;
 use App\Models\Master\ConsumableItem;
 use App\Services\ConsumableStockService;
 use App\Services\LrtjSpaceMobileNotificationService;
+use App\Support\GaAccess;
 
 
 use App\Models\Master\TicketHistory;
@@ -1172,6 +1173,8 @@ class TicketController extends Controller
 
     public function updateStatus(Request $request, Ticket $ticket)
     {
+        $this->ensureAdminAccess();
+
         $request->validate([
             'status_id' => 'required|exists:statuses,id',
         ]);
@@ -1205,6 +1208,8 @@ class TicketController extends Controller
 
     public function showAssignForm(Ticket $ticket)
     {
+        $this->ensureAdminAccess();
+
         $users = User::all(); // list teknisi
         $departments = Department::all();
 
@@ -1213,6 +1218,8 @@ class TicketController extends Controller
 
     public function assign(Request $request, Ticket $ticket)
     {
+        $this->ensureAdminAccess();
+
         $request->validate([
             'assigned_user_id' => 'nullable|exists:users,id',
             'assigned_department_id' => 'nullable|exists:departments,id',
@@ -1290,6 +1297,10 @@ class TicketController extends Controller
 
         $approval = Approval::where('request_id', $ticket->id)->findOrFail($request->approval_id);
 
+        if ((int) $approval->approver_id !== (int) auth()->id() && (auth()->user()->role ?? null) !== 'admin') {
+            abort(403, 'Approval hanya dapat diproses oleh approver terkait.');
+        }
+
         if ((int) $ticket->requester_id === (int) auth()->id() && (auth()->user()->role ?? null) !== 'admin') {
             return redirect()->back()->with('error', 'User tidak boleh approve request miliknya sendiri.');
         }
@@ -1325,6 +1336,8 @@ class TicketController extends Controller
 
     public function bumReviewAtkRtk(Request $request, Ticket $ticket)
     {
+        $this->ensureGaOperationAccess();
+
         $data = $request->validate([
             'workflow_status' => 'required|in:STOCK_CHECKED,WAITING_PROCUREMENT,READY_TO_HANDOVER,CANCELLED',
             'approved_qty' => 'nullable|integer|min:0',
@@ -1351,6 +1364,8 @@ class TicketController extends Controller
 
     public function replenishAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
     {
+        $this->ensureGaOperationAccess();
+
         $data = $request->validate([
             'item_id' => 'required|exists:consumable_items,id',
             'large_qty' => 'required|integer|min:1',
@@ -1408,6 +1423,8 @@ class TicketController extends Controller
 
     public function handoverAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
     {
+        $this->ensureGaOperationAccess();
+
         $data = $request->validate([
             'item_id' => 'nullable|exists:consumable_items,id',
             'fulfilled_qty' => 'nullable|integer|min:1',
@@ -1471,6 +1488,8 @@ class TicketController extends Controller
 
     public function updateConsumptionFlow(Request $request, Ticket $ticket)
     {
+        $this->ensureGaOperationAccess();
+
         $data = $request->validate([
             'workflow_status' => 'required|in:APPROVED_BY_BUM,ORDERED_TO_VENDOR,RECEIVED,WAITING_ACCOUNTABILITY,REPORTED,CLOSED,CANCELLED',
             'vendor_name' => 'nullable|string|max:150',
@@ -1497,6 +1516,10 @@ class TicketController extends Controller
 
     public function uploadConsumptionEvidence(Request $request, Ticket $ticket)
     {
+        if ((int) $ticket->requester_id !== (int) $request->user()?->id && !GaAccess::allowed($request->user())) {
+            abort(403, 'Pertanggungjawaban hanya dapat diupload oleh requester atau tim GA.');
+        }
+
         $request->validate([
             'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
             'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
@@ -1561,6 +1584,20 @@ class TicketController extends Controller
     private function mobileNotifications(): LrtjSpaceMobileNotificationService
     {
         return app(LrtjSpaceMobileNotificationService::class);
+    }
+
+    private function ensureAdminAccess(): void
+    {
+        if (strtolower(auth()->user()->role ?? '') !== 'admin') {
+            abort(403, 'Aksi ini hanya untuk admin.');
+        }
+    }
+
+    private function ensureGaOperationAccess(): void
+    {
+        if (!GaAccess::allowed(auth()->user())) {
+            abort(403, 'Aksi operasional GA hanya untuk tim GA.');
+        }
     }
 
 }
