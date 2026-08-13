@@ -158,6 +158,7 @@ class TicketController extends Controller
             'isPublic' => true,
             'serviceRequestId' => $this->getBumTicketCategoryId(),
             'atkRtkCategoryId' => $this->getAtkRtkCategoryId(),
+            'approvers' => $this->getApproverUsers(),
             'mediumPriorityId' => Priority::where('name', 'Medium')->value('id'),
             'mediumImpactId' => Impact::where('name', 'Medium')->value('id'),
             'mediumUrgencyId' => Urgency::where('name', 'Medium')->value('id'),
@@ -769,6 +770,10 @@ class TicketController extends Controller
             'action' => 'Ticket dibuat (' . $this->getRequestTypeLabel($requestType) . ' - Public)',
         ]);
 
+        if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
+            $this->createManagerApproval($ticket);
+        }
+
         return $ticket;
     }
 
@@ -886,6 +891,7 @@ class TicketController extends Controller
             'payload.items' => 'required|array|min:1',
             'payload.items.*.item_id' => 'required|exists:consumable_items,id',
             'payload.items.*.quantity' => 'required|integer|min:1',
+            'payload.supervisor_id' => 'nullable|exists:users,id',
             'payload.needed_date' => 'required|date',
             'payload.delivery_location' => 'required|string|max:150',
             'payload.recipient_pic' => 'nullable|string|max:150',
@@ -898,7 +904,17 @@ class TicketController extends Controller
             'reporter_email' => $requester->email,
             'submitted_from' => 'public',
         ])));
-        $payload['workflow_status'] = 'WAITING_BUM_REVIEW';
+
+        $threshold = config('bum.atk_rtk_manager_approval_threshold', 100000);
+        if ((float) data_get($payload, 'total_estimated_amount', 0) >= $threshold && empty(data_get($payload, 'supervisor_id'))) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'payload.supervisor_id' => 'Atasan wajib dipilih jika estimasi permintaan mencapai threshold approval.',
+            ]);
+        }
+
+        if (!empty($payload['supervisor_id'])) {
+            $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
+        }
 
         $ticket = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'atk_rtk');
         $this->sendPublicTicketEmails($ticket, $validated['category_id']);

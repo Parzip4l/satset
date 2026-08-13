@@ -155,7 +155,7 @@
             @endunless
         </div>
 
-        <form action="{{ ($isPublic ?? false) ? route('public.ticket.atk-rtk.store') : route('ticket.store') }}" method="POST">
+        <form action="{{ ($isPublic ?? false) ? route('public.ticket.atk-rtk.store') : route('ticket.store') }}" method="POST" id="atkRtkForm">
             @csrf
             <input type="hidden" name="request_type" value="atk_rtk">
             <input type="hidden" name="ticket_category_id" value="{{ $serviceRequestId ?? '' }}">
@@ -264,20 +264,18 @@
                                 <label class="form-label">PIC Penerima</label>
                                 <input type="text" name="payload[recipient_pic]" class="form-control" value="{{ old('payload.recipient_pic') }}" placeholder="Nama PIC penerima barang">
                             </div>
-                            @unless($isPublic ?? false)
-                                <div class="col-md-6">
-                                    <label class="form-label">Atasan yang Menyetujui</label>
-                                    <select name="payload[supervisor_id]" class="form-select atk-select" data-placeholder="Cari nama approver">
-                                        <option value="">Tidak perlu approval atasan</option>
-                                        @foreach(($approvers ?? collect()) as $approver)
-                                            <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
-                                                {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <div class="text-muted small mt-2">Wajib dipilih jika estimasi permintaan mencapai threshold approval.</div>
-                                </div>
-                            @endunless
+                            <div class="col-md-6">
+                                <label class="form-label">Atasan yang Menyetujui</label>
+                                <select name="payload[supervisor_id]" id="atkSupervisorId" class="form-select atk-select" data-placeholder="Cari nama approver">
+                                    <option value="">Tidak perlu approval atasan</option>
+                                    @foreach(($approvers ?? collect()) as $approver)
+                                        <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
+                                            {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="text-muted small mt-2">Wajib dipilih jika estimasi permintaan mencapai threshold approval.</div>
+                            </div>
                         </div>
 
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-4">
@@ -365,6 +363,7 @@
         });
 
         $('#atkGrandTotal').text(rupiah(grandTotal));
+        return grandTotal;
     }
 
     function reindexAtkItems() {
@@ -405,6 +404,21 @@
     });
 
     $(document).on('change keyup', '.atk-item-select, .atk-item-qty', updateAtkTotals);
+    $('#atkRtkForm').on('submit', function (event) {
+        const threshold = Number(@json($approvalThreshold ?? 100000));
+        const grandTotal = updateAtkTotals();
+        const supervisorId = $('#atkSupervisorId').val();
+
+        if (grandTotal >= threshold && !supervisorId) {
+            event.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atasan wajib dipilih',
+                text: `Estimasi permintaan mencapai ${rupiah(threshold)}, pilih atasan yang menyetujui terlebih dahulu.`,
+                confirmButtonColor: '#e21a1a'
+            });
+        }
+    });
     initAtkSelect();
     updateAtkTotals();
 
