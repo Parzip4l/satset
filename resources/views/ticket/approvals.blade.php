@@ -8,6 +8,17 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
+            @if (session('success'))
+                <div class="alert alert-success border-0 shadow-sm rounded-3 mb-4">
+                    {{ session('success') }}
+                </div>
+            @endif
+            @if (session('error'))
+                <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <div class="card mb-4 border-0 shadow-sm" style="border-radius: 12px;">
                 <div class="card-body p-4">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
@@ -100,9 +111,28 @@
                                             </div>
                                         </td>
                                         <td class="text-end pe-4">
-                                            <a href="{{ route('ticket.show', $ticket->id) }}" class="btn btn-sm btn-primary">
-                                                Lihat & Approve
-                                            </a>
+                                            @if($approval->status === 'Pending')
+                                                <form action="{{ route('ticket.approve', $ticket) }}" method="POST" class="d-flex flex-column gap-2 align-items-end">
+                                                    @csrf
+                                                    <input type="hidden" name="approval_id" value="{{ $approval->id }}">
+                                                    <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="Catatan atasan" style="min-width: 220px;"></textarea>
+                                                    <div class="d-flex gap-2">
+                                                        <a href="{{ route('ticket.show', $ticket->id) }}" class="btn btn-sm btn-light border">
+                                                            Detail
+                                                        </a>
+                                                        <button type="submit" name="status" value="rejected" class="btn btn-sm btn-outline-danger">
+                                                            Reject
+                                                        </button>
+                                                        <button type="submit" name="status" value="approved" class="btn btn-sm btn-success">
+                                                            Approve
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            @else
+                                                <a href="{{ route('ticket.show', $ticket->id) }}" class="btn btn-sm btn-primary">
+                                                    Lihat Detail
+                                                </a>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
