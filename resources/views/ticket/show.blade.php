@@ -656,14 +656,18 @@
                                 </table>
                             </div>
                         </div>
-                        <form action="{{ route('ticket.atk-rtk.handover', $ticket) }}" method="POST" class="row g-2">
+                        <form action="{{ route('ticket.atk-rtk.handover', $ticket) }}" method="POST" enctype="multipart/form-data" class="row g-2">
                             @csrf
                             <div class="col-12"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
+                            <div class="col-12">
+                                <label class="form-label small text-muted mb-1">Foto bukti barang diterima requester <span class="text-danger">*</span></label>
+                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" required>
+                            </div>
                             <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
                             <div class="col-12"><button class="btn btn-primary w-100">Handover Semua & Kurangi Gudang Kecil</button></div>
                         </form>
                     @else
-                        <form action="{{ route('ticket.atk-rtk.handover', $ticket) }}" method="POST" class="row g-2">
+                        <form action="{{ route('ticket.atk-rtk.handover', $ticket) }}" method="POST" enctype="multipart/form-data" class="row g-2">
                             @csrf
                             <div class="col-12">
                                 <label class="meta-label">Handover Barang</label>
@@ -676,6 +680,10 @@
                             </div>
                             <div class="col-6"><input type="number" min="1" name="fulfilled_qty" class="form-control" value="{{ data_get($ticket->payload, 'approved_qty', data_get($ticket->payload, 'quantity', 1)) }}" required></div>
                             <div class="col-6"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
+                            <div class="col-12">
+                                <label class="form-label small text-muted mb-1">Foto bukti barang diterima requester <span class="text-danger">*</span></label>
+                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" required>
+                            </div>
                             <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
                             <div class="col-12"><button class="btn btn-primary w-100">Handover & Kurangi Gudang Kecil</button></div>
                         </form>

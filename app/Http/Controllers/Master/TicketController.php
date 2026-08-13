@@ -1473,6 +1473,7 @@ class TicketController extends Controller
             'item_id' => 'nullable|exists:consumable_items,id',
             'fulfilled_qty' => 'nullable|integer|min:1',
             'received_by' => 'required|string|max:150',
+            'handover_evidence_file' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             'notes' => 'nullable|string',
         ]);
 
@@ -1514,6 +1515,7 @@ class TicketController extends Controller
                 $payload['received_by'] = $data['received_by'];
                 $payload['handover_notes'] = $data['notes'] ?? null;
                 $payload['handover_date'] = now()->toDateString();
+                $payload['handover_evidence_uploaded_at'] = now()->toDateTimeString();
                 $payload['workflow_status'] = 'HANDED_OVER';
                 $ticket->update(['payload' => $payload]);
                 $ticket->histories()->create([
@@ -1524,6 +1526,8 @@ class TicketController extends Controller
         } catch (InvalidArgumentException $exception) {
             return back()->with('error', $exception->getMessage());
         }
+
+        $this->storeRequestAttachment($request, $ticket, 'handover_evidence_file', 'atk_rtk_handover_evidence');
 
         $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
 
