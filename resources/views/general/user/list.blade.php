@@ -193,6 +193,19 @@
                         <input type="email" name="email" class="form-control" value="{{$data->email}}" required>
                     </div>
 
+                    @if(strtolower(auth()->user()->role ?? '') === 'admin')
+                    <div class="mb-3">
+                        <label class="form-label small text-uppercase fw-bold text-muted">Role Access</label>
+                        <select name="role" class="form-select">
+                            @foreach($role as $roleData)
+                                <option value="{{ $roleData->name }}" {{ ($data->role ?? '') === $roleData->name ? 'selected' : '' }}>
+                                    {{ $roleData->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
+
                     <hr class="border-dashed my-4">
                     <h6 class="fw-bold mb-3 small text-muted">UBAH PASSWORD (OPSIONAL)</h6>
 

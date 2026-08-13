@@ -27,6 +27,8 @@
             } else {
                 $filteredMenus = collect();
             }
+
+            $canAccessGaMenu = \App\Support\GaAccess::allowed(auth()->user());
         @endphp
 
         <ul class="pe-main-menu list-unstyled">
@@ -92,6 +94,7 @@
                     || request()->routeIs('ticket.atk-rtk.create')
                     || request()->routeIs('ticket.atk-rtk.warehouse');
             @endphp
+            @if($canAccessGaMenu)
             <li class="pe-menu-title">Operasional GA</li>
             <li class="pe-slide pe-has-sub">
                 <a href="#collapseSideBum" class="pe-nav-link {{ $bumMenuActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $bumMenuActive ? 'true' : 'false' }}" aria-controls="collapseSideBum">
@@ -135,6 +138,7 @@
                     </li>
                 </ul>
             </li>
+            @endif
         </ul>
     </nav>
 </aside>

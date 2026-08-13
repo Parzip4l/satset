@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Collection;
 
 class userController extends Controller
 {
@@ -22,23 +23,19 @@ class userController extends Controller
                         ->orWhere('email', 'like', '%' . $search . '%');
         })->paginate(10);
 
+        $role = $this->availableRolesFor(Auth::user());
+
         if ($request->ajax()) {
-            return view('general.user.list', compact('user'))->render();  // Return the table rows without reloading the page
+            return view('general.user.list', compact('user', 'role'))->render();  // Return the table rows without reloading the page
         }
 
-        return view('general.user.list', compact('user'));
+        return view('general.user.list', compact('user', 'role'));
     }
 
     public function create()
     {
-        $user = Auth::user();
+        $role = $this->availableRolesFor(Auth::user());
 
-        // Jika admin, tampilkan dashboard admin
-        if (strtolower($user->role) === 'admin') {
-           $role = Role::all();
-        }else {
-            $role = Role::where('name', 'pelapor')->get();
-        }
         return view('general.user.create',compact('role')); 
     }
 
@@ -47,6 +44,7 @@ class userController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
+            'role' => 'required|string|max:50',
             'password' => 'required|string|min:8',
         ]);
 
@@ -89,6 +87,7 @@ class userController extends Controller
         $validator = Validator::make($request->all(), [
             'username' => 'nullable|string|max:255|unique:users,username,' . $user->id,
             'email' => 'nullable|email|unique:users,email,' . $user->id,
+            'role' => 'nullable|string|max:50',
             'password' => 'nullable|string|min:8|confirmed',
         ]);
 
@@ -109,6 +108,10 @@ class userController extends Controller
 
             if ($request->filled('password')) {
                 $user->password = Hash::make($request->input('password'));
+            }
+
+            if (strtolower(Auth::user()->role ?? '') === 'admin' && $request->filled('role')) {
+                $user->role = $request->input('role');
             }
 
             $user->save();
@@ -141,6 +144,28 @@ class userController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal menghapus user: ' . $e->getMessage());
         }
+    }
+
+    private function availableRolesFor(?User $user): Collection
+    {
+        $roles = strtolower($user->role ?? '') === 'admin'
+            ? Role::query()->pluck('name')
+            : Role::query()->where('name', 'pelapor')->pluck('name');
+
+        if (strtolower($user->role ?? '') === 'admin') {
+            $roles = $roles->merge(['admin', 'pelapor', 'ga']);
+        }
+
+        if ($roles->isEmpty()) {
+            $roles = collect(['pelapor']);
+        }
+
+        return $roles
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->map(fn ($name) => (object) ['name' => $name]);
     }
 
 }

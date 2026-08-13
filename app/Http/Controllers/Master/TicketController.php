@@ -1375,7 +1375,7 @@ class TicketController extends Controller
                     $largeQty,
                     'atk_rtk_replenishment',
                     $ticket->id,
-                    $data['notes'] ?: 'Transfer Gudang Besar ke Gudang Kecil untuk ' . $ticket->ticket_no,
+                    ($data['notes'] ?? null) ?: 'Transfer Gudang Besar ke Gudang Kecil untuk ' . $ticket->ticket_no,
                     auth()->id()
                 );
 
