@@ -184,9 +184,24 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         ]);
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Approval resolver tidak mengembalikan email approver');
+        $this->expectExceptionMessage('Data approver dari Portal belum lengkap');
 
         app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('consumption', 0));
+    }
+
+    public function test_success_message_without_approver_is_reported_as_incomplete_data(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'message' => 'Approval resolved successfully.',
+                'data' => [],
+            ]),
+        ]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Data approver dari Portal belum lengkap');
+
+        app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('atk_rtk', 150000));
     }
 
     private function ticket(string $requestType, float $amount): Ticket

@@ -28,8 +28,11 @@ class LrtjSpaceApprovalResolverService
                 'data_keys' => is_array($response['data'] ?? null) ? array_keys($response['data']) : null,
             ]);
 
-            $message = data_get($response, 'message')
-                ?: 'Approval resolver tidak mengembalikan email approver untuk '.$ticket->ticket_no.'. Pastikan Portal memakai email pemohon '.($ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email')).' dan mengirim data.steps[0].approver.email.';
+            $portalMessage = trim((string) data_get($response, 'message', ''));
+            $message = 'Data approver dari Portal belum lengkap untuk '.$ticket->ticket_no.'. Portal harus mengirim email approver untuk pemohon '.($ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email')).'.';
+            if ($portalMessage !== '' && ! str_contains(strtolower($portalMessage), 'success')) {
+                $message .= ' Pesan Portal: '.$portalMessage;
+            }
 
             $this->fail($message);
         }
