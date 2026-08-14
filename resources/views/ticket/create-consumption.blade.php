@@ -221,19 +221,6 @@
                                 <label class="form-label">Jumlah Peserta</label>
                                 <input type="number" min="1" name="payload[participant_count]" class="form-control" value="{{ old('payload.participant_count') }}" placeholder="0" required>
                             </div>
-                            @unless($isPublic ?? false)
-                                <div class="col-md-6">
-                                    <label class="form-label">Atasan yang Menyetujui</label>
-                                    <select name="payload[supervisor_id]" class="form-select">
-                                        <option value="">Ditentukan otomatis dari Intranet</option>
-                                        @foreach(($approvers ?? collect()) as $approver)
-                                            <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
-                                                {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            @endunless
                             <div class="col-md-6">
                                 <label class="form-label">Unit / Penyelenggara</label>
                                 <input type="text" name="payload[organizer_unit]" class="form-control" value="{{ old('payload.organizer_unit') }}" placeholder="Unit penyelenggara kegiatan">

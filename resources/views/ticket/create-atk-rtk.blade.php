@@ -264,18 +264,6 @@
                                 <label class="form-label">PIC Penerima</label>
                                 <input type="text" name="payload[recipient_pic]" class="form-control" value="{{ old('payload.recipient_pic') }}" placeholder="Nama PIC penerima barang">
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Atasan yang Menyetujui</label>
-                                <select name="payload[supervisor_id]" id="atkSupervisorId" class="form-select atk-select" data-placeholder="Cari nama approver">
-                                    <option value="">Tidak perlu approval atasan</option>
-                                    @foreach(($approvers ?? collect()) as $approver)
-                                        <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
-                                            {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <div class="text-muted small mt-2">Approver akan ditentukan otomatis dari Intranet jika request membutuhkan approval.</div>
-                            </div>
                         </div>
 
                         <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-4">
