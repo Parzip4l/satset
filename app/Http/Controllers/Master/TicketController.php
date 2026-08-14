@@ -3,41 +3,38 @@
 namespace App\Http\Controllers\Master;
 
 use App\Http\Controllers\Controller;
-use App\Models\Master\Ticket;
-use Illuminate\Http\Request;
-use Carbon\Carbon;
-use App\Mail\TicketCreated;
 use App\Mail\SystemTestEmail;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
-use InvalidArgumentException;
-use Illuminate\Support\Str;
-
-// Model
-use App\Models\Master\Status;
-use App\Models\Master\Priority;
-use App\Models\Master\ProblemCategory;
-use App\Models\Master\DepartmentCategory;
-use App\Models\Master\Impact;
-use App\Models\Master\Urgency;
-use App\Models\Master\Department;
+use App\Mail\TicketCreated;
 use App\Models\Master\Approval;
-use App\Models\User;
-use App\Models\Master\TicketCategory;
-use App\Models\Master\TicketFormSchema; 
 use App\Models\Master\Attachment;
 use App\Models\Master\ConsumableItem;
-use App\Services\ConsumableStockService;
-use App\Services\LrtjSpaceMobileNotificationService;
-use App\Support\GaAccess;
-
-
+use App\Models\Master\Department;
+use App\Models\Master\DepartmentCategory;
+use App\Models\Master\Impact;
+use App\Models\Master\Priority;
+use App\Models\Master\ProblemCategory;
+use App\Models\Master\Status;
+use App\Models\Master\Ticket;
+use App\Models\Master\TicketCategory;
+// Model
+use App\Models\Master\TicketFormSchema;
 use App\Models\Master\TicketHistory;
+use App\Models\Master\Urgency;
+use App\Models\User;
+use App\Services\ConsumableStockService;
+use App\Services\LrtjSpaceApprovalResolverService;
+use App\Services\LrtjSpaceMobileNotificationService;
+use App\Services\SatsetApprovalDecisionService;
+use App\Support\GaAccess;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class TicketController extends Controller
 {
@@ -49,13 +46,13 @@ class TicketController extends Controller
         $user = auth()->user();
 
         $baseQuery = Ticket::query()
-            ->when(($user->role ?? null) !== 'admin', fn($query) => $query->where('requester_id', $user->id));
+            ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('requester_id', $user->id));
 
         $stats = [
             'total' => (clone $baseQuery)->count(),
-            'open' => (clone $baseQuery)->whereHas('status', fn($query) => $query->where('name', 'Open'))->count(),
-            'in_progress' => (clone $baseQuery)->whereHas('status', fn($query) => $query->where('name', 'In Progress'))->count(),
-            'completed' => (clone $baseQuery)->whereHas('status', fn($query) => $query->whereIn('name', ['Resolved', 'Closed']))->count(),
+            'open' => (clone $baseQuery)->whereHas('status', fn ($query) => $query->where('name', 'Open'))->count(),
+            'in_progress' => (clone $baseQuery)->whereHas('status', fn ($query) => $query->where('name', 'In Progress'))->count(),
+            'completed' => (clone $baseQuery)->whereHas('status', fn ($query) => $query->whereIn('name', ['Resolved', 'Closed']))->count(),
             'pending_approvals' => Approval::query()
                 ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
                 ->where('status', 'Pending')
@@ -91,35 +88,35 @@ class TicketController extends Controller
      */
     public function generalIndex(Request $request)
     {
-        $user         = auth()->user();
-        $search       = $request->get('search');
-        $statusId     = $request->get('status_id');
-        $priorityId   = $request->get('priority_id');
-        $categoryId   = $request->get('category_id');
+        $user = auth()->user();
+        $search = $request->get('search');
+        $statusId = $request->get('status_id');
+        $priorityId = $request->get('priority_id');
+        $categoryId = $request->get('category_id');
         $departmentId = $request->get('department_id');
 
         $tickets = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency'])
-            ->when(($user->role ?? null) !== 'admin', fn($query) => $query->where('requester_id', $user->id))
+            ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('requester_id', $user->id))
             ->when($search, function ($query, $searchValue) {
                 $query->where(function ($builder) use ($searchValue) {
-                    $builder->where('title', 'like', '%' . $searchValue . '%')
-                        ->orWhere('ticket_no', 'like', '%' . $searchValue . '%')
+                    $builder->where('title', 'like', '%'.$searchValue.'%')
+                        ->orWhere('ticket_no', 'like', '%'.$searchValue.'%')
                         ->orWhereHas('requester', function ($subQuery) use ($searchValue) {
-                            $subQuery->where('name', 'like', '%' . $searchValue . '%');
+                            $subQuery->where('name', 'like', '%'.$searchValue.'%');
                         });
                 });
             })
-            ->when($statusId, fn($query) => $query->where('status_id', $statusId))
-            ->when($priorityId, fn($query) => $query->where('priority_id', $priorityId))
-            ->when($categoryId, fn($query) => $query->where('category_id', $categoryId))
-            ->when($departmentId, fn($query) => $query->where('department_id', $departmentId))
+            ->when($statusId, fn ($query) => $query->where('status_id', $statusId))
+            ->when($priorityId, fn ($query) => $query->where('priority_id', $priorityId))
+            ->when($categoryId, fn ($query) => $query->where('category_id', $categoryId))
+            ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
             ->latest()
             ->paginate(10);
 
-        $users       = User::all();
-        $priority    = Priority::all();
-        $status      = Status::all();
-        $categories  = ProblemCategory::all();
+        $users = User::all();
+        $priority = Priority::all();
+        $status = Status::all();
+        $categories = ProblemCategory::all();
         $departments = Department::all();
 
         if ($request->ajax()) {
@@ -250,19 +247,19 @@ class TicketController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user || empty($user->email)) {
+        if (! $user || empty($user->email)) {
             return redirect()->back()->with('error', 'Email user login belum tersedia, jadi test email tidak bisa dikirim.');
         }
 
         try {
             Mail::to($user->email)->send(new SystemTestEmail($user));
-            Log::info('Test email berhasil dikirim ke user login: ' . $user->email);
+            Log::info('Test email berhasil dikirim ke user login: '.$user->email);
 
-            return redirect()->back()->with('success', 'Test email berhasil dikirim ke ' . $user->email);
+            return redirect()->back()->with('success', 'Test email berhasil dikirim ke '.$user->email);
         } catch (\Exception $e) {
-            Log::error('Gagal mengirim test email ke user login: ' . $user->email . '. Error: ' . $e->getMessage());
+            Log::error('Gagal mengirim test email ke user login: '.$user->email.'. Error: '.$e->getMessage());
 
-            return redirect()->back()->with('error', 'Test email gagal dikirim: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Test email gagal dikirim: '.$e->getMessage());
         }
     }
 
@@ -274,15 +271,15 @@ class TicketController extends Controller
             // Masukkan kategori saat ini ke array baru
             $result[] = [
                 'id' => $category->id,
-                'name' => $prefix . $category->name // Gabungkan prefix (strip) dengan nama
+                'name' => $prefix.$category->name, // Gabungkan prefix (strip) dengan nama
             ];
 
             // Jika punya anak, panggil fungsi ini lagi (Rekursif)
             // Tambahkan prefix '— ' untuk level anak
             if ($category->children->count() > 0) {
                 $result = array_merge(
-                    $result, 
-                    $this->flattenCategories($category->children, $prefix . '— ')
+                    $result,
+                    $this->flattenCategories($category->children, $prefix.'— ')
                 );
             }
         }
@@ -363,7 +360,7 @@ class TicketController extends Controller
 
         foreach (['konsumsi', 'umum', 'general', 'ga', 'support'] as $index => $keyword) {
             $method = $index === 0 ? 'where' : 'orWhere';
-            $query->{$method}('name', 'like', '%' . $keyword . '%');
+            $query->{$method}('name', 'like', '%'.$keyword.'%');
         }
 
         return $query->value('id')
@@ -488,16 +485,17 @@ class TicketController extends Controller
     private function resolveTitle(string $requestType, array $validated, array $payload): string
     {
         if ($requestType === 'consumption') {
-            return 'Permintaan Konsumsi - ' . ($payload['activity_name'] ?? 'Kegiatan');
+            return 'Permintaan Konsumsi - '.($payload['activity_name'] ?? 'Kegiatan');
         }
 
         if ($requestType === 'atk_rtk') {
-            return 'Permintaan ATK/RTK - ' . ($payload['request_subject'] ?? 'Kebutuhan Operasional');
+            return 'Permintaan ATK/RTK - '.($payload['request_subject'] ?? 'Kebutuhan Operasional');
         }
 
         if ($requestType === 'ga_request_finding') {
             $typeLabel = $payload['report_type'] ?? 'Laporan';
-            return 'GA ' . $typeLabel . ' - ' . ($payload['location'] ?? 'Lokasi');
+
+            return 'GA '.$typeLabel.' - '.($payload['location'] ?? 'Lokasi');
         }
 
         return $validated['title'];
@@ -517,7 +515,7 @@ class TicketController extends Controller
 
         if ($requestType === 'atk_rtk') {
             $itemSummary = collect($payload['items'] ?? [])
-                ->map(fn ($item) => ($item['item_name'] ?? 'Barang') . ' x ' . ($item['quantity'] ?? 0))
+                ->map(fn ($item) => ($item['item_name'] ?? 'Barang').' x '.($item['quantity'] ?? 0))
                 ->implode(', ');
 
             return sprintf(
@@ -526,7 +524,7 @@ class TicketController extends Controller
                 $payload['delivery_location'] ?? '-',
                 $payload['total_quantity'] ?? '-',
                 number_format((float) ($payload['total_estimated_amount'] ?? 0), 0, ',', '.')
-            ) . ($itemSummary ? ' Item: ' . $itemSummary . '.' : '');
+            ).($itemSummary ? ' Item: '.$itemSummary.'.' : '');
         }
 
         if ($requestType === 'ga_request_finding') {
@@ -545,10 +543,10 @@ class TicketController extends Controller
     private function enrichAtkRtkPayload(array $payload): array
     {
         $rows = collect($payload['items'] ?? [])
-            ->filter(fn ($row) => !empty($row['item_id']) && (int) ($row['quantity'] ?? 0) > 0)
+            ->filter(fn ($row) => ! empty($row['item_id']) && (int) ($row['quantity'] ?? 0) > 0)
             ->values();
 
-        if ($rows->isEmpty() && !empty($payload['item_id'])) {
+        if ($rows->isEmpty() && ! empty($payload['item_id'])) {
             $rows = collect([[
                 'item_id' => $payload['item_id'],
                 'quantity' => $payload['quantity'] ?? 1,
@@ -562,7 +560,7 @@ class TicketController extends Controller
         $payload['items'] = $rows
             ->map(function ($row) use ($masterItems) {
                 $item = $masterItems->get((int) $row['item_id']);
-                if (!$item) {
+                if (! $item) {
                     return null;
                 }
 
@@ -604,7 +602,7 @@ class TicketController extends Controller
 
         foreach ($keywords as $index => $keyword) {
             $method = $index === 0 ? 'where' : 'orWhere';
-            $query->{$method}('name', 'like', '%' . $keyword . '%');
+            $query->{$method}('name', 'like', '%'.$keyword.'%');
         }
 
         return $query->first();
@@ -612,12 +610,12 @@ class TicketController extends Controller
 
     private function storeRequestAttachment(Request $request, Ticket $ticket, string $fieldName, string $attachmentType, ?User $uploader = null): void
     {
-        if (!$request->hasFile($fieldName)) {
+        if (! $request->hasFile($fieldName)) {
             return;
         }
 
         $file = $request->file($fieldName);
-        $path = $file->store('request-attachments/' . $ticket->id, 'public');
+        $path = $file->store('request-attachments/'.$ticket->id, 'public');
 
         Attachment::create([
             'request_id' => $ticket->id,
@@ -639,7 +637,7 @@ class TicketController extends Controller
 
         $user = User::firstOrNew(['email' => $email]);
 
-        if (!$user->exists) {
+        if (! $user->exists) {
             $user->name = $name;
             $user->password = Hash::make(Str::random(32));
             $this->setUserColumnIfExists($user, 'username', Str::before($email, '@'));
@@ -758,7 +756,7 @@ class TicketController extends Controller
         }
 
         return redirect()->route('public.ticket.ga-permintaan-temuan.create')
-            ->with('success', 'Laporan berhasil dikirim. Nomor ticket Anda: ' . $ticket->ticket_no);
+            ->with('success', 'Laporan berhasil dikirim. Nomor ticket Anda: '.$ticket->ticket_no);
     }
 
     private function createPublicTicketFromPayload(array $validated, array $payload, User $requester, string $requestType): Ticket
@@ -772,34 +770,36 @@ class TicketController extends Controller
         $assignedDepartment = $departments->first()
             ?: $this->findDepartmentByKeywords(['umum', 'general affairs', 'ga', 'procurement']);
 
-        $ticket = Ticket::create([
-            'ticket_no' => $this->generateTicketNo($validated['category_id']),
-            'requester_id' => $requester->id,
-            'department_id' => $assignedDepartment->id ?? null,
-            'assigned_department_id' => $assignedDepartment->id ?? null,
-            'category_id' => $validated['category_id'],
-            'title' => $this->resolveTitle($requestType, $validated, $payload),
-            'description' => $this->resolveDescription($requestType, $validated, $payload),
-            'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
-            'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
-            'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
-            'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getBumTicketCategoryId(),
-            'payload' => $payload,
-            'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
-        ]);
+        return DB::transaction(function () use ($validated, $payload, $requester, $requestType, $assignedDepartment) {
+            $ticket = Ticket::create([
+                'ticket_no' => $this->generateTicketNo($validated['category_id']),
+                'requester_id' => $requester->id,
+                'department_id' => $assignedDepartment->id ?? null,
+                'assigned_department_id' => $assignedDepartment->id ?? null,
+                'category_id' => $validated['category_id'],
+                'title' => $this->resolveTitle($requestType, $validated, $payload),
+                'description' => $this->resolveDescription($requestType, $validated, $payload),
+                'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+                'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+                'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+                'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getBumTicketCategoryId(),
+                'payload' => $payload,
+                'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
+            ]);
 
-        TicketHistory::create([
-            'ticket_id' => $ticket->id,
-            'user_id' => $requester->id,
-            'status_id' => $ticket->status_id,
-            'action' => 'Ticket dibuat (' . $this->getRequestTypeLabel($requestType) . ' - Public)',
-        ]);
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => $requester->id,
+                'status_id' => $ticket->status_id,
+                'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).' - Public)',
+            ]);
 
-        if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
-            $this->createManagerApproval($ticket);
-        }
+            if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
+                $this->createManagerApproval($ticket);
+            }
 
-        return $ticket;
+            return $ticket;
+        });
     }
 
     private function sendPublicTicketEmails(Ticket $ticket, int $categoryId): void
@@ -876,7 +876,6 @@ class TicketController extends Controller
             'reporter_email' => $requester->email,
             'submitted_from' => 'public',
         ]));
-        $payload['workflow_status'] = 'WAITING_BUM_REVIEW';
 
         $ticket = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'consumption');
 
@@ -887,7 +886,7 @@ class TicketController extends Controller
         $this->sendPublicTicketEmails($ticket, $validated['category_id']);
 
         return redirect()->route('public.ticket.konsumsi.create')
-            ->with('success', 'Permintaan konsumsi berhasil dikirim. Nomor ticket Anda: ' . $ticket->ticket_no);
+            ->with('success', 'Permintaan konsumsi berhasil dikirim. Nomor ticket Anda: '.$ticket->ticket_no);
     }
 
     public function storePublicAtkRtk(Request $request)
@@ -930,14 +929,7 @@ class TicketController extends Controller
             'submitted_from' => 'public',
         ])));
 
-        $threshold = config('bum.atk_rtk_manager_approval_threshold', 100000);
-        if ((float) data_get($payload, 'total_estimated_amount', 0) >= $threshold && empty(data_get($payload, 'supervisor_id'))) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'payload.supervisor_id' => 'Atasan wajib dipilih jika estimasi permintaan mencapai threshold approval.',
-            ]);
-        }
-
-        if (!empty($payload['supervisor_id'])) {
+        if (! empty($payload['supervisor_id'])) {
             $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
         }
 
@@ -945,7 +937,7 @@ class TicketController extends Controller
         $this->sendPublicTicketEmails($ticket, $validated['category_id']);
 
         return redirect()->route('public.ticket.atk-rtk.create')
-            ->with('success', 'Permintaan ATK/RTK berhasil dikirim. Nomor ticket Anda: ' . $ticket->ticket_no);
+            ->with('success', 'Permintaan ATK/RTK berhasil dikirim. Nomor ticket Anda: '.$ticket->ticket_no);
     }
 
     /**
@@ -976,7 +968,7 @@ class TicketController extends Controller
                 'payload.participant_count' => 'required|integer|min:1',
                 'payload.consumption_type' => 'required|string|max:100',
                 'payload.request_reason' => 'required|string',
-                'payload.supervisor_id' => 'required|exists:users,id',
+                'payload.supervisor_id' => 'nullable|exists:users,id',
                 'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
                 'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
                 'activity_report_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
@@ -1019,12 +1011,6 @@ class TicketController extends Controller
                 $estimatedPayload = $this->buildPayload('atk_rtk', $validated['payload']);
                 $estimatedAmount = (float) data_get($estimatedPayload, 'total_estimated_amount', 0);
             }
-            $threshold = config('bum.atk_rtk_manager_approval_threshold', 100000);
-            if ($estimatedAmount >= $threshold && empty(data_get($validated, 'payload.supervisor_id'))) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'payload.supervisor_id' => 'Atasan wajib dipilih jika estimasi permintaan mencapai threshold approval.',
-                ]);
-            }
         }
 
         $departments = DepartmentCategory::with('department')
@@ -1035,7 +1021,7 @@ class TicketController extends Controller
 
         $assignedDepartment = $departments->first();
 
-        if (!$assignedDepartment && in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true)) {
+        if (! $assignedDepartment && in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true)) {
             $assignedDepartment = $this->findDepartmentByKeywords(['umum', 'general affairs', 'ga', 'procurement']);
         }
 
@@ -1052,39 +1038,42 @@ class TicketController extends Controller
 
         $payload = $this->buildPayload($requestType, $validated['payload'] ?? []);
 
-        if (in_array($requestType, ['consumption', 'atk_rtk'], true) && !empty($payload['supervisor_id'])) {
+        if (in_array($requestType, ['consumption', 'atk_rtk'], true) && ! empty($payload['supervisor_id'])) {
             $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
         }
 
-        $ticketNo = $this->generateTicketNo($validated['category_id']);
+        $ticket = DB::transaction(function () use ($validated, $payload, $requestType, $assignedDepartment) {
+            $ticketNo = $this->generateTicketNo($validated['category_id']);
 
-        $ticket = Ticket::create([
-            'ticket_no' => $ticketNo,
-            'requester_id' => auth()->id(),
-            'department_id' => $assignedDepartment->id ?? null,
-            'assigned_department_id' => $assignedDepartment->id ?? null,
-            'category_id' => $validated['category_id'],
-            'title' => $this->resolveTitle($requestType, $validated, $payload),
-            'description' => $this->resolveDescription($requestType, $validated, $payload),
-            'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
-            'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
-            'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
-            'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getDefaultTicketCategoryId(),
-            'payload' => $payload,
-            'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
-        ]);
+            $ticket = Ticket::create([
+                'ticket_no' => $ticketNo,
+                'requester_id' => auth()->id(),
+                'department_id' => $assignedDepartment->id ?? null,
+                'assigned_department_id' => $assignedDepartment->id ?? null,
+                'category_id' => $validated['category_id'],
+                'title' => $this->resolveTitle($requestType, $validated, $payload),
+                'description' => $this->resolveDescription($requestType, $validated, $payload),
+                'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+                'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+                'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+                'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getDefaultTicketCategoryId(),
+                'payload' => $payload,
+                'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
+            ]);
 
-        // Create history
-        TicketHistory::create([
-            'ticket_id' => $ticket->id,
-            'user_id'   => auth()->id(),
-            'status_id' => $ticket->status_id,
-            'action'    => 'Ticket dibuat (' . $this->getRequestTypeLabel($requestType) . ')',
-        ]);
+            TicketHistory::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => auth()->id(),
+                'status_id' => $ticket->status_id,
+                'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).')',
+            ]);
 
-        if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
-            $this->createManagerApproval($ticket);
-        }
+            if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
+                $this->createManagerApproval($ticket);
+            }
+
+            return $ticket;
+        });
 
         if ($requestType === 'consumption') {
             $this->storeRequestAttachment($request, $ticket, 'attendance_file', 'attendance');
@@ -1144,7 +1133,6 @@ class TicketController extends Controller
         return response()->json($schemaModel ? $schemaModel->schema : []);
     }
 
-
     /**
      * Show single ticket
      */
@@ -1158,6 +1146,7 @@ class TicketController extends Controller
 
         return view('ticket.show', compact('ticket', 'users', 'departments', 'statuses', 'consumableItems'));
     }
+
     /**
      * Update ticket
      */
@@ -1170,7 +1159,7 @@ class TicketController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Ticket berhasil diperbarui.',
-            'data'    => $ticket
+            'data' => $ticket,
         ]);
     }
 
@@ -1184,7 +1173,7 @@ class TicketController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Ticket berhasil dihapus.'
+            'message' => 'Ticket berhasil dihapus.',
         ]);
     }
 
@@ -1228,9 +1217,9 @@ class TicketController extends Controller
 
         // simpan ke history
         $ticket->histories()->create([
-            'user_id'   => auth()->id(),
+            'user_id' => auth()->id(),
             'status_id' => $ticket->status_id,
-            'action'    => 'Status diupdate',
+            'action' => 'Status diupdate',
         ]);
 
         // Kirim email ke pengaju tiket untuk update status
@@ -1271,46 +1260,45 @@ class TicketController extends Controller
         $ticket->save();
 
         // ambil nama user dan department kalau ada
-        $assignedUser = $request->assigned_user_id 
-            ? User::find($request->assigned_user_id)->name 
+        $assignedUser = $request->assigned_user_id
+            ? User::find($request->assigned_user_id)->name
             : null;
 
-        $assignedDept = $request->assigned_department_id 
-            ? Department::find($request->assigned_department_id)->name 
+        $assignedDept = $request->assigned_department_id
+            ? Department::find($request->assigned_department_id)->name
             : null;
 
         // catat history
         $action = 'Tiket ditugaskan';
         if ($assignedUser) {
-            $action .= ' kepada ' . $assignedUser;
+            $action .= ' kepada '.$assignedUser;
         }
         if ($assignedDept) {
-            $action .= ' di departemen ' . $assignedDept;
+            $action .= ' di departemen '.$assignedDept;
         }
 
         $ticket->histories()->create([
             'user_id' => auth()->id(),
-            'action'  => $action,
+            'action' => $action,
         ]);
 
         if ($assignedUser = $ticket->assignedUser()->first()) {
             $this->mobileNotifications()->notifyTicketAssigned($ticket->fresh(['status']), $assignedUser);
         }
 
-        return redirect()->back()->with('success', $action . '.');
+        return redirect()->back()->with('success', $action.'.');
     }
-
 
     public function comment(Request $request, Ticket $ticket)
     {
         $request->validate([
-            'message' => 'required|string'
+            'message' => 'required|string',
         ]);
 
         try {
             $ticket->comments()->create([
                 'user_id' => auth()->id(),
-                'message' => $request->message
+                'message' => $request->message,
             ]);
 
             $ticket->histories()->create([
@@ -1346,31 +1334,14 @@ class TicketController extends Controller
             return redirect()->back()->with('error', 'User tidak boleh approve request miliknya sendiri.');
         }
 
-        $approval->update([
-            'status' => $request->status,
-            'notes' => $request->note,
-            'decided_at' => now(),
-        ]);
-
-        $payload = $ticket->payload ?? [];
-        $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
-        $requestType = data_get($payload, 'request_type');
-        if ($requestType === 'atk_rtk') {
-            $payload['workflow_status'] = $request->status === 'approved' ? 'APPROVED_BY_MANAGER' : 'REJECTED_BY_MANAGER';
-            if ($request->status === 'approved') {
-                $payload['workflow_status'] = 'WAITING_BUM_REVIEW';
-            }
-        } elseif ($requestType === 'consumption') {
-            $payload['workflow_status'] = $request->status === 'approved' ? 'WAITING_BUM_VERIFICATION' : 'REJECTED_BY_MANAGER';
-        }
-        $ticket->update(['payload' => $payload]);
-
-        $ticket->histories()->create([
-            'user_id' => Auth::id(),
-            'action' => ucfirst($request->status) . " approval at level " . $approval->level,
-        ]);
-
-        $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
+        app(SatsetApprovalDecisionService::class)->decide(
+            $ticket,
+            $approval,
+            auth()->user(),
+            $request->status,
+            $request->note,
+            'satset_web'
+        );
 
         return redirect()->back()->with('success', 'Persetujuan berhasil dicatat.');
     }
@@ -1396,7 +1367,7 @@ class TicketController extends Controller
         $ticket->update(['payload' => $payload]);
         $ticket->histories()->create([
             'user_id' => auth()->id(),
-            'action' => 'BUM review ATK/RTK: ' . $data['workflow_status'],
+            'action' => 'BUM review ATK/RTK: '.$data['workflow_status'],
         ]);
 
         $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
@@ -1418,7 +1389,7 @@ class TicketController extends Controller
         $payload = $ticket->payload ?? [];
         $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $payloadItems = collect(data_get($payload, 'items', []));
-        if ($payloadItems->isNotEmpty() && !$payloadItems->contains(fn ($row) => (int) data_get($row, 'item_id') === (int) $data['item_id'])) {
+        if ($payloadItems->isNotEmpty() && ! $payloadItems->contains(fn ($row) => (int) data_get($row, 'item_id') === (int) $data['item_id'])) {
             return back()->with('error', 'Barang tidak ada di daftar permintaan ticket ini.');
         }
 
@@ -1433,7 +1404,7 @@ class TicketController extends Controller
                     $largeQty,
                     'atk_rtk_replenishment',
                     $ticket->id,
-                    ($data['notes'] ?? null) ?: 'Transfer Gudang Besar ke Gudang Kecil untuk ' . $ticket->ticket_no,
+                    ($data['notes'] ?? null) ?: 'Transfer Gudang Besar ke Gudang Kecil untuk '.$ticket->ticket_no,
                     auth()->id()
                 );
 
@@ -1494,7 +1465,7 @@ class TicketController extends Controller
                     foreach ($payloadItems as $row) {
                         $item = ConsumableItem::lockForUpdate()->findOrFail((int) data_get($row, 'item_id'));
                         $qty = (int) data_get($row, 'quantity', 0);
-                        $stockService->decreaseSmall($item, $qty, 'atk_rtk_request', $ticket->id, 'Handover ' . $ticket->ticket_no, auth()->id());
+                        $stockService->decreaseSmall($item, $qty, 'atk_rtk_request', $ticket->id, 'Handover '.$ticket->ticket_no, auth()->id());
                     }
 
                     $payload['fulfilled_qty'] = (int) data_get($payload, 'total_quantity', $payloadItems->sum(fn ($row) => (int) data_get($row, 'quantity', 0)));
@@ -1506,7 +1477,7 @@ class TicketController extends Controller
                     ])->values()->all();
                 } else {
                     $item = ConsumableItem::lockForUpdate()->findOrFail($data['item_id']);
-                    $stockService->decreaseSmall($item, (int) $data['fulfilled_qty'], 'atk_rtk_request', $ticket->id, 'Handover ' . $ticket->ticket_no, auth()->id());
+                    $stockService->decreaseSmall($item, (int) $data['fulfilled_qty'], 'atk_rtk_request', $ticket->id, 'Handover '.$ticket->ticket_no, auth()->id());
                     $payload['item_id'] = $item->id;
                     $payload['item_name'] = $item->name;
                     $payload['fulfilled_qty'] = $data['fulfilled_qty'];
@@ -1554,7 +1525,7 @@ class TicketController extends Controller
         $ticket->update(['payload' => $payload]);
         $ticket->histories()->create([
             'user_id' => auth()->id(),
-            'action' => 'Update konsumsi rapat: ' . $data['workflow_status'],
+            'action' => 'Update konsumsi rapat: '.$data['workflow_status'],
         ]);
 
         $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
@@ -1564,7 +1535,7 @@ class TicketController extends Controller
 
     public function uploadConsumptionEvidence(Request $request, Ticket $ticket)
     {
-        if ((int) $ticket->requester_id !== (int) $request->user()?->id && !GaAccess::allowed($request->user())) {
+        if ((int) $ticket->requester_id !== (int) $request->user()?->id && ! GaAccess::allowed($request->user())) {
             abort(403, 'Pertanggungjawaban hanya dapat diupload oleh requester atau tim GA.');
         }
 
@@ -1575,7 +1546,7 @@ class TicketController extends Controller
             'training_material_file' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx|max:5120',
         ]);
 
-        if (!$request->hasFile('attendance_file') && !$request->hasFile('documentation_file') && !$request->hasFile('activity_report_file') && !$request->hasFile('training_material_file')) {
+        if (! $request->hasFile('attendance_file') && ! $request->hasFile('documentation_file') && ! $request->hasFile('activity_report_file') && ! $request->hasFile('training_material_file')) {
             return back()->with('error', 'Minimal satu evidence pertanggungjawaban wajib diupload.');
         }
 
@@ -1601,20 +1572,7 @@ class TicketController extends Controller
 
     private function createManagerApproval(Ticket $ticket): void
     {
-        $supervisorId = data_get($ticket->payload, 'supervisor_id');
-        $approver = $supervisorId
-            ? User::where('id', '!=', $ticket->requester_id)->find($supervisorId)
-            : null;
-
-        if (!$approver) {
-            $approver = User::where('id', '!=', $ticket->requester_id)
-                ->whereIn('role', ['approver', 'manager', 'admin'])
-                ->first();
-        }
-
-        if (!$approver) {
-            return;
-        }
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($ticket);
 
         $approval = Approval::firstOrCreate([
             'request_id' => $ticket->id,
@@ -1643,7 +1601,7 @@ class TicketController extends Controller
 
     private function ensureGaOperationAccess(): void
     {
-        if (!GaAccess::allowed(auth()->user())) {
+        if (! GaAccess::allowed(auth()->user())) {
             abort(403, 'Aksi operasional GA hanya untuk tim GA.');
         }
     }
@@ -1665,9 +1623,8 @@ class TicketController extends Controller
             ->where('status', 'approved')
             ->exists();
 
-        if (!$hasApprovedManagerApproval) {
+        if (! $hasApprovedManagerApproval) {
             abort(403, 'Permintaan ATK/RTK di atas threshold harus disetujui atasan sebelum diproses GA.');
         }
     }
-
 }

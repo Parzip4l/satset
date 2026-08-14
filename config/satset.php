@@ -15,4 +15,17 @@ return [
         'timeout' => (int) env('LRTJ_SPACE_NOTIFICATION_TIMEOUT', 15),
         'verify_ssl' => filter_var(env('LRTJ_SPACE_NOTIFICATION_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
     ],
+
+    'approval_resolver' => [
+        'base_url' => rtrim(env('LRTJ_SPACE_BASE_URL', 'https://portal.lrtjakarta.co.id'), '/'),
+        'endpoint' => env('LRTJ_SPACE_APPROVAL_RESOLVER_ENDPOINT', '/api/v1/approval/resolve'),
+        'shared_secret' => env('LRTJ_SPACE_SATSET_SHARED_SECRET'),
+        'timeout' => (int) env('LRTJ_SPACE_APPROVAL_RESOLVER_TIMEOUT', 15),
+        'verify_ssl' => filter_var(env('LRTJ_SPACE_APPROVAL_RESOLVER_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+    ],
+
+    'intranet_api' => [
+        'shared_secret' => env('LRTJ_SPACE_SATSET_SHARED_SECRET'),
+        'signature_tolerance_seconds' => (int) env('LRTJ_SPACE_SATSET_SIGNATURE_TOLERANCE', 300),
+    ],
 ];

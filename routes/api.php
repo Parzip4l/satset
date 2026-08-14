@@ -1,15 +1,16 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Intranet\SatsetApprovalController;
+use App\Http\Controllers\Api\Mobile\Satset\MobileSatsetAuthController;
 // Import Controller yang baru dibuat
+use App\Http\Controllers\Api\Mobile\Satset\MobileSatsetTicketController;
+use App\Http\Controllers\Api\V1\BumAnalyticsApiController;
 use App\Http\Controllers\Api\V1\MasterApiController;
 use App\Http\Controllers\Api\V1\TicketApiController;
-use App\Http\Controllers\Api\V1\BumAnalyticsApiController;
-use App\Http\Controllers\Api\Mobile\Satset\MobileSatsetAuthController;
-use App\Http\Controllers\Api\Mobile\Satset\MobileSatsetTicketController;
-use App\Models\Master\TicketFormSchema;
 use App\Http\Controllers\Master\TicketFormSchemaController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -56,6 +57,14 @@ Route::prefix('mobile/v1/satset')->group(function () {
     });
 });
 
+Route::prefix('intranet/v1/satset')
+    ->middleware('satset.intranet')
+    ->group(function () {
+        Route::get('/approvals', [SatsetApprovalController::class, 'index']);
+        Route::get('/approvals/{approval}', [SatsetApprovalController::class, 'show']);
+        Route::post('/approvals/{approval}/decision', [SatsetApprovalController::class, 'decide']);
+    });
+
 // ========================================================================
 // API V1 ROUTES
 // ========================================================================
@@ -72,7 +81,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/master/ticket-priorities', [MasterApiController::class, 'getTicketPriorities']);
     Route::get('/master/impacts', [MasterApiController::class, 'getImpacts']);
     Route::get('/master/urgencies', [MasterApiController::class, 'getUrgencies']);
-
 
     // --------------------------------------------------------------------
     // TICKET MODULE
@@ -95,7 +103,6 @@ Route::prefix('v1')->group(function () {
         Route::get('/receiving-trend', [BumAnalyticsApiController::class, 'receivingTrend']);
         Route::get('/procurement-recommendation', [BumAnalyticsApiController::class, 'procurementRecommendation']);
     });
-    
 
     /*
     Route::middleware('auth:sanctum')->group(function () {

@@ -8,13 +8,10 @@ use App\Models\Master\Ticket;
 use App\Services\MobileSatsetTicketService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class MobileSatsetTicketController extends Controller
 {
-    public function __construct(private readonly MobileSatsetTicketService $tickets)
-    {
-    }
+    public function __construct(private readonly MobileSatsetTicketService $tickets) {}
 
     public function me(Request $request): JsonResponse
     {
@@ -117,7 +114,7 @@ class MobileSatsetTicketController extends Controller
             'payload.participant_count' => 'required|integer|min:1',
             'payload.consumption_type' => 'required|string|max:100',
             'payload.request_reason' => 'required|string',
-            'payload.supervisor_id' => 'required|exists:users,id',
+            'payload.supervisor_id' => 'nullable|exists:users,id',
             'payload.organizer_unit' => 'nullable|string|max:150',
             'payload.pic_contact' => 'nullable|string|max:150',
             'payload.consumption_notes' => 'nullable|string',
@@ -215,7 +212,7 @@ class MobileSatsetTicketController extends Controller
 
     private function authorizeTicket(Request $request, Ticket $ticket): void
     {
-        if (!$this->tickets->canAccess($request->user(), $ticket)) {
+        if (! $this->tickets->canAccess($request->user(), $ticket)) {
             abort(403, 'User tidak memiliki akses ke ticket ini.');
         }
     }
@@ -226,7 +223,7 @@ class MobileSatsetTicketController extends Controller
         $payload = is_array($payload) ? $payload : [];
 
         foreach ($keys as $key) {
-            if ($request->has($key) && !array_key_exists($key, $payload)) {
+            if ($request->has($key) && ! array_key_exists($key, $payload)) {
                 $payload[$key] = $request->input($key);
             }
         }

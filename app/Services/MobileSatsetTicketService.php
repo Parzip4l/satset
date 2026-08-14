@@ -28,9 +28,11 @@ use Illuminate\Support\Facades\Storage;
 
 class MobileSatsetTicketService
 {
-    public function __construct(private readonly LrtjSpaceMobileNotificationService $notifications)
-    {
-    }
+    public function __construct(
+        private readonly LrtjSpaceMobileNotificationService $notifications,
+        private readonly LrtjSpaceApprovalResolverService $approvalResolver,
+        private readonly SatsetApprovalDecisionService $approvalDecisions,
+    ) {}
 
     public function bootstrap(User $user): array
     {
@@ -86,7 +88,7 @@ class MobileSatsetTicketService
                 'reporter_email' => $user->email,
             ]));
 
-            if (in_array($requestType, ['consumption', 'atk_rtk'], true) && !empty($payload['supervisor_id'])) {
+            if (in_array($requestType, ['consumption', 'atk_rtk'], true) && ! empty($payload['supervisor_id'])) {
                 $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
             }
 
@@ -111,7 +113,7 @@ class MobileSatsetTicketService
                 'ticket_id' => $ticket->id,
                 'user_id' => $user->id,
                 'status_id' => $ticket->status_id,
-                'action' => 'Ticket dibuat dari LRTJ Space Mobile (' . $this->getRequestTypeLabel($requestType) . ')',
+                'action' => 'Ticket dibuat dari LRTJ Space Mobile ('.$this->getRequestTypeLabel($requestType).')',
             ]);
 
             if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
@@ -151,40 +153,16 @@ class MobileSatsetTicketService
             abort(404, 'Approval tidak ditemukan untuk ticket ini.');
         }
 
-        if ((int) $approval->approver_id !== (int) $user->id && !in_array($user->role ?? null, ['admin', 'manager'], true)) {
+        if ((int) $approval->approver_id !== (int) $user->id && ! in_array($user->role ?? null, ['admin', 'manager'], true)) {
             abort(403, 'User bukan approver ticket ini.');
         }
 
-        $approval->update([
-            'status' => $status,
-            'notes' => $note,
-            'decided_at' => now(),
-        ]);
-
-        $payload = $ticket->payload ?? [];
-        $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);
-        $requestType = data_get($payload, 'request_type');
-        if ($requestType === 'atk_rtk') {
-            $payload['workflow_status'] = $status === 'approved' ? 'WAITING_BUM_REVIEW' : 'REJECTED_BY_MANAGER';
-        } elseif ($requestType === 'consumption') {
-            $payload['workflow_status'] = $status === 'approved' ? 'WAITING_BUM_VERIFICATION' : 'REJECTED_BY_MANAGER';
-        }
-        $ticket->update(['payload' => $payload]);
-
-        $ticket->histories()->create([
-            'user_id' => $user->id,
-            'action' => ucfirst($status) . " approval level {$approval->level} via LRTJ Space Mobile",
-        ]);
-
-        $updated = $ticket->fresh(['requester', 'status']);
-        $this->notifications->notifyTicketStatusChanged($updated, $user, $previousStatus);
-
-        return $updated;
+        return $this->approvalDecisions->decide($ticket, $approval, $user, $status, $note, 'satset_mobile');
     }
 
     public function storeAttachment(User $user, Ticket $ticket, UploadedFile $file, string $attachmentType): Attachment
     {
-        $path = $file->store('request-attachments/' . $ticket->id, 'public');
+        $path = $file->store('request-attachments/'.$ticket->id, 'public');
 
         return Attachment::create([
             'request_id' => $ticket->id,
@@ -321,7 +299,7 @@ class MobileSatsetTicketService
             ->filter()
             ->first();
 
-        if (!$department && in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true)) {
+        if (! $department && in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true)) {
             return $this->findDepartmentByKeywords(['umum', 'general affairs', 'ga', 'procurement']);
         }
 
@@ -333,7 +311,7 @@ class MobileSatsetTicketService
         try {
             Mail::to($ticket->requester->email)->send(new TicketCreated($ticket, 'requester'));
         } catch (\Exception $exception) {
-            Log::error('Gagal kirim email ticket mobile ke pengaju: ' . $exception->getMessage());
+            Log::error('Gagal kirim email ticket mobile ke pengaju: '.$exception->getMessage());
         }
 
         DepartmentCategory::with('department')
@@ -342,13 +320,13 @@ class MobileSatsetTicketService
             ->pluck('department')
             ->filter()
             ->each(function (Department $department) use ($ticket) {
-                if (!$department->email) {
+                if (! $department->email) {
                     return;
                 }
                 try {
                     Mail::to($department->email)->send(new TicketCreated($ticket, 'department'));
                 } catch (\Exception $exception) {
-                    Log::error('Gagal kirim email ticket mobile ke departemen: ' . $exception->getMessage());
+                    Log::error('Gagal kirim email ticket mobile ke departemen: '.$exception->getMessage());
                 }
             });
     }
@@ -390,7 +368,7 @@ class MobileSatsetTicketService
     {
         $query = ProblemCategory::query();
         foreach (['konsumsi', 'umum', 'general', 'ga', 'support'] as $index => $keyword) {
-            $query->{$index === 0 ? 'where' : 'orWhere'}('name', 'like', '%' . $keyword . '%');
+            $query->{$index === 0 ? 'where' : 'orWhere'}('name', 'like', '%'.$keyword.'%');
         }
 
         return $query->value('id')
@@ -471,9 +449,9 @@ class MobileSatsetTicketService
     private function resolveTitle(string $requestType, array $validated, array $payload): string
     {
         return match ($requestType) {
-            'consumption' => 'Permintaan Konsumsi - ' . ($payload['activity_name'] ?? 'Kegiatan'),
-            'atk_rtk' => 'Permintaan ATK/RTK - ' . ($payload['request_subject'] ?? 'Kebutuhan Operasional'),
-            'ga_request_finding' => 'GA ' . ($payload['report_type'] ?? 'Laporan') . ' - ' . ($payload['location'] ?? 'Lokasi'),
+            'consumption' => 'Permintaan Konsumsi - '.($payload['activity_name'] ?? 'Kegiatan'),
+            'atk_rtk' => 'Permintaan ATK/RTK - '.($payload['request_subject'] ?? 'Kebutuhan Operasional'),
+            'ga_request_finding' => 'GA '.($payload['report_type'] ?? 'Laporan').' - '.($payload['location'] ?? 'Lokasi'),
             default => $validated['title'],
         };
     }
@@ -484,8 +462,9 @@ class MobileSatsetTicketService
             return sprintf('Permintaan konsumsi untuk %s pada %s di %s. Kebutuhan: %s.', $payload['activity_name'] ?? 'kegiatan', isset($payload['event_date']) ? Carbon::parse($payload['event_date'])->format('d M Y') : '-', $payload['location'] ?? '-', $payload['consumption_notes'] ?? ($payload['consumption_type'] ?? '-'));
         }
         if ($requestType === 'atk_rtk') {
-            $itemSummary = collect($payload['items'] ?? [])->map(fn ($item) => ($item['item_name'] ?? 'Barang') . ' x ' . ($item['quantity'] ?? 0))->implode(', ');
-            return sprintf('Permintaan %s untuk %s. Total qty: %s. Estimasi: Rp%s.', $payload['item_type'] ?? 'barang', $payload['delivery_location'] ?? '-', $payload['total_quantity'] ?? '-', number_format((float) ($payload['total_estimated_amount'] ?? 0), 0, ',', '.')) . ($itemSummary ? ' Item: ' . $itemSummary . '.' : '');
+            $itemSummary = collect($payload['items'] ?? [])->map(fn ($item) => ($item['item_name'] ?? 'Barang').' x '.($item['quantity'] ?? 0))->implode(', ');
+
+            return sprintf('Permintaan %s untuk %s. Total qty: %s. Estimasi: Rp%s.', $payload['item_type'] ?? 'barang', $payload['delivery_location'] ?? '-', $payload['total_quantity'] ?? '-', number_format((float) ($payload['total_estimated_amount'] ?? 0), 0, ',', '.')).($itemSummary ? ' Item: '.$itemSummary.'.' : '');
         }
         if ($requestType === 'ga_request_finding') {
             return sprintf('%s Bagian Umum di %s. Detail: %s. Ekspektasi tindak lanjut: %s.', $payload['report_type'] ?? 'Laporan', $payload['location'] ?? '-', $payload['description'] ?? '-', $payload['expected_action'] ?? '-');
@@ -496,12 +475,12 @@ class MobileSatsetTicketService
 
     private function enrichAtkRtkPayload(array $payload): array
     {
-        $rows = collect($payload['items'] ?? [])->filter(fn ($row) => !empty($row['item_id']) && (int) ($row['quantity'] ?? 0) > 0)->values();
+        $rows = collect($payload['items'] ?? [])->filter(fn ($row) => ! empty($row['item_id']) && (int) ($row['quantity'] ?? 0) > 0)->values();
         $masterItems = ConsumableItem::whereIn('id', $rows->pluck('item_id')->all())->get()->keyBy('id');
 
         $payload['items'] = $rows->map(function ($row) use ($masterItems) {
             $item = $masterItems->get((int) $row['item_id']);
-            if (!$item) {
+            if (! $item) {
                 return null;
             }
             $quantity = (int) $row['quantity'];
@@ -534,19 +513,15 @@ class MobileSatsetTicketService
     {
         $query = Department::query();
         foreach ($keywords as $index => $keyword) {
-            $query->{$index === 0 ? 'where' : 'orWhere'}('name', 'like', '%' . $keyword . '%');
+            $query->{$index === 0 ? 'where' : 'orWhere'}('name', 'like', '%'.$keyword.'%');
         }
+
         return $query->first();
     }
 
     private function createManagerApproval(Ticket $ticket): void
     {
-        $supervisorId = data_get($ticket->payload, 'supervisor_id');
-        $approver = $supervisorId ? User::where('id', '!=', $ticket->requester_id)->find($supervisorId) : null;
-        $approver ??= User::where('id', '!=', $ticket->requester_id)->whereIn('role', ['approver', 'manager', 'admin'])->first();
-        if (!$approver) {
-            return;
-        }
+        $approver = $this->approvalResolver->resolveFirstApprover($ticket);
 
         $approval = Approval::firstOrCreate([
             'request_id' => $ticket->id,

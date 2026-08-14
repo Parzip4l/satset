@@ -224,8 +224,8 @@
                             @unless($isPublic ?? false)
                                 <div class="col-md-6">
                                     <label class="form-label">Atasan yang Menyetujui</label>
-                                    <select name="payload[supervisor_id]" class="form-select" required>
-                                        <option value="">Pilih atasan</option>
+                                    <select name="payload[supervisor_id]" class="form-select">
+                                        <option value="">Ditentukan otomatis dari Intranet</option>
                                         @foreach(($approvers ?? collect()) as $approver)
                                             <option value="{{ $approver->id }}" @selected(old('payload.supervisor_id') == $approver->id)>
                                                 {{ $approver->name }}{{ $approver->role ? ' - ' . ucfirst($approver->role) : '' }}

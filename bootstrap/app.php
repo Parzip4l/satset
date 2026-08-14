@@ -1,10 +1,11 @@
 <?php
 
+use App\Http\Middleware\AuthenticateMobileSatset;
+use App\Http\Middleware\EnsureGaTeam;
+use App\Http\Middleware\VerifyIntranetSatsetSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\AuthenticateMobileSatset;
-use App\Http\Middleware\EnsureGaTeam;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'satset.mobile' => AuthenticateMobileSatset::class,
             'ga.team' => EnsureGaTeam::class,
+            'satset.intranet' => VerifyIntranetSatsetSignature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

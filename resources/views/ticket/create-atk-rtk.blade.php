@@ -274,7 +274,7 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <div class="text-muted small mt-2">Wajib dipilih jika estimasi permintaan mencapai threshold approval.</div>
+                                <div class="text-muted small mt-2">Approver akan ditentukan otomatis dari Intranet jika request membutuhkan approval.</div>
                             </div>
                         </div>
 
@@ -404,20 +404,8 @@
     });
 
     $(document).on('change keyup', '.atk-item-select, .atk-item-qty', updateAtkTotals);
-    $('#atkRtkForm').on('submit', function (event) {
-        const threshold = Number(@json($approvalThreshold ?? 100000));
-        const grandTotal = updateAtkTotals();
-        const supervisorId = $('#atkSupervisorId').val();
-
-        if (grandTotal >= threshold && !supervisorId) {
-            event.preventDefault();
-            Swal.fire({
-                icon: 'warning',
-                title: 'Atasan wajib dipilih',
-                text: `Estimasi permintaan mencapai ${rupiah(threshold)}, pilih atasan yang menyetujui terlebih dahulu.`,
-                confirmButtonColor: '#e21a1a'
-            });
-        }
+    $('#atkRtkForm').on('submit', function () {
+        updateAtkTotals();
     });
     initAtkSelect();
     updateAtkTotals();
