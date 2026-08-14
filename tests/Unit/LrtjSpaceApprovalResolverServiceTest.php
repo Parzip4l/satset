@@ -135,6 +135,48 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         $this->assertSame('Array Manager', $approver->name);
     }
 
+    public function test_accepts_portal_response_with_manager_shape(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'manager' => [
+                        'manager_id' => 'mgr-789',
+                        'manager_email' => 'rizal.zaelani@lrtjakarta.co.id',
+                        'manager_name' => 'Rizal Zaelani',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('atk_rtk', 150000));
+
+        $this->assertSame('rizal.zaelani@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('Rizal Zaelani', $approver->name);
+    }
+
+    public function test_accepts_portal_response_with_flat_approver_fields(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'steps' => [
+                        [
+                            'approver_id' => 'mgr-999',
+                            'approver_email' => 'gunadya.nugraha@lrtjakarta.co.id',
+                            'approver_name' => 'Gunadya Nugraha',
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('atk_rtk', 150000));
+
+        $this->assertSame('gunadya.nugraha@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('Gunadya Nugraha', $approver->name);
+    }
+
     public function test_throws_clear_validation_error_when_steps_are_missing(): void
     {
         Http::fake([
@@ -142,7 +184,7 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         ]);
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Approval resolver tidak mengembalikan approver');
+        $this->expectExceptionMessage('Approval resolver tidak mengembalikan email approver');
 
         app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('consumption', 0));
     }

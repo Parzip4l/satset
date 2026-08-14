@@ -22,12 +22,14 @@ class LrtjSpaceApprovalResolverService
         if (! is_array($approver) || empty($approver['email'])) {
             Log::warning('LRTJ Space approval resolver response missing approver.', [
                 'ticket_id' => $ticket->id,
+                'ticket_no' => $ticket->ticket_no,
+                'requester_email' => $ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email'),
                 'response_keys' => array_keys($response),
                 'data_keys' => is_array($response['data'] ?? null) ? array_keys($response['data']) : null,
             ]);
 
             $message = data_get($response, 'message')
-                ?: 'Approval resolver tidak mengembalikan approver. Pastikan Portal mengirim data.steps[0].approver.email.';
+                ?: 'Approval resolver tidak mengembalikan email approver untuk '.$ticket->ticket_no.'. Pastikan Portal memakai email pemohon '.($ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email')).' dan mengirim data.steps[0].approver.email.';
 
             $this->fail($message);
         }
@@ -140,6 +142,14 @@ class LrtjSpaceApprovalResolverService
             data_get($response, 'data.steps.0.approver'),
             data_get($response, 'data.approver'),
             data_get($response, 'approver'),
+            data_get($response, 'data.manager'),
+            data_get($response, 'manager'),
+            data_get($response, 'data.supervisor'),
+            data_get($response, 'supervisor'),
+            data_get($response, 'data.department_head'),
+            data_get($response, 'department_head'),
+            data_get($response, 'data.employee.manager'),
+            data_get($response, 'employee.manager'),
             data_get($response, 'data.approvers.0'),
             data_get($response, 'approvers.0'),
             data_get($response, 'data.steps.0'),
@@ -151,8 +161,14 @@ class LrtjSpaceApprovalResolverService
             }
 
             $email = $candidate['email']
+                ?? $candidate['approver_email']
+                ?? $candidate['manager_email']
+                ?? $candidate['supervisor_email']
+                ?? $candidate['department_head_email']
                 ?? data_get($candidate, 'user.email')
-                ?? data_get($candidate, 'employee.email');
+                ?? data_get($candidate, 'employee.email')
+                ?? data_get($candidate, 'manager.email')
+                ?? data_get($candidate, 'supervisor.email');
 
             if (! $email) {
                 continue;
@@ -160,14 +176,23 @@ class LrtjSpaceApprovalResolverService
 
             return [
                 'id' => $candidate['id']
+                    ?? $candidate['approver_id']
+                    ?? $candidate['manager_id']
+                    ?? $candidate['supervisor_id']
                     ?? $candidate['user_id']
                     ?? data_get($candidate, 'user.id')
                     ?? data_get($candidate, 'employee.id'),
                 'email' => $email,
                 'name' => $candidate['name']
+                    ?? $candidate['approver_name']
+                    ?? $candidate['manager_name']
+                    ?? $candidate['supervisor_name']
+                    ?? $candidate['department_head_name']
                     ?? $candidate['full_name']
                     ?? data_get($candidate, 'user.name')
                     ?? data_get($candidate, 'employee.name')
+                    ?? data_get($candidate, 'manager.name')
+                    ?? data_get($candidate, 'supervisor.name')
                     ?? $email,
             ];
         }
