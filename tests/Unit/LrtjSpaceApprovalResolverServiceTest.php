@@ -95,6 +95,46 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('consumption', 0));
     }
 
+    public function test_accepts_portal_response_with_data_approver_shape(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'approver' => [
+                        'id' => 'portal-123',
+                        'email' => 'portal.manager@lrtjakarta.co.id',
+                        'name' => 'Portal Manager',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('consumption', 0));
+
+        $this->assertSame('portal.manager@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('Portal Manager', $approver->name);
+    }
+
+    public function test_accepts_portal_response_with_approvers_array_shape(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'approvers' => [
+                    [
+                        'user_id' => 'portal-456',
+                        'email' => 'array.manager@lrtjakarta.co.id',
+                        'full_name' => 'Array Manager',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('consumption', 0));
+
+        $this->assertSame('array.manager@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('Array Manager', $approver->name);
+    }
+
     public function test_throws_clear_validation_error_when_steps_are_missing(): void
     {
         Http::fake([

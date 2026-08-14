@@ -16,10 +16,20 @@ class LrtjSpaceApprovalResolverService
 {
     public function resolveFirstApprover(Ticket $ticket): User
     {
-        $approver = data_get($this->resolve($ticket), 'data.steps.0.approver');
+        $response = $this->resolve($ticket);
+        $approver = $this->extractApprover($response);
 
         if (! is_array($approver) || empty($approver['email'])) {
-            $this->fail('Approval resolver tidak mengembalikan approver pada data.steps[0].approver.');
+            Log::warning('LRTJ Space approval resolver response missing approver.', [
+                'ticket_id' => $ticket->id,
+                'response_keys' => array_keys($response),
+                'data_keys' => is_array($response['data'] ?? null) ? array_keys($response['data']) : null,
+            ]);
+
+            $message = data_get($response, 'message')
+                ?: 'Approval resolver tidak mengembalikan approver. Pastikan Portal mengirim data.steps[0].approver.email.';
+
+            $this->fail($message);
         }
 
         return $this->findOrCreateApprover($approver);
@@ -122,6 +132,47 @@ class LrtjSpaceApprovalResolverService
         }
 
         return 0.0;
+    }
+
+    private function extractApprover(array $response): ?array
+    {
+        $candidates = [
+            data_get($response, 'data.steps.0.approver'),
+            data_get($response, 'data.approver'),
+            data_get($response, 'approver'),
+            data_get($response, 'data.approvers.0'),
+            data_get($response, 'approvers.0'),
+            data_get($response, 'data.steps.0'),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (! is_array($candidate)) {
+                continue;
+            }
+
+            $email = $candidate['email']
+                ?? data_get($candidate, 'user.email')
+                ?? data_get($candidate, 'employee.email');
+
+            if (! $email) {
+                continue;
+            }
+
+            return [
+                'id' => $candidate['id']
+                    ?? $candidate['user_id']
+                    ?? data_get($candidate, 'user.id')
+                    ?? data_get($candidate, 'employee.id'),
+                'email' => $email,
+                'name' => $candidate['name']
+                    ?? $candidate['full_name']
+                    ?? data_get($candidate, 'user.name')
+                    ?? data_get($candidate, 'employee.name')
+                    ?? $email,
+            ];
+        }
+
+        return null;
     }
 
     private function findOrCreateApprover(array $approver): User
