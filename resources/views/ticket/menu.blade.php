@@ -124,14 +124,6 @@
                 <p class="text-muted">Request Center adalah pusat pengelolaan seluruh permintaan operasional yang masuk ke dalam sistem. Halaman ini memberikan visibilitas menyeluruh terhadap status request mulai dari permintaan baru, yang sedang diproses, hingga yang telah selesai.</p>
             </div>
             <div class="col-lg-5">
-                <div class="d-flex justify-content-lg-end mb-3">
-                    <form action="{{ route('mail.test.send') }}" method="POST">
-                        @csrf
-                        <button type="submit" class="btn rounded-pill px-4 text-white" style="background:#102542;">
-                            <i class="bi bi-envelope-check me-1"></i> Test Email
-                        </button>
-                    </form>
-                </div>
                 <div class="row g-3">
                     <div class="col-6">
                         <div class="request-stat">
