@@ -225,7 +225,7 @@
                                                                 data-large-unit="{{ $item->large_uom }}"
                                                                 data-conversion="{{ max(1, (int) $item->conversion_qty) }}"
                                                                 @selected((string) data_get($row, 'item_id') === (string) $item->id)>
-                                                                {{ $item->code }} - {{ $item->name }} | Rp{{ number_format((float) $item->unit_price, 0, ',', '.') }}/{{ $item->small_uom }} (1 {{ $item->large_uom }} = {{ $item->conversion_qty }} {{ $item->small_uom }})
+                                                                {{ $item->name }}
                                                             </option>
                                                         @endforeach
                                                     </select>
