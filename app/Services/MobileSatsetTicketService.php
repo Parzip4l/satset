@@ -274,10 +274,7 @@ class MobileSatsetTicketService
     {
         $map = match ($requestType) {
             'consumption' => [
-                'attendance_file' => 'attendance',
-                'documentation_file' => 'documentation',
-                'activity_report_file' => 'activity_report',
-                'training_material_file' => 'training_material',
+                'accountability_bundle_file' => 'accountability_bundle',
             ],
             'ga_request_finding' => ['evidence_file' => 'ga_report_evidence'],
             default => [],

@@ -375,12 +375,18 @@
                 <div class="card-body p-4">
                     <div class="row g-3">
                         @foreach($ticket->attachments as $attachment)
+                            @php
+                                $attachmentTypeLabels = [
+                                    'accountability_bundle' => 'Bundle Pertanggungjawaban',
+                                ];
+                                $attachmentTypeLabel = $attachmentTypeLabels[$attachment->attachment_type] ?? str_replace('_', ' ', $attachment->attachment_type ?? 'file');
+                            @endphp
                             <div class="col-md-6">
                                 <a href="{{ asset('storage/' . $attachment->file_path) }}" target="_blank" class="text-decoration-none">
                                     <div class="border rounded-3 p-3 h-100 bg-light bg-opacity-50">
                                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                             <div class="fw-semibold text-dark">{{ $attachment->file_name }}</div>
-                                            <span class="badge bg-light text-dark border">{{ str_replace('_', ' ', $attachment->attachment_type ?? 'file') }}</span>
+                                            <span class="badge bg-light text-dark border">{{ $attachmentTypeLabel }}</span>
                                         </div>
                                         <div class="text-muted small">
                                             {{ strtoupper($attachment->mime_type ?? '-') }} • {{ number_format(($attachment->size ?? 0) / 1024, 1) }} KB
@@ -765,20 +771,9 @@
                         @csrf
                         <div class="col-12"><label class="meta-label">Upload Pertanggungjawaban</label></div>
                         <div class="col-12">
-                            <label class="form-label small text-muted mb-1">Daftar hadir peserta</label>
-                            <input type="file" name="attendance_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label small text-muted mb-1">Dokumentasi kegiatan</label>
-                            <input type="file" name="documentation_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.zip,.rar">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label small text-muted mb-1">Laporan kegiatan</label>
-                            <input type="file" name="activity_report_file" class="form-control" accept=".pdf,.doc,.docx">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label small text-muted mb-1">Materi training / pendukung</label>
-                            <input type="file" name="training_material_file" class="form-control" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx">
+                            <label class="form-label small text-muted mb-1">Bundle dokumen lengkap</label>
+                            <input type="file" name="accountability_bundle_file" class="form-control" accept=".pdf,.zip,.rar,application/pdf,application/zip,application/x-rar-compressed">
+                            <div class="text-muted small mt-1">Gabungkan daftar hadir, dokumentasi, laporan kegiatan, dan materi pendukung bila ada dalam satu PDF atau ZIP/RAR. Maksimal 20 MB.</div>
                         </div>
                         <div class="col-12"><button class="btn btn-primary w-100">Upload Pertanggungjawaban</button></div>
                     </form>

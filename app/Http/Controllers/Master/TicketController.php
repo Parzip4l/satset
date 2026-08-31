@@ -418,7 +418,7 @@ class TicketController extends Controller
                 'Bagian Umum melakukan verifikasi',
                 'Approval Bagian Umum menentukan lanjut ke vendor atau revisi',
                 'Vendor melakukan pemesanan dan pesanan diterima',
-                'Karyawan menyerahkan laporan pertanggungjawaban ke Bagian Umum',
+                'Karyawan menyerahkan bundle pertanggungjawaban ke Bagian Umum',
                 'Proses selesai',
             ];
         }
@@ -864,10 +864,7 @@ class TicketController extends Controller
             'payload.organizer_unit' => 'nullable|string|max:150',
             'payload.pic_contact' => 'nullable|string|max:150',
             'payload.consumption_notes' => 'nullable|string',
-            'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
-            'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
-            'activity_report_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
-            'training_material_file' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx|max:5120',
+            'accountability_bundle_file' => 'nullable|file|mimes:pdf,zip,rar|max:20480',
         ]);
 
         $requester = $this->findOrCreatePublicReporter($validated);
@@ -879,10 +876,7 @@ class TicketController extends Controller
 
         $ticket = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'consumption');
 
-        $this->storeRequestAttachment($request, $ticket, 'attendance_file', 'attendance', $requester);
-        $this->storeRequestAttachment($request, $ticket, 'documentation_file', 'documentation', $requester);
-        $this->storeRequestAttachment($request, $ticket, 'activity_report_file', 'activity_report', $requester);
-        $this->storeRequestAttachment($request, $ticket, 'training_material_file', 'training_material', $requester);
+        $this->storeRequestAttachment($request, $ticket, 'accountability_bundle_file', 'accountability_bundle', $requester);
         $this->sendPublicTicketEmails($ticket, $validated['category_id']);
 
         return redirect()->route('public.ticket.konsumsi.create')
@@ -969,10 +963,7 @@ class TicketController extends Controller
                 'payload.consumption_type' => 'required|string|max:100',
                 'payload.request_reason' => 'required|string',
                 'payload.supervisor_id' => 'nullable|exists:users,id',
-                'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
-                'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
-                'activity_report_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
-                'training_material_file' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx|max:5120',
+                'accountability_bundle_file' => 'nullable|file|mimes:pdf,zip,rar|max:20480',
             ]);
         } elseif ($requestType === 'atk_rtk') {
             $rules = array_merge($rules, [
@@ -1076,10 +1067,7 @@ class TicketController extends Controller
         });
 
         if ($requestType === 'consumption') {
-            $this->storeRequestAttachment($request, $ticket, 'attendance_file', 'attendance');
-            $this->storeRequestAttachment($request, $ticket, 'documentation_file', 'documentation');
-            $this->storeRequestAttachment($request, $ticket, 'activity_report_file', 'activity_report');
-            $this->storeRequestAttachment($request, $ticket, 'training_material_file', 'training_material');
+            $this->storeRequestAttachment($request, $ticket, 'accountability_bundle_file', 'accountability_bundle');
         } elseif ($requestType === 'ga_request_finding') {
             $this->storeRequestAttachment($request, $ticket, 'evidence_file', 'ga_report_evidence');
         }
@@ -1540,20 +1528,10 @@ class TicketController extends Controller
         }
 
         $request->validate([
-            'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
-            'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
-            'activity_report_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
-            'training_material_file' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx|max:5120',
+            'accountability_bundle_file' => 'required|file|mimes:pdf,zip,rar|max:20480',
         ]);
 
-        if (! $request->hasFile('attendance_file') && ! $request->hasFile('documentation_file') && ! $request->hasFile('activity_report_file') && ! $request->hasFile('training_material_file')) {
-            return back()->with('error', 'Minimal satu evidence pertanggungjawaban wajib diupload.');
-        }
-
-        $this->storeRequestAttachment($request, $ticket, 'attendance_file', 'attendance');
-        $this->storeRequestAttachment($request, $ticket, 'documentation_file', 'documentation');
-        $this->storeRequestAttachment($request, $ticket, 'activity_report_file', 'activity_report');
-        $this->storeRequestAttachment($request, $ticket, 'training_material_file', 'training_material');
+        $this->storeRequestAttachment($request, $ticket, 'accountability_bundle_file', 'accountability_bundle');
 
         $payload = $ticket->payload ?? [];
         $previousStatus = data_get($payload, 'workflow_status') ?: ($ticket->status->name ?? null);

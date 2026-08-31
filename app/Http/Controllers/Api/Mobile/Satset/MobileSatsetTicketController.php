@@ -118,10 +118,7 @@ class MobileSatsetTicketController extends Controller
             'payload.organizer_unit' => 'nullable|string|max:150',
             'payload.pic_contact' => 'nullable|string|max:150',
             'payload.consumption_notes' => 'nullable|string',
-            'attendance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|max:5120',
-            'documentation_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip,rar|max:5120',
-            'activity_report_file' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
-            'training_material_file' => 'nullable|file|mimes:pdf,ppt,pptx,doc,docx,xls,xlsx|max:5120',
+            'accountability_bundle_file' => 'nullable|file|mimes:pdf,zip,rar|max:20480',
         ]);
 
         return $this->created($request, 'consumption', $validated);

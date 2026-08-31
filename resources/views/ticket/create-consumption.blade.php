@@ -278,29 +278,14 @@
                         </div>
 
                         <div class="alert border-0" style="background:#fff8ec; color:#8a5a10;">
-                            Bagian ini menjadi pengingat bahwa setelah kegiatan selesai, karyawan perlu menyerahkan dokumen pertanggungjawaban ke Bagian Umum.
+                            Setelah kegiatan selesai, lengkapi seluruh dokumen pertanggungjawaban dalam satu bundle. Dokumen dapat digabung menjadi satu PDF atau dikompresi dalam arsip ZIP/RAR.
                         </div>
 
                         <div class="row g-4">
-                            <div class="col-md-6">
-                                <label class="form-label">Upload Daftar Hadir</label>
-                                <input type="file" name="attendance_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
-                                <div class="text-muted small mt-2">Format: PDF, gambar, DOC, XLS. Maksimal 5 MB.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Upload Dokumentasi</label>
-                                <input type="file" name="documentation_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.zip,.rar">
-                                <div class="text-muted small mt-2">Format: PDF, gambar, atau arsip ZIP/RAR. Maksimal 5 MB.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Upload Laporan Kegiatan</label>
-                                <input type="file" name="activity_report_file" class="form-control" accept=".pdf,.doc,.docx">
-                                <div class="text-muted small mt-2">Format: PDF atau DOC. Maksimal 5 MB.</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Upload Materi Pelatihan</label>
-                                <input type="file" name="training_material_file" class="form-control" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx">
-                                <div class="text-muted small mt-2">Format: PDF, PPT, DOC, XLS. Maksimal 5 MB.</div>
+                            <div class="col-12">
+                                <label class="form-label">Upload Bundle Pertanggungjawaban</label>
+                                <input type="file" name="accountability_bundle_file" class="form-control" accept=".pdf,.zip,.rar,application/pdf,application/zip,application/x-rar-compressed">
+                                <div class="text-muted small mt-2">Isi bundle: daftar hadir, dokumentasi kegiatan, laporan kegiatan, dan materi pendukung bila ada. Format: PDF atau ZIP/RAR. Maksimal 20 MB.</div>
                             </div>
                         </div>
                     </div>
