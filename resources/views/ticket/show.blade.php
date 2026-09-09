@@ -169,9 +169,13 @@
     @php
         $requestType = data_get($ticket->payload, 'request_type');
         $workflowStatus = data_get($ticket->payload, 'workflow_status', '-');
-        $pendingApproval = $ticket->approvals->where('status', 'Pending')->first();
+        $pendingApproval = $ticket->approvals->first(fn ($approval) => strtolower((string) $approval->status) === 'pending');
         $isBumRequest = in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true);
         $canManageGaOperations = \App\Support\GaAccess::allowed(auth()->user());
+        $isRequester = (int) $ticket->requester_id === (int) auth()->id();
+        $canActOnPendingApproval = $pendingApproval
+            && !$isRequester
+            && ((int) $pendingApproval->approver_id === (int) auth()->id() || auth()->user()->role === 'admin');
         $canUploadConsumptionEvidence = (int) $ticket->requester_id === (int) auth()->id() || $canManageGaOperations;
         $atkRtkEstimatedAmount = (float) data_get($ticket->payload, 'total_estimated_amount', 0);
         $atkRtkApprovalThreshold = (float) data_get($ticket->payload, 'approval_threshold', config('bum.atk_rtk_manager_approval_threshold', 100000));
@@ -588,7 +592,7 @@
             </div>
             @endif
 
-            @if($pendingApproval && ((int) $pendingApproval->approver_id === (int) auth()->id() || auth()->user()->role === 'admin'))
+            @if($canActOnPendingApproval)
             <div class="card-clean">
                 <div class="card-header-clean">
                     <span class="header-title"><i class="bi bi-check2-square text-danger"></i> Approval Atasan</span>
@@ -753,6 +757,11 @@
                 </div>
                 <div class="card-body p-4">
                     @if($canManageGaOperations)
+                    @if($pendingApproval)
+                    <div class="alert border-0 mb-0" style="background:#fff7ed; color:#9a3412;">
+                        Permintaan ini masih menunggu approval atasan. Proses konsumsi baru bisa dilanjutkan setelah approval selesai.
+                    </div>
+                    @else
                     <form action="{{ route('ticket.consumption.flow', $ticket) }}" method="POST" class="row g-2 mb-4">
                         @csrf
                         <div class="col-12">
@@ -771,6 +780,7 @@
                         <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan order/verifikasi">{{ data_get($ticket->payload, 'notes') }}</textarea></div>
                         <div class="col-12"><button class="btn btn-outline-primary w-100">Update Konsumsi</button></div>
                     </form>
+                    @endif
                     @else
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">

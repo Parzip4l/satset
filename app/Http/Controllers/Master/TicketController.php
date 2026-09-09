@@ -34,6 +34,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class TicketController extends Controller
@@ -1507,6 +1508,14 @@ class TicketController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        $hasPendingManagerApproval = $ticket->approvals()
+            ->whereRaw('LOWER(status) = ?', ['pending'])
+            ->exists();
+
+        if ($hasPendingManagerApproval && $data['workflow_status'] !== 'CANCELLED') {
+            return back()->with('error', 'Proses konsumsi belum bisa dilanjutkan karena masih menunggu approval atasan.');
+        }
+
         $previousStatus = data_get($ticket->payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $payload = array_merge($ticket->payload ?? [], array_filter($data, fn ($value) => $value !== null));
         $payload['bum_updated_at'] = now()->toDateTimeString();
@@ -1614,6 +1623,12 @@ class TicketController extends Controller
     private function createManagerApproval(Ticket $ticket): void
     {
         $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($ticket);
+
+        if ((string) $approver->getKey() === (string) $ticket->requester_id) {
+            throw ValidationException::withMessages([
+                'approval_resolver' => 'Portal mengembalikan approver yang sama dengan pemohon untuk '.$ticket->ticket_no.'. Periksa reporting line atau Authority Matrix SatSet di Portal.',
+            ]);
+        }
 
         $approval = Approval::firstOrCreate([
             'request_id' => $ticket->id,
