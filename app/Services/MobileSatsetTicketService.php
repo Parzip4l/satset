@@ -28,6 +28,13 @@ use Illuminate\Support\Facades\Storage;
 
 class MobileSatsetTicketService
 {
+    private const REQUEST_TYPES = [
+        ['code' => 'general', 'name' => 'Request Umum'],
+        ['code' => 'consumption', 'name' => 'Permintaan Konsumsi'],
+        ['code' => 'atk_rtk', 'name' => 'Permintaan ATK/RTK'],
+        ['code' => 'ga_request_finding', 'name' => 'GA Permintaan & Temuan'],
+    ];
+
     public function __construct(
         private readonly LrtjSpaceMobileNotificationService $notifications,
         private readonly LrtjSpaceApprovalResolverService $approvalResolver,
@@ -37,12 +44,7 @@ class MobileSatsetTicketService
     public function bootstrap(User $user): array
     {
         return [
-            'request_types' => [
-                ['code' => 'general', 'name' => 'Request Umum'],
-                ['code' => 'consumption', 'name' => 'Permintaan Konsumsi'],
-                ['code' => 'atk_rtk', 'name' => 'Permintaan ATK/RTK'],
-                ['code' => 'ga_request_finding', 'name' => 'GA Permintaan & Temuan'],
-            ],
+            'request_types' => $this->requestTypes(),
             'problem_categories' => ProblemCategory::orderBy('name')->get(['id', 'name', 'code', 'parent_id']),
             'ticket_categories' => TicketCategory::orderBy('name')->get(['id', 'name', 'code']),
             'priorities' => Priority::orderBy('id')->get(['id', 'name', 'code']),
@@ -63,6 +65,11 @@ class MobileSatsetTicketService
                 'bum_ticket_category_id' => $this->getBumTicketCategoryId(),
             ],
         ];
+    }
+
+    public function requestTypes(): array
+    {
+        return self::REQUEST_TYPES;
     }
 
     public function create(User $user, string $requestType, array $validated, Request $request): Ticket

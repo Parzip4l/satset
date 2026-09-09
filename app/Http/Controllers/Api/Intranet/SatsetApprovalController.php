@@ -7,12 +7,21 @@ use App\Models\Master\Approval;
 use App\Models\Master\ApprovalAudit;
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Services\MobileSatsetTicketService;
 use App\Services\SatsetApprovalDecisionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SatsetApprovalController extends Controller
 {
+    public function requestTypes(MobileSatsetTicketService $tickets): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => $tickets->requestTypes(),
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([

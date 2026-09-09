@@ -60,6 +60,7 @@ Route::prefix('mobile/v1/satset')->group(function () {
 Route::prefix('intranet/v1/satset')
     ->middleware('satset.intranet')
     ->group(function () {
+        Route::get('/request-types', [SatsetApprovalController::class, 'requestTypes']);
         Route::get('/approvals', [SatsetApprovalController::class, 'index']);
         Route::get('/approvals/{approval}', [SatsetApprovalController::class, 'show']);
         Route::post('/approvals/{approval}/decision', [SatsetApprovalController::class, 'decide']);

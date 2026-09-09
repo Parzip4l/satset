@@ -117,6 +117,17 @@ class IntranetSatsetApprovalApiTest extends TestCase
             ->assertJsonPath('data.data.0.approver.email', 'manager@lrtjakarta.co.id');
     }
 
+    public function test_portal_can_fetch_request_types_from_satset_master(): void
+    {
+        $this->signedCall('GET', '/api/intranet/v1/satset/request-types')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.0.code', 'general')
+            ->assertJsonPath('data.1.code', 'consumption')
+            ->assertJsonPath('data.2.code', 'atk_rtk')
+            ->assertJsonPath('data.3.code', 'ga_request_finding');
+    }
+
     public function test_portal_list_requires_logged_in_approver_email(): void
     {
         $this->approvalFixture();
