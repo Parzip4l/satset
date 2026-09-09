@@ -37,7 +37,9 @@
     $unitName = $text(data_get($payload, 'organizer_unit'), $requesterDivision ?: $departmentName);
     $consumptionType = strtolower((string) data_get($payload, 'consumption_type', ''));
     $needsOther = ! \Illuminate\Support\Str::contains($consumptionType, ['snack', 'makan siang', 'makan malam']);
-    $bumOfficer = $closedHistory?->user?->name ?: data_get($payload, 'bum_officer_name', 'Bagian Umum');
+    $requesterName = $text(data_get($payload, 'reporter_name'), $ticket->requester?->name ?: '-');
+    $kadivName = $text($managerApproval?->approver?->name, data_get($payload, 'supervisor_name'));
+    $bumOfficer = $text(data_get($payload, 'bum_officer_name'), $closedHistory?->user?->name ?: 'Bagian Umum');
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -401,8 +403,8 @@
                 <td class="sign-space"></td>
             </tr>
             <tr>
-                <td class="sign-name">{{ $text(data_get($payload, 'reporter_name'), $ticket->requester?->name ?: '-') }}</td>
-                <td class="sign-name">{{ $text(data_get($payload, 'supervisor_name')) }}</td>
+                <td class="sign-name">{{ $requesterName }}</td>
+                <td class="sign-name">{{ $kadivName }}</td>
                 <td class="sign-name">{{ $text($bumOfficer) }}</td>
             </tr>
         </table>

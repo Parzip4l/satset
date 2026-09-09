@@ -181,6 +181,14 @@
         $canProcessAtkRtk = $canManageGaOperations && (!$atkRtkRequiresManagerApproval || $atkRtkManagerApproved);
         $canGenerateConsumptionForm = $requestType === 'consumption'
             && ($workflowStatus === 'CLOSED' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true));
+        $displayStatusName = $isBumRequest
+            ? match ($workflowStatus) {
+                'CLOSED' => 'Closed',
+                'CANCELLED', 'REJECTED_BY_MANAGER' => 'Cancelled',
+                'WAITING_MANAGER_APPROVAL' => 'Open',
+                default => $workflowStatus !== '-' ? 'In Progress' : ($ticket->status->name ?? '-'),
+            }
+            : ($ticket->status->name ?? '-');
         $categoryLabel = match ($requestType) {
             'consumption' => 'Permintaan Konsumsi Rapat',
             'atk_rtk' => 'Permintaan ATK/RTK',
@@ -213,12 +221,12 @@
             <div class="d-flex align-items-center gap-2 mb-2">
                 <span class="badge bg-dark text-white px-2 py-1 rounded fw-mono">#{{ $ticket->ticket_no }}</span>
                 @php
-                    $statusColor = match($ticket->status->name) {
+                    $statusColor = match($displayStatusName) {
                         'Open' => 'success', 'In Progress' => 'warning', 'Closed' => 'dark', 'Resolved' => 'primary', default => 'secondary'
                     };
                 @endphp
                 <span class="badge bg-{{ $statusColor }} bg-opacity-10 text-{{ $statusColor }} border border-{{ $statusColor }} border-opacity-20 px-3 py-1 rounded-pill fw-semibold">
-                    {{ $ticket->status->name }}
+                    {{ $displayStatusName }}
                 </span>
             </div>
             <h1 class="page-title mb-0">{{ $ticket->title }}</h1>
@@ -526,7 +534,7 @@
             @endif
 
             {{-- 2. ADMIN PANEL (Simetris & Rapi) --}}
-            @if(auth()->user()->role == 'admin')
+            @if(auth()->user()->role == 'admin' && !$isBumRequest)
             <div class="card-clean border-top-4 border-warning" style="border-top: 4px solid var(--lrt-orange);">
                 <div class="card-header-clean bg-light">
                     <span class="header-title text-dark"><i class="bi bi-shield-lock-fill text-warning"></i> {{ $isBumRequest ? 'Kontrol Status' : 'Admin Zone' }}</span>
@@ -548,7 +556,6 @@
 
                     <div class="separator"></div>
 
-                    @if(!$isBumRequest)
                     <form action="{{ route('ticket.assign', $ticket->id) }}" method="POST">
                         @csrf
                         <div class="row g-3">
@@ -577,11 +584,6 @@
                             </div>
                         </div>
                     </form>
-                    @else
-                        <div class="alert border-0 mb-0" style="background:#eef7fb; color:#0e5f74;">
-                            Request ini diproses lewat alur BUM, jadi tidak memakai assign teknisi.
-                        </div>
-                    @endif
                 </div>
             </div>
             @endif

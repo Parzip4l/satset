@@ -1510,7 +1510,19 @@ class TicketController extends Controller
         $previousStatus = data_get($ticket->payload, 'workflow_status') ?: ($ticket->status->name ?? null);
         $payload = array_merge($ticket->payload ?? [], array_filter($data, fn ($value) => $value !== null));
         $payload['bum_updated_at'] = now()->toDateTimeString();
-        $ticket->update(['payload' => $payload]);
+        $payload['bum_updated_by'] = auth()->id();
+        $payload['bum_officer_name'] = auth()->user()?->name;
+
+        $statusName = match ($data['workflow_status']) {
+            'CLOSED', 'CANCELLED' => 'Closed',
+            default => 'In Progress',
+        };
+        $statusId = Status::where('name', $statusName)->value('id');
+
+        $ticket->update(array_filter([
+            'payload' => $payload,
+            'status_id' => $statusId,
+        ], fn ($value) => $value !== null));
         $ticket->histories()->create([
             'user_id' => auth()->id(),
             'action' => 'Update konsumsi rapat: '.$data['workflow_status'],
@@ -1539,9 +1551,15 @@ class TicketController extends Controller
             'requester.division',
             'department.division',
             'assignedDepartment.division',
+            'approvals.approver',
             'histories.user',
             'status',
         ]);
+
+        $managerApproval = $ticket->approvals
+            ->sortBy('level')
+            ->first(fn ($approval) => in_array(strtolower((string) $approval->status), ['approved', 'pending'], true))
+            ?: $ticket->approvals->sortBy('level')->first();
 
         $closedHistory = $ticket->histories
             ->sortByDesc('created_at')
@@ -1550,6 +1568,7 @@ class TicketController extends Controller
         $view = view('ticket.consumption-form', [
             'ticket' => $ticket,
             'payload' => $ticket->payload ?? [],
+            'managerApproval' => $managerApproval,
             'closedHistory' => $closedHistory,
         ]);
 
