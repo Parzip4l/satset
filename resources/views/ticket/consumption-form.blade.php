@@ -152,7 +152,7 @@
         }
 
         .header-meta {
-            margin-bottom: 24mm;
+            margin-bottom: 4mm;
         }
 
         .main-title {
@@ -190,7 +190,7 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
             column-gap: 56px;
             row-gap: 12px;
-            padding: 6px 18px;
+            padding: 6px 0px;
             font-size: 15px;
             font-weight: 700;
             text-transform: uppercase;
