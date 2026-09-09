@@ -137,6 +137,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::post('/tickets/{ticket}/atk-rtk/bum-review', [App\Http\Controllers\Master\TicketController::class, 'bumReviewAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.bum-review');
     Route::post('/tickets/{ticket}/atk-rtk/replenish', [App\Http\Controllers\Master\TicketController::class, 'replenishAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.replenish');
     Route::post('/tickets/{ticket}/atk-rtk/handover', [App\Http\Controllers\Master\TicketController::class, 'handoverAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.handover');
+    Route::get('/tickets/{ticket}/consumption/form', [App\Http\Controllers\Master\TicketController::class, 'consumptionForm'])->name('ticket.consumption.form');
     Route::post('/tickets/{ticket}/consumption/flow', [App\Http\Controllers\Master\TicketController::class, 'updateConsumptionFlow'])->middleware('ga.team')->name('ticket.consumption.flow');
     Route::post('/tickets/{ticket}/consumption/evidence', [App\Http\Controllers\Master\TicketController::class, 'uploadConsumptionEvidence'])->name('ticket.consumption.evidence');
 

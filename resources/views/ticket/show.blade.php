@@ -179,6 +179,8 @@
         $atkRtkManagerApproved = $ticket->approvals->where('status', 'approved')->isNotEmpty();
         $atkRtkManagerRejected = $ticket->approvals->where('status', 'rejected')->isNotEmpty() || $workflowStatus === 'REJECTED_BY_MANAGER';
         $canProcessAtkRtk = $canManageGaOperations && (!$atkRtkRequiresManagerApproval || $atkRtkManagerApproved);
+        $canGenerateConsumptionForm = $requestType === 'consumption'
+            && ($workflowStatus === 'CLOSED' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true));
         $categoryLabel = match ($requestType) {
             'consumption' => 'Permintaan Konsumsi Rapat',
             'atk_rtk' => 'Permintaan ATK/RTK',
@@ -500,6 +502,28 @@
                     </div>
                 </div>
             </div>
+
+            @if($canGenerateConsumptionForm)
+            <div class="card-clean">
+                <div class="card-header-clean">
+                    <span class="header-title"><i class="bi bi-printer text-danger"></i> Form Konsumsi</span>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-20">Siap Print</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="text-muted small mb-3">
+                        Form resmi permintaan kebutuhan konsumsi sudah tersedia karena proses konsumsi berada di tahap akhir.
+                    </div>
+                    <div class="d-grid gap-2">
+                        <a href="{{ route('ticket.consumption.form', $ticket) }}" target="_blank" class="btn btn-primary">
+                            <i class="bi bi-printer me-1"></i> Buka & Print
+                        </a>
+                        <a href="{{ route('ticket.consumption.form', [$ticket, 'download' => 1]) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-download me-1"></i> Download Form
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @endif
 
             {{-- 2. ADMIN PANEL (Simetris & Rapi) --}}
             @if(auth()->user()->role == 'admin')

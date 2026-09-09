@@ -1521,6 +1521,50 @@ class TicketController extends Controller
         return back()->with('success', 'Status konsumsi rapat berhasil diperbarui.');
     }
 
+    public function consumptionForm(Request $request, Ticket $ticket)
+    {
+        if (data_get($ticket->payload, 'request_type') !== 'consumption') {
+            abort(404);
+        }
+
+        $workflowStatus = data_get($ticket->payload, 'workflow_status');
+        $ticketStatus = $ticket->status?->name;
+        $isCompleted = $workflowStatus === 'CLOSED' || in_array($ticketStatus, ['Closed', 'Resolved'], true);
+
+        if (! $isCompleted) {
+            return back()->with('error', 'Form permintaan konsumsi baru bisa dibuat setelah proses mencapai tahap akhir.');
+        }
+
+        $ticket->loadMissing([
+            'requester.division',
+            'department.division',
+            'assignedDepartment.division',
+            'histories.user',
+            'status',
+        ]);
+
+        $closedHistory = $ticket->histories
+            ->sortByDesc('created_at')
+            ->first(fn ($history) => Str::contains($history->action ?? '', ['CLOSED', 'Closed', 'ditutup', 'selesai']));
+
+        $view = view('ticket.consumption-form', [
+            'ticket' => $ticket,
+            'payload' => $ticket->payload ?? [],
+            'closedHistory' => $closedHistory,
+        ]);
+
+        if ($request->boolean('download')) {
+            $filename = Str::slug('form-permintaan-konsumsi-'.$ticket->ticket_no).'.html';
+
+            return response($view->render(), 200, [
+                'Content-Type' => 'text/html; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            ]);
+        }
+
+        return $view;
+    }
+
     public function uploadConsumptionEvidence(Request $request, Ticket $ticket)
     {
         if ((int) $ticket->requester_id !== (int) $request->user()?->id && ! GaAccess::allowed($request->user())) {
