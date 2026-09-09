@@ -1127,7 +1127,7 @@ class TicketController extends Controller
      */
     public function show(Ticket $ticket)
     {
-        $ticket->load(['requester', 'priority', 'status', 'department', 'assignedUser', 'assignedDepartment', 'histories.user', 'comments.user', 'attachments']);
+        $ticket->load(['requester', 'priority', 'status', 'department', 'assignedUser', 'assignedDepartment', 'approvals.approver', 'histories.user', 'comments.user', 'attachments']);
         $users = User::all();
         $departments = Department::all();
         $statuses = Status::all();

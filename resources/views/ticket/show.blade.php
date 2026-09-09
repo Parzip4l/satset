@@ -173,9 +173,11 @@
         $isBumRequest = in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true);
         $canManageGaOperations = \App\Support\GaAccess::allowed(auth()->user());
         $isRequester = (int) $ticket->requester_id === (int) auth()->id();
+        $pendingApprovalIsRequester = $pendingApproval
+            && (string) $pendingApproval->approver_id === (string) $ticket->requester_id;
         $canActOnPendingApproval = $pendingApproval
             && !$isRequester
-            && ((int) $pendingApproval->approver_id === (int) auth()->id() || auth()->user()->role === 'admin');
+            && ((string) $pendingApproval->approver_id === (string) auth()->id() || auth()->user()->role === 'admin');
         $canUploadConsumptionEvidence = (int) $ticket->requester_id === (int) auth()->id() || $canManageGaOperations;
         $atkRtkEstimatedAmount = (float) data_get($ticket->payload, 'total_estimated_amount', 0);
         $atkRtkApprovalThreshold = (float) data_get($ticket->payload, 'approval_threshold', config('bum.atk_rtk_manager_approval_threshold', 100000));
@@ -492,6 +494,20 @@
                             <span class="meta-label">Status Proses</span>
                             <span class="badge bg-light text-dark border px-3 py-2">{{ $workflowStatus }}</span>
                         </div>
+                        @if($pendingApproval)
+                        <div class="col-12">
+                            <span class="meta-label">Menunggu Approval</span>
+                            <div class="border rounded-3 p-3 bg-light bg-opacity-50">
+                                <div class="fw-bold text-dark">{{ $pendingApproval->approver->name ?? 'Approver belum tersedia' }}</div>
+                                <div class="text-muted small">{{ $pendingApproval->approver->email ?? '-' }}</div>
+                                @if($pendingApprovalIsRequester)
+                                    <div class="alert alert-warning border-0 py-2 px-3 mt-3 mb-0 small">
+                                        Approver saat ini sama dengan pemohon. Periksa reporting line atau Authority Matrix SatSet di Portal.
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                        @endif
                         @else
                         <div class="col-12"><div class="border-bottom border-dashed"></div></div>
                         <div class="col-4">
