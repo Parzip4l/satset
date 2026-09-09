@@ -60,7 +60,7 @@
             background: #eef2f5;
             color: #111;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 15px;
+            font-size: 13px;
             line-height: 1.28;
         }
 
@@ -109,7 +109,7 @@
         .doc-table th,
         .doc-table td {
             border: 1px solid #111;
-            padding: 7px 8px;
+            padding: 6px 8px;
             vertical-align: middle;
         }
 
@@ -119,15 +119,14 @@
 
         .header-table td {
             border: 1px dotted #777;
-            padding: 4px 7px;
+            padding: 3px 8px;
         }
 
-        .header-top td {
+        .header-top-cell {
             height: 72px;
         }
 
         .logo-cell {
-            width: 49%;
             text-align: center;
         }
 
@@ -137,19 +136,18 @@
         }
 
         .title-cell {
-            width: 51%;
             text-align: center;
             font-size: 18px;
             font-weight: 700;
         }
 
         .meta-label {
-            font-size: 15px;
+            font-size: 13px;
             font-weight: 700;
         }
 
         .meta-value {
-            font-size: 15px;
+            font-size: 13px;
             font-weight: 500;
         }
 
@@ -158,51 +156,51 @@
         }
 
         .main-title {
-            height: 42px;
+            height: 40px;
             background: #e5e5e5;
             text-align: center;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
             letter-spacing: 0;
         }
 
         .label-col {
             width: 24%;
-            font-size: 17px;
-            font-weight: 800;
+            font-size: 15px;
+            font-weight: 700;
             text-transform: uppercase;
         }
 
         .value-col {
             width: 76%;
-            font-size: 15px;
-            font-weight: 700;
+            font-size: 14px;
+            font-weight: 600;
         }
 
         .request-table td {
-            height: 33px;
+            height: 30px;
         }
 
         .needs-row td {
-            height: 86px;
+            height: 76px;
         }
 
         .checkbox-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            column-gap: 74px;
-            row-gap: 16px;
-            padding: 8px 18px;
-            font-size: 17px;
-            font-weight: 800;
+            column-gap: 56px;
+            row-gap: 12px;
+            padding: 6px 18px;
+            font-size: 15px;
+            font-weight: 700;
             text-transform: uppercase;
         }
 
         .checkline {
             display: inline-flex;
             align-items: center;
-            gap: 11px;
-            min-height: 22px;
+            gap: 10px;
+            min-height: 20px;
             white-space: nowrap;
         }
 
@@ -210,17 +208,18 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 18px;
-            height: 18px;
+            flex: 0 0 16px;
+            width: 16px;
+            height: 16px;
             border: 1.5px solid #111;
-            font-size: 15px;
+            font-size: 13px;
             line-height: 1;
-            font-weight: 800;
+            font-weight: 700;
         }
 
         .evidence {
-            margin: 3px 0 27px 2px;
-            font-size: 17px;
+            margin: 3px 0 25px 2px;
+            font-size: 14px;
         }
 
         .evidence-title {
@@ -238,30 +237,30 @@
         }
 
         .sign-table th {
-            height: 34px;
+            height: 30px;
             background: #e5e5e5;
             text-align: center;
-            font-size: 18px;
-            font-weight: 800;
+            font-size: 15px;
+            font-weight: 700;
         }
 
         .sign-role {
-            height: 34px;
+            height: 30px;
             background: #e5e5e5;
             text-align: center;
-            font-size: 18px;
-            font-weight: 800;
+            font-size: 15px;
+            font-weight: 700;
         }
 
         .sign-space {
-            height: 86px;
+            height: 78px;
         }
 
         .sign-name {
-            height: 34px;
+            height: 30px;
             text-align: center;
-            font-size: 16px;
-            font-weight: 800;
+            font-size: 14px;
+            font-weight: 700;
         }
 
         @media print {
@@ -291,15 +290,6 @@
     </div>
 
     <main class="page">
-        <table class="doc-table header-table header-top">
-            <tr>
-                <td class="logo-cell">
-                    <img src="{{ asset('logo-lrtj.png') }}" alt="LRT Jakarta">
-                </td>
-                <td class="title-cell">Permintaan Kebutuhan Konsumsi</td>
-            </tr>
-        </table>
-
         <table class="doc-table header-table header-meta">
             <colgroup>
                 <col style="width:19%">
@@ -307,6 +297,12 @@
                 <col style="width:24%">
                 <col style="width:28%">
             </colgroup>
+            <tr>
+                <td colspan="2" class="logo-cell header-top-cell">
+                    <img src="{{ asset('logo-lrtj.png') }}" alt="LRT Jakarta">
+                </td>
+                <td colspan="2" class="title-cell header-top-cell">Permintaan Kebutuhan Konsumsi</td>
+            </tr>
             <tr>
                 <td class="meta-label">Nomor Dokumen</td>
                 <td class="meta-value">LRTJ-FR-BUM-003</td>
