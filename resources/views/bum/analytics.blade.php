@@ -106,13 +106,52 @@
             padding: .38rem .62rem;
         }
 
+        .analytics-filter {
+            align-items: end;
+            display: grid;
+            gap: .85rem;
+            grid-template-columns:
+                minmax(140px, .85fr)
+                minmax(140px, .85fr)
+                minmax(260px, 1.35fr)
+                minmax(140px, .85fr)
+                minmax(160px, .9fr)
+                minmax(190px, 1fr)
+                minmax(124px, auto);
+        }
+
+        .analytics-filter .form-label {
+            display: block;
+            margin-bottom: .45rem;
+        }
+
+        .analytics-filter-action .btn {
+            min-height: 38px;
+            min-width: 124px;
+            white-space: nowrap;
+        }
+
         .select2-container--bootstrap-5 .select2-selection {
             border-color: #e7ecf2;
             border-radius: 8px;
             min-height: 38px;
         }
 
+        @media (max-width: 1399.98px) {
+            .analytics-filter {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .analytics-filter-action {
+                align-self: end;
+            }
+        }
+
         @media (max-width: 767.98px) {
+            .analytics-filter {
+                grid-template-columns: 1fr;
+            }
+
             .analytics-table-head,
             .analytics-pagination {
                 align-items: stretch;
@@ -142,8 +181,8 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
-            <form id="analyticsFilter" class="row g-2 align-items-end">
-                <div class="col-md-2">
+            <form id="analyticsFilter" class="analytics-filter">
+                <div>
                     <label class="form-label small text-muted fw-bold">Periode</label>
                     <select name="period" class="form-select">
                         <option value="7d">7 hari</option>
@@ -153,7 +192,7 @@
                         <option value="12m">12 bulan</option>
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div>
                     <label class="form-label small text-muted fw-bold">Kategori</label>
                     <select name="category" class="form-select">
                         <option value="">Semua</option>
@@ -161,7 +200,7 @@
                         <option value="RTK">RTK</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div>
                     <label class="form-label small text-muted fw-bold">Barang</label>
                     <select name="item_id" class="form-select analytics-select" data-placeholder="Cari kode atau nama barang">
                         <option value="">Semua Barang</option>
@@ -170,7 +209,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div>
                     <label class="form-label small text-muted fw-bold">Forecast</label>
                     <select name="forecast_days" class="form-select">
                         <option value="30" selected>30 hari</option>
@@ -178,14 +217,14 @@
                         <option value="90">90 hari</option>
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div>
                     <label class="form-label small text-muted fw-bold">Gudang</label>
                     <select name="stock_location" class="form-select" id="stockLocationFilter">
                         <option value="small_warehouse" selected>Gudang Kecil</option>
                         <option value="big_warehouse">Gudang Besar</option>
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div>
                     <label class="form-label small text-muted fw-bold">Departemen</label>
                     <select name="department_id" class="form-select analytics-select" data-placeholder="Cari departemen">
                         <option value="">Semua</option>
@@ -194,7 +233,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-1">
+                <div class="analytics-filter-action">
                     <button class="btn btn-primary w-100" type="submit">Terapkan</button>
                 </div>
             </form>
