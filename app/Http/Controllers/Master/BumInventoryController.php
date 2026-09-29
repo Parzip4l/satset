@@ -222,13 +222,13 @@ class BumInventoryController extends Controller
     public function importItems(Request $request, ConsumableItemImportService $importService)
     {
         $data = $request->validateWithBag('itemImport', [
-            'file' => 'required|file|mimes:xlsx,csv,txt|max:10240',
+            'file' => 'required|file|mimes:xlsx|max:10240',
             'stock_mode' => 'required|in:keep,big,small,both',
         ]);
 
         try {
             $summary = $importService->import($data['file'], [
-                'sheet_name' => 'Catalog Master mini',
+                'sheet_name' => ['Catalog Master', 'Catalog Master mini'],
                 'stock_mode' => $data['stock_mode'],
             ], auth()->id());
         } catch (Throwable $exception) {
@@ -250,9 +250,12 @@ class BumInventoryController extends Controller
     public function downloadItemImportTemplate()
     {
         return response()->streamDownload(function () {
-            ConsumableItemImportService::writeTemplateCsv(fopen('php://output', 'w'));
+            $path = tempnam(sys_get_temp_dir(), 'master-barang-template-') . '.xlsx';
+            ConsumableItemImportService::writeTemplateXlsx($path);
+            readfile($path);
+            @unlink($path);
         }, ConsumableItemImportService::templateFilename(), [
-            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 

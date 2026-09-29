@@ -14,24 +14,160 @@ class ConsumableItemImportService
 {
     public static function templateFilename(): string
     {
-        return 'template-master-barang.csv';
+        return 'template-master-barang.xlsx';
     }
 
     public static function templateRows(): array
     {
         return [
-            ['Kategori', 'Kode Barang', 'Nama Barang', 'Satuan', 'Jumlah Konversi', 'Satuan Kecil', 'Binloc', 'Harga', 'Stok Minimum', 'SOH/Saldo Berjalan'],
-            ['ATK', 'ATK-001', 'Pulpen Hitam', 'Box', '12', 'Pcs', 'GA-ATK-01', '3500', '24', '120'],
-            ['RTK', 'RTK-001', 'Tisu Toilet', 'Dus', '48', 'Roll', 'GA-RTK-01', '6500', '96', '240'],
+            ['No', 'Kategori', 'Kode Barang', 'Nama Barang', 'Satuan', 'Satuan Disarankan', 'Binloc', 'Harga', 'Stok Minimum', 'Saldo Awal', 'Januari', null, 'Februari', null, 'Maret', null, 'April', null, 'Mei', null, 'Juni', null, 'Juli', null, 'Agustus', null, 'September', null, 'Oktober', null, 'November', null, 'Desember', null, 'SOH/Saldo Berjalan', 'Total Harga', 'Keterangan', 'Referensi PO Terakhir'],
+            [null, null, null, null, null, null, null, null, null, null, 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', null, null, null, null],
+            [1, 'ATK', 'ATK-001', 'Pulpen Hitam', 'Box', 'Box', 'GA-ATK-01', 3500, 24, 120, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 120, 420000, null, null],
+            [2, 'RTK', 'RTK-001', 'Tisu Toilet', 'Dus', 'Dus', 'GA-RTK-01', 6500, 96, 240, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 240, 1560000, null, null],
         ];
     }
 
-    public static function writeTemplateCsv($handle): void
+    public static function writeTemplateXlsx(string $path): void
     {
-        fwrite($handle, "\xEF\xBB\xBF");
-        foreach (self::templateRows() as $row) {
-            fputcsv($handle, $row);
+        $zip = new ZipArchive();
+        if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new RuntimeException('Template XLSX tidak bisa dibuat.');
         }
+
+        $zip->addFromString('[Content_Types].xml', self::xlsxContentTypes());
+        $zip->addFromString('_rels/.rels', self::xlsxRootRels());
+        $zip->addFromString('docProps/app.xml', self::xlsxAppProps());
+        $zip->addFromString('docProps/core.xml', self::xlsxCoreProps());
+        $zip->addFromString('xl/workbook.xml', self::xlsxWorkbook());
+        $zip->addFromString('xl/_rels/workbook.xml.rels', self::xlsxWorkbookRels());
+        $zip->addFromString('xl/styles.xml', self::xlsxStyles());
+        $zip->addFromString('xl/worksheets/sheet1.xml', self::xlsxCatalogMasterSheet());
+        $zip->close();
+    }
+
+    private static function xlsxContentTypes(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            . '<Default Extension="xml" ContentType="application/xml"/>'
+            . '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+            . '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+            . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+            . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+            . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+            . '</Types>';
+    }
+
+    private static function xlsxRootRels(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+            . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
+            . '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
+            . '</Relationships>';
+    }
+
+    private static function xlsxWorkbook(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<bookViews><workbookView activeTab="0"/></bookViews>'
+            . '<sheets><sheet name="Catalog Master" sheetId="1" r:id="rId1"/></sheets>'
+            . '</workbook>';
+    }
+
+    private static function xlsxWorkbookRels(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+            . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+            . '</Relationships>';
+    }
+
+    private static function xlsxStyles(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            . '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+            . '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9EAF7"/><bgColor indexed="64"/></patternFill></fill></fills>'
+            . '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders>'
+            . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+            . '<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/></cellXfs>'
+            . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+            . '</styleSheet>';
+    }
+
+    private static function xlsxAppProps(): string
+    {
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+            . '<Application>Satset</Application></Properties>';
+    }
+
+    private static function xlsxCoreProps(): string
+    {
+        $timestamp = now()->utc()->format('Y-m-d\TH:i:s\Z');
+
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            . '<dc:title>Template Master Barang</dc:title><dc:creator>Satset</dc:creator>'
+            . '<dcterms:created xsi:type="dcterms:W3CDTF">' . $timestamp . '</dcterms:created>'
+            . '<dcterms:modified xsi:type="dcterms:W3CDTF">' . $timestamp . '</dcterms:modified>'
+            . '</cp:coreProperties>';
+    }
+
+    private static function xlsxCatalogMasterSheet(): string
+    {
+        $rows = self::templateRows();
+        $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<dimension ref="A1:AL5"/>'
+            . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
+            . '<sheetFormatPr defaultRowHeight="15"/>'
+            . '<cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="3" width="16" customWidth="1"/><col min="4" max="4" width="36" customWidth="1"/><col min="5" max="6" width="18" customWidth="1"/><col min="7" max="9" width="14" customWidth="1"/><col min="10" max="36" width="12" customWidth="1"/><col min="37" max="38" width="22" customWidth="1"/></cols>'
+            . '<sheetData>';
+
+        foreach ($rows as $index => $row) {
+            $rowNumber = $index + 2;
+            $xml .= '<row r="' . $rowNumber . '">';
+            foreach ($row as $columnIndex => $value) {
+                if ($value === null || $value === '') {
+                    continue;
+                }
+
+                $reference = self::xlsxColumnName($columnIndex + 1) . $rowNumber;
+                $style = $rowNumber === 2 ? 1 : ($rowNumber === 3 ? 3 : 2);
+                if (is_int($value) || is_float($value)) {
+                    $xml .= '<c r="' . $reference . '" s="' . $style . '"><v>' . $value . '</v></c>';
+                    continue;
+                }
+
+                $xml .= '<c r="' . $reference . '" s="' . $style . '" t="inlineStr"><is><t>' . self::xmlEscape((string) $value) . '</t></is></c>';
+            }
+            $xml .= '</row>';
+        }
+
+        return $xml . '</sheetData><autoFilter ref="A2:AL5"/></worksheet>';
+    }
+
+    private static function xlsxColumnName(int $number): string
+    {
+        $name = '';
+        while ($number > 0) {
+            $number--;
+            $name = chr(65 + ($number % 26)) . $name;
+            $number = intdiv($number, 26);
+        }
+
+        return $name;
+    }
+
+    private static function xmlEscape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
     }
 
     public function __construct(private readonly ConsumableStockService $stockService)
@@ -48,7 +184,7 @@ class ConsumableItemImportService
         }
 
         $rows = match ($extension) {
-            'xlsx' => $this->readXlsx($path, $options['sheet_name'] ?? 'Catalog Master mini'),
+            'xlsx' => $this->readXlsx($path, $options['sheet_name'] ?? ['Catalog Master', 'Catalog Master mini']),
             'csv' => $this->readCsv($path),
             default => throw new InvalidArgumentException('Format file harus .xlsx atau .csv.'),
         };
@@ -223,7 +359,7 @@ class ConsumableItemImportService
                 'saldo_awal', 'opening_stock' => $columns['opening_stock'] = $index,
                 'soh_saldo_berjalan', 'soh', 'current_stock' => $columns['stock'] = $index,
                 'conversion_qty', 'jumlah_konversi' => $columns['conversion_qty'] = $index,
-                'small_uom', 'satuan_kecil' => $columns['small_uom'] = $index,
+                'small_uom', 'satuan_kecil', 'satuan_disarankan' => $columns['small_uom'] = $index,
                 default => null,
             };
         }
@@ -280,7 +416,7 @@ class ConsumableItemImportService
         return $rows;
     }
 
-    private function readXlsx(string $path, string $preferredSheet): array
+    private function readXlsx(string $path, string|array $preferredSheet): array
     {
         $zip = new ZipArchive();
         if ($zip->open($path) !== true) {
@@ -339,7 +475,7 @@ class ConsumableItemImportService
         return $strings;
     }
 
-    private function resolveSheetPath(ZipArchive $zip, string $preferredSheet): string
+    private function resolveSheetPath(ZipArchive $zip, string|array $preferredSheet): string
     {
         $workbook = simplexml_load_string($zip->getFromName('xl/workbook.xml'));
         $relations = simplexml_load_string($zip->getFromName('xl/_rels/workbook.xml.rels'));
@@ -347,6 +483,7 @@ class ConsumableItemImportService
             throw new RuntimeException('Struktur workbook XLSX tidak valid.');
         }
 
+        $preferredSheets = array_map('strtolower', (array) $preferredSheet);
         $relationTargets = [];
         foreach ($relations->Relationship as $relation) {
             $relationTargets[(string) $relation['Id']] = (string) $relation['Target'];
@@ -363,7 +500,7 @@ class ConsumableItemImportService
 
             $path = 'xl/' . ltrim($target, '/');
             $fallback ??= $path;
-            if (strcasecmp((string) $sheet['name'], $preferredSheet) === 0) {
+            if (in_array(strtolower((string) $sheet['name']), $preferredSheets, true)) {
                 return $path;
             }
         }

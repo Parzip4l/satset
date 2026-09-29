@@ -127,12 +127,10 @@ class ConsumableItemImportServiceTest extends TestCase
         $this->assertDatabaseCount('stock_movements', 0);
     }
 
-    public function test_download_template_can_be_imported(): void
+    public function test_download_template_xlsx_can_be_imported(): void
     {
-        $path = tempnam(sys_get_temp_dir(), 'master-items-template-') . '.csv';
-        $handle = fopen($path, 'w');
-        ConsumableItemImportService::writeTemplateCsv($handle);
-        fclose($handle);
+        $path = tempnam(sys_get_temp_dir(), 'master-items-template-') . '.xlsx';
+        ConsumableItemImportService::writeTemplateXlsx($path);
 
         $summary = app(ConsumableItemImportService::class)->import($path, ['stock_mode' => 'small']);
 
