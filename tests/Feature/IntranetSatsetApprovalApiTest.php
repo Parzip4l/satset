@@ -18,6 +18,7 @@ class IntranetSatsetApprovalApiTest extends TestCase
 
         Schema::dropIfExists('approval_audits');
         Schema::dropIfExists('ticket_histories');
+        Schema::dropIfExists('notifications');
         Schema::dropIfExists('approvals');
         Schema::dropIfExists('requests');
         Schema::dropIfExists('statuses');
@@ -98,6 +99,16 @@ class IntranetSatsetApprovalApiTest extends TestCase
             $table->string('approver_email')->nullable();
             $table->string('approver_name')->nullable();
             $table->timestamp('acted_at');
+            $table->timestamps();
+        });
+
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id');
+            $table->string('title')->nullable();
+            $table->text('message');
+            $table->string('url')->nullable();
+            $table->boolean('is_read')->default(false);
             $table->timestamps();
         });
 
@@ -190,6 +201,12 @@ class IntranetSatsetApprovalApiTest extends TestCase
             'external_reference_id' => 'PORTAL-APP-1',
             'approver_email' => 'manager@lrtjakarta.co.id',
             'approver_name' => 'Manager Portal',
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $approval->request->requester_id,
+            'title' => 'Approval SatSet disetujui',
+            'message' => 'TCK-ATKRTK-0001 telah disetujui oleh Manager Portal.',
+            'is_read' => false,
         ]);
 
         Http::assertSent(function ($request) {

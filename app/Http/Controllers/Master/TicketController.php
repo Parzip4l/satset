@@ -1530,10 +1530,16 @@ class TicketController extends Controller
                 $payload['handover_date'] = now()->toDateString();
                 $payload['handover_evidence_uploaded_at'] = now()->toDateTimeString();
                 $payload['workflow_status'] = 'HANDED_OVER';
-                $ticket->update(['payload' => $payload]);
+                $closedStatusId = Status::where('name', 'Closed')->value('id');
+
+                $ticket->update(array_filter([
+                    'payload' => $payload,
+                    'status_id' => $closedStatusId,
+                ], fn ($value) => $value !== null));
                 $ticket->histories()->create([
                     'user_id' => auth()->id(),
-                    'action' => 'Barang ATK/RTK diserahkan dan stok berkurang.',
+                    'status_id' => $closedStatusId,
+                    'action' => 'Barang ATK/RTK diserahkan, stok berkurang, dan tiket ditutup.',
                 ]);
             });
         } catch (InvalidArgumentException $exception) {

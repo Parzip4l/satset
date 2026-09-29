@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Models\Master\Approval;
+use App\Models\Master\Notification as WebNotification;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class LrtjSpaceMobileNotificationService
 {
@@ -24,6 +26,11 @@ class LrtjSpaceMobileNotificationService
             return;
         }
 
+        $title = 'Status SatSet berubah';
+        $body = "{$ticket->ticket_no} sekarang {$status}.";
+
+        $this->recordWebNotification($requester, $title, $body, $ticket);
+
         $this->send([
             'event_type' => 'ticket_status_changed',
             'recipient_email' => $requester->email,
@@ -34,8 +41,8 @@ class LrtjSpaceMobileNotificationService
             'status' => $status,
             'previous_status' => $previousStatus,
             'actor_name' => $actor?->name,
-            'title' => 'Status SatSet berubah',
-            'body' => "{$ticket->ticket_no} sekarang {$status}.",
+            'title' => $title,
+            'body' => $body,
             'priority' => 'high',
         ]);
     }
@@ -48,6 +55,11 @@ class LrtjSpaceMobileNotificationService
             return;
         }
 
+        $title = 'Approval SatSet menunggu Anda';
+        $body = "{$ticket->ticket_no} membutuhkan approval Anda.";
+
+        $this->recordWebNotification($approver, $title, $body, $ticket);
+
         $this->send([
             'event_type' => 'ticket_approval_requested',
             'recipient_email' => $approver->email,
@@ -56,8 +68,8 @@ class LrtjSpaceMobileNotificationService
             'ticket_title' => $ticket->title,
             'request_type' => data_get($ticket->payload, 'request_type'),
             'status' => $this->ticketStatusLabel($ticket),
-            'title' => 'Approval SatSet menunggu Anda',
-            'body' => "{$ticket->ticket_no} membutuhkan approval Anda.",
+            'title' => $title,
+            'body' => $body,
             'priority' => 'high',
         ]);
     }
@@ -72,6 +84,10 @@ class LrtjSpaceMobileNotificationService
 
         $normalizedStatus = strtolower($status);
         $decisionLabel = $normalizedStatus === 'approved' ? 'disetujui' : 'ditolak';
+        $title = 'Approval SatSet '.$decisionLabel;
+        $body = "{$ticket->ticket_no} telah {$decisionLabel} oleh {$actor->name}.";
+
+        $this->recordWebNotification($requester, $title, $body, $ticket);
 
         $this->send([
             'event_type' => 'ticket_approval_decided',
@@ -85,8 +101,8 @@ class LrtjSpaceMobileNotificationService
             'approval_status' => $normalizedStatus,
             'approver_name' => $actor->name,
             'approval_note' => $note,
-            'title' => 'Approval SatSet '.$decisionLabel,
-            'body' => "{$ticket->ticket_no} telah {$decisionLabel} oleh {$actor->name}.",
+            'title' => $title,
+            'body' => $body,
             'priority' => 'high',
         ]);
     }
@@ -97,6 +113,11 @@ class LrtjSpaceMobileNotificationService
             return;
         }
 
+        $title = 'Ticket SatSet ditujukan ke Anda';
+        $body = "{$ticket->ticket_no} ditugaskan ke Anda.";
+
+        $this->recordWebNotification($assignedUser, $title, $body, $ticket);
+
         $this->send([
             'event_type' => 'ticket_assigned',
             'recipient_email' => $assignedUser->email,
@@ -105,9 +126,24 @@ class LrtjSpaceMobileNotificationService
             'ticket_title' => $ticket->title,
             'request_type' => data_get($ticket->payload, 'request_type'),
             'status' => $this->ticketStatusLabel($ticket),
-            'title' => 'Ticket SatSet ditujukan ke Anda',
-            'body' => "{$ticket->ticket_no} ditugaskan ke Anda.",
+            'title' => $title,
+            'body' => $body,
             'priority' => 'high',
+        ]);
+    }
+
+    private function recordWebNotification(?User $recipient, string $title, string $message, Ticket $ticket): void
+    {
+        if (! $recipient?->id || ! Schema::hasTable('notifications')) {
+            return;
+        }
+
+        WebNotification::create([
+            'user_id' => $recipient->id,
+            'title' => $title,
+            'message' => $message,
+            'url' => route('ticket.show', $ticket),
+            'is_read' => false,
         ]);
     }
 
@@ -160,6 +196,10 @@ class LrtjSpaceMobileNotificationService
 
     private function ticketStatusLabel(Ticket $ticket): string
     {
+        if (in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true)) {
+            return $ticket->status->name;
+        }
+
         return data_get($ticket->payload, 'workflow_status')
             ?: ($ticket->status->name ?? 'Updated');
     }
