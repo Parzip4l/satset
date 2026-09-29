@@ -247,6 +247,15 @@ class BumInventoryController extends Controller
             ->with('success', $message);
     }
 
+    public function downloadItemImportTemplate()
+    {
+        return response()->streamDownload(function () {
+            ConsumableItemImportService::writeTemplateCsv(fopen('php://output', 'w'));
+        }, ConsumableItemImportService::templateFilename(), [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     public function showItem(Request $request, ConsumableItem $item)
     {
         $item->loadCount('movements');

@@ -127,6 +127,32 @@ class ConsumableItemImportServiceTest extends TestCase
         $this->assertDatabaseCount('stock_movements', 0);
     }
 
+    public function test_download_template_can_be_imported(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'master-items-template-') . '.csv';
+        $handle = fopen($path, 'w');
+        ConsumableItemImportService::writeTemplateCsv($handle);
+        fclose($handle);
+
+        $summary = app(ConsumableItemImportService::class)->import($path, ['stock_mode' => 'small']);
+
+        $this->assertSame(2, $summary['created']);
+        $this->assertSame(0, $summary['skipped']);
+        $this->assertSame(2, ConsumableItem::count());
+        $this->assertDatabaseHas('consumable_items', [
+            'code' => 'ATK-001',
+            'name' => 'Pulpen Hitam',
+            'category' => 'ATK',
+            'small_stock' => 120,
+        ]);
+        $this->assertDatabaseHas('consumable_items', [
+            'code' => 'RTK-001',
+            'name' => 'Tisu Toilet',
+            'category' => 'RTK',
+            'small_stock' => 240,
+        ]);
+    }
+
     private function csvPath(): string
     {
         $path = tempnam(sys_get_temp_dir(), 'master-items-') . '.csv';

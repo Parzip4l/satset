@@ -334,6 +334,9 @@
                         <h5 class="modal-title" id="importItemsModalLabel">Upload Master Barang</h5>
                         <div class="text-muted small">Item dengan kode yang sama akan di-update, bukan dibuat duplikat.</div>
                     </div>
+                    <a href="{{ route('bum.items.import.template') }}" class="btn btn-light border items-btn">
+                        <i class="bi bi-download me-1"></i> Download Template
+                    </a>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -341,7 +344,7 @@
                         <div class="col-12">
                             <label class="form-label">File master</label>
                             <input type="file" name="file" class="form-control" accept=".xlsx,.csv" required>
-                            <div class="text-muted small mt-1">Untuk file Excel GA, sistem membaca sheet <strong>Catalog Master mini</strong>. CSV juga didukung.</div>
+                            <div class="text-muted small mt-1">Gunakan template CSV jika membuat file baru. Untuk file Excel GA, sistem membaca sheet <strong>Catalog Master mini</strong>.</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label">Perlakuan stok dari file</label>

@@ -12,6 +12,28 @@ use ZipArchive;
 
 class ConsumableItemImportService
 {
+    public static function templateFilename(): string
+    {
+        return 'template-master-barang.csv';
+    }
+
+    public static function templateRows(): array
+    {
+        return [
+            ['Kategori', 'Kode Barang', 'Nama Barang', 'Satuan', 'Jumlah Konversi', 'Satuan Kecil', 'Binloc', 'Harga', 'Stok Minimum', 'SOH/Saldo Berjalan'],
+            ['ATK', 'ATK-001', 'Pulpen Hitam', 'Box', '12', 'Pcs', 'GA-ATK-01', '3500', '24', '120'],
+            ['RTK', 'RTK-001', 'Tisu Toilet', 'Dus', '48', 'Roll', 'GA-RTK-01', '6500', '96', '240'],
+        ];
+    }
+
+    public static function writeTemplateCsv($handle): void
+    {
+        fwrite($handle, "\xEF\xBB\xBF");
+        foreach (self::templateRows() as $row) {
+            fputcsv($handle, $row);
+        }
+    }
+
     public function __construct(private readonly ConsumableStockService $stockService)
     {
     }
