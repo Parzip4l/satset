@@ -132,22 +132,25 @@ class ConsumableItemImportServiceTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'master-items-template-') . '.xlsx';
         ConsumableItemImportService::writeTemplateXlsx($path);
 
-        $summary = app(ConsumableItemImportService::class)->import($path, ['stock_mode' => 'small']);
+        $summary = app(ConsumableItemImportService::class)->import($path, ['stock_mode' => 'both']);
 
         $this->assertSame(2, $summary['created']);
         $this->assertSame(0, $summary['skipped']);
+        $this->assertSame(4, $summary['stock_adjusted']);
         $this->assertSame(2, ConsumableItem::count());
         $this->assertDatabaseHas('consumable_items', [
             'code' => 'ATK-001',
             'name' => 'Pulpen Hitam',
             'category' => 'ATK',
-            'small_stock' => 120,
+            'current_stock' => 120,
+            'small_stock' => 12,
         ]);
         $this->assertDatabaseHas('consumable_items', [
             'code' => 'RTK-001',
             'name' => 'Tisu Toilet',
             'category' => 'RTK',
-            'small_stock' => 240,
+            'current_stock' => 240,
+            'small_stock' => 24,
         ]);
     }
 

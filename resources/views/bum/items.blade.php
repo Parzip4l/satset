@@ -357,7 +357,7 @@
                         </div>
                         <div class="col-12">
                             <div class="upload-note">
-                                Angka stok diambil dari kolom <strong>SOH/Saldo Berjalan</strong>, atau <strong>Saldo Awal</strong> jika SOH tidak ada. Perubahan stok dicatat sebagai adjustment di stock card agar riwayat tetap terbaca.
+                                Stok Gudang Besar diambil dari kolom <strong>SOH/Saldo Berjalan</strong>, atau <strong>Saldo Awal</strong> jika SOH kosong. Stok Gudang Kecil diambil dari kolom <strong>Stok Gudang Kecil</strong>; jika kolom ini kosong, sistem memakai angka Gudang Besar untuk menjaga kompatibilitas file lama.
                             </div>
                         </div>
                     </div>
