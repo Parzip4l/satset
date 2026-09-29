@@ -110,14 +110,11 @@
             align-items: end;
             display: grid;
             gap: .85rem;
-            grid-template-columns:
-                minmax(140px, .85fr)
-                minmax(140px, .85fr)
-                minmax(260px, 1.35fr)
-                minmax(140px, .85fr)
-                minmax(160px, .9fr)
-                minmax(190px, 1fr)
-                minmax(124px, auto);
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+
+        .analytics-filter > div {
+            min-width: 0;
         }
 
         .analytics-filter .form-label {
@@ -131,6 +128,11 @@
             white-space: nowrap;
         }
 
+        .analytics-filter .select2-container {
+            max-width: 100%;
+            width: 100% !important;
+        }
+
         .select2-container--bootstrap-5 .select2-selection {
             border-color: #e7ecf2;
             border-radius: 8px;
@@ -138,10 +140,6 @@
         }
 
         @media (max-width: 1399.98px) {
-            .analytics-filter {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
-
             .analytics-filter-action {
                 align-self: end;
             }
