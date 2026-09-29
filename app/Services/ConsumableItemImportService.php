@@ -20,10 +20,10 @@ class ConsumableItemImportService
     public static function templateRows(): array
     {
         return [
-            ['No', 'Kategori', 'Kode Barang', 'Nama Barang', 'Satuan Gudang Besar', 'Jumlah Konversi', 'UOM Gudang Kecil', 'Binloc', 'Harga', 'Stok Minimum', 'Saldo Awal', 'Januari', null, 'Februari', null, 'Maret', null, 'April', null, 'Mei', null, 'Juni', null, 'Juli', null, 'Agustus', null, 'September', null, 'Oktober', null, 'November', null, 'Desember', null, 'SOH/Saldo Berjalan', 'Stok Gudang Kecil', 'Total Harga', 'Keterangan', 'Referensi PO Terakhir'],
-            [null, null, null, null, null, null, null, null, null, null, null, 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', null, null, null, null, null],
-            [1, 'ATK', 'ATK-001', 'Pulpen Hitam', 'Box', 12, 'Pcs', 'GA-ATK-01', 3500, 24, 120, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 120, 12, 420000, null, null],
-            [2, 'RTK', 'RTK-001', 'Tisu Toilet', 'Dus', 48, 'Roll', 'GA-RTK-01', 6500, 96, 240, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 240, 24, 1560000, null, null],
+            ['No', 'Kategori', 'Kode Barang', 'Nama Barang', 'Satuan Gudang Besar', 'Binloc', 'Harga', 'Stok Minimum', 'Saldo Awal', 'Januari', null, 'Februari', null, 'Maret', null, 'April', null, 'Mei', null, 'Juni', null, 'Juli', null, 'Agustus', null, 'September', null, 'Oktober', null, 'November', null, 'Desember', null, 'SOH/Saldo Berjalan', 'Stok Gudang Kecil', 'UOM Gudang Kecil', 'Jumlah Konversi', 'Total Harga', 'Keterangan', 'Referensi PO Terakhir'],
+            [null, null, null, null, null, null, null, null, null, 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', null, null, null, null, null, null, null],
+            [1, 'ATK', 'ATK-001', 'Pulpen Hitam', 'Box', 'GA-ATK-01', 3500, 24, 120, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 120, 12, 'Pcs', 12, 420000, null, null],
+            [2, 'RTK', 'RTK-001', 'Tisu Toilet', 'Dus', 'GA-RTK-01', 6500, 96, 240, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 240, 24, 'Roll', 48, 1560000, null, null],
         ];
     }
 
@@ -127,7 +127,7 @@ class ConsumableItemImportService
             . '<dimension ref="A1:AN5"/>'
             . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
             . '<sheetFormatPr defaultRowHeight="15"/>'
-            . '<cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="3" width="16" customWidth="1"/><col min="4" max="4" width="36" customWidth="1"/><col min="5" max="7" width="18" customWidth="1"/><col min="8" max="10" width="14" customWidth="1"/><col min="11" max="37" width="12" customWidth="1"/><col min="38" max="40" width="22" customWidth="1"/></cols>'
+            . '<cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="3" width="16" customWidth="1"/><col min="4" max="4" width="36" customWidth="1"/><col min="5" max="5" width="18" customWidth="1"/><col min="6" max="9" width="14" customWidth="1"/><col min="10" max="33" width="12" customWidth="1"/><col min="34" max="37" width="20" customWidth="1"/><col min="38" max="40" width="22" customWidth="1"/></cols>'
             . '<sheetData>';
 
         foreach ($rows as $index => $row) {
