@@ -34,6 +34,19 @@ class ConsumableItem extends Model
         'small_stock' => 'integer',
     ];
 
+    public function setNameAttribute(string $value): void
+    {
+        $this->attributes['name'] = self::cleanName($value);
+    }
+
+    public static function cleanName(string $value): string
+    {
+        $cleaned = preg_replace('/\s*[\(\[]?\s*\d+\s*[a-z][a-z0-9\/.-]*\s*=\s*\d+\s*[a-z][a-z0-9\/.-]*\s*[\)\]]?/iu', '', $value);
+        $cleaned = preg_replace('/\s+/', ' ', (string) $cleaned);
+
+        return trim($cleaned, " \t\n\r\0\x0B,-–—;");
+    }
+
     public function movements()
     {
         return $this->hasMany(StockMovement::class, 'item_id');

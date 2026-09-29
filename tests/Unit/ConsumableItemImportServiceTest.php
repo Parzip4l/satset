@@ -165,7 +165,7 @@ class ConsumableItemImportServiceTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'master-items-') . '.csv';
         file_put_contents($path, implode("\n", [
             'Kategori,Kode Barang,Nama Barang,Satuan,Jumlah Konversi,Satuan Kecil,Binloc,Harga,Stok Minimum,SOH/Saldo Berjalan',
-            'ATK,I.1,Amplop Baru,Rim,100,Lembar,GA02,3300,100,9',
+            'ATK,I.1,Amplop Baru (1 Rim = 100 lbr),Rim,100,Lembar,GA02,3300,100,9',
         ]));
 
         return $path;
