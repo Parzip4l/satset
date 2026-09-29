@@ -39,7 +39,6 @@ class SatsetApprovalDecisionService
             }
 
             $freshTicket = Ticket::query()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
-            $previousStatus = data_get($freshTicket->payload, 'workflow_status') ?: ($freshTicket->status->name ?? null);
 
             $lockedApproval->update([
                 'status' => $normalizedStatus,
@@ -79,7 +78,7 @@ class SatsetApprovalDecisionService
             ]);
 
             $updated = $freshTicket->fresh(['requester', 'status']);
-            $this->notifications->notifyTicketStatusChanged($updated, $actor, $previousStatus);
+            $this->notifications->notifyApprovalDecided($updated, $lockedApproval, $actor, $normalizedStatus, $comment);
 
             return $updated;
         });

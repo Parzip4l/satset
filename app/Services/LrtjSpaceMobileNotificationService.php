@@ -62,6 +62,35 @@ class LrtjSpaceMobileNotificationService
         ]);
     }
 
+    public function notifyApprovalDecided(Ticket $ticket, Approval $approval, User $actor, string $status, ?string $note = null): void
+    {
+        $ticket->loadMissing(['requester', 'status']);
+        $requester = $ticket->requester;
+        if (! $requester?->email) {
+            return;
+        }
+
+        $normalizedStatus = strtolower($status);
+        $decisionLabel = $normalizedStatus === 'approved' ? 'disetujui' : 'ditolak';
+
+        $this->send([
+            'event_type' => 'ticket_approval_decided',
+            'recipient_email' => $requester->email,
+            'ticket_id' => (string) $ticket->id,
+            'ticket_no' => $ticket->ticket_no,
+            'ticket_title' => $ticket->title,
+            'request_type' => data_get($ticket->payload, 'request_type'),
+            'status' => $this->ticketStatusLabel($ticket),
+            'approval_id' => (string) $approval->id,
+            'approval_status' => $normalizedStatus,
+            'approver_name' => $actor->name,
+            'approval_note' => $note,
+            'title' => 'Approval SatSet '.$decisionLabel,
+            'body' => "{$ticket->ticket_no} telah {$decisionLabel} oleh {$actor->name}.",
+            'priority' => 'high',
+        ]);
+    }
+
     public function notifyTicketAssigned(Ticket $ticket, ?User $assignedUser): void
     {
         if (! $assignedUser?->email) {

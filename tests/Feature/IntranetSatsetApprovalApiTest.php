@@ -6,6 +6,7 @@ use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -100,7 +101,13 @@ class IntranetSatsetApprovalApiTest extends TestCase
             $table->timestamps();
         });
 
-        config(['satset.intranet_api.shared_secret' => 'portal-secret']);
+        config([
+            'satset.intranet_api.shared_secret' => 'portal-secret',
+            'satset.lrtj_space_notifications.enabled' => false,
+            'satset.lrtj_space_notifications.base_url' => 'https://portal.test',
+            'satset.lrtj_space_notifications.endpoint' => '/api/mobile/v1/satset/notifications',
+            'satset.lrtj_space_notifications.shared_secret' => 'portal-secret',
+        ]);
     }
 
     public function test_portal_can_fetch_pending_satset_approvals_with_signature(): void
@@ -146,6 +153,11 @@ class IntranetSatsetApprovalApiTest extends TestCase
 
     public function test_portal_decision_updates_satset_status_and_writes_audit(): void
     {
+        Http::fake([
+            'https://portal.test/api/mobile/v1/satset/notifications' => Http::response(['success' => true]),
+        ]);
+        config(['satset.lrtj_space_notifications.enabled' => true]);
+
         $approval = $this->approvalFixture();
 
         $response = $this->signedCall('POST', "/api/intranet/v1/satset/approvals/{$approval->id}/decision", [
@@ -179,6 +191,17 @@ class IntranetSatsetApprovalApiTest extends TestCase
             'approver_email' => 'manager@lrtjakarta.co.id',
             'approver_name' => 'Manager Portal',
         ]);
+
+        Http::assertSent(function ($request) {
+            $payload = json_decode($request->body(), true);
+
+            return $request->url() === 'https://portal.test/api/mobile/v1/satset/notifications'
+                && data_get($payload, 'event_type') === 'ticket_approval_decided'
+                && data_get($payload, 'recipient_email') === 'requester@lrtjakarta.co.id'
+                && data_get($payload, 'approval_status') === 'approved'
+                && data_get($payload, 'ticket_no') === 'TCK-ATKRTK-0001'
+                && data_get($payload, 'status') === 'WAITING_BUM_REVIEW';
+        });
     }
 
     public function test_portal_cannot_process_approval_twice(): void
