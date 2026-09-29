@@ -90,6 +90,7 @@
 
             @php
                 $bumMenuActive = request()->routeIs('bum.*')
+                    || request()->routeIs('ticket.ga-requests')
                     || request()->routeIs('ticket.ga-permintaan-temuan.create')
                     || request()->routeIs('ticket.atk-rtk.create')
                     || request()->routeIs('ticket.atk-rtk.warehouse');
@@ -108,6 +109,9 @@
                     </li>
                     <li class="pe-slide-item">
                         <a href="{{ route('bum.guide') }}" class="pe-nav-link {{ request()->routeIs('bum.guide') ? 'active' : '' }}">Manual Guide</a>
+                    </li>
+                    <li class="pe-slide-item">
+                        <a href="{{ route('ticket.ga-requests') }}" class="pe-nav-link {{ request()->routeIs('ticket.ga-requests') ? 'active' : '' }}">Permintaan GA</a>
                     </li>
                     <li class="pe-slide-item">
                         <a href="{{ route('ticket.ga-permintaan-temuan.create') }}" class="pe-nav-link {{ request()->routeIs('ticket.ga-permintaan-temuan.create') ? 'active' : '' }}">Input Permintaan / Temuan</a>

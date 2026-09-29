@@ -127,6 +127,59 @@ class TicketController extends Controller
         return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments'));
     }
 
+    public function gaRequestsIndex(Request $request)
+    {
+        $this->ensureGaOperationAccess();
+
+        $search = $request->get('search');
+        $statusId = $request->get('status_id');
+        $priorityId = $request->get('priority_id');
+        $categoryId = $request->get('category_id');
+        $departmentId = $request->get('department_id');
+        $requestType = $request->get('request_type');
+        $gaRequestTypes = ['consumption', 'atk_rtk', 'ga_request_finding'];
+
+        $tickets = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency'])
+            ->whereIn('payload->request_type', $gaRequestTypes)
+            ->when(in_array($requestType, $gaRequestTypes, true), fn ($query) => $query->where('payload->request_type', $requestType))
+            ->when($search, function ($query, $searchValue) {
+                $query->where(function ($builder) use ($searchValue) {
+                    $builder->where('title', 'like', '%'.$searchValue.'%')
+                        ->orWhere('ticket_no', 'like', '%'.$searchValue.'%')
+                        ->orWhereHas('requester', function ($subQuery) use ($searchValue) {
+                            $subQuery->where('name', 'like', '%'.$searchValue.'%');
+                        });
+                });
+            })
+            ->when($statusId, fn ($query) => $query->where('status_id', $statusId))
+            ->when($priorityId, fn ($query) => $query->where('priority_id', $priorityId))
+            ->when($categoryId, fn ($query) => $query->where('category_id', $categoryId))
+            ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
+            ->latest()
+            ->paginate(10);
+
+        $users = User::all();
+        $priority = Priority::all();
+        $status = Status::all();
+        $categories = ProblemCategory::all();
+        $departments = Department::all();
+        $indexRoute = 'ticket.ga-requests';
+        $pageTitle = 'Permintaan GA';
+        $pageSubtitle = 'Pantau permintaan konsumsi, ATK/RTK, dan laporan Permintaan/Temuan yang masuk ke tim GA.';
+        $resetRoute = route($indexRoute);
+        $requestTypeOptions = [
+            'consumption' => 'Permintaan Konsumsi',
+            'atk_rtk' => 'Permintaan ATK/RTK',
+            'ga_request_finding' => 'GA Permintaan & Temuan',
+        ];
+
+        if ($request->ajax()) {
+            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions'))->render();
+        }
+
+        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions'));
+    }
+
     public function create()
     {
         return view('ticket.create', $this->getTicketFormData());

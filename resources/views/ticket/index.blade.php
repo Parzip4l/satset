@@ -5,6 +5,13 @@
 @section('pagetitle', 'General Request')
 
 @section('content')
+@php
+    $indexRoute = $indexRoute ?? 'ticket.general';
+    $pageTitle = $pageTitle ?? 'Ticket Management';
+    $pageSubtitle = $pageSubtitle ?? 'Pantau dan kelola request general yang sudah ada di sini.';
+    $resetRoute = $resetRoute ?? route($indexRoute);
+    $requestTypeOptions = $requestTypeOptions ?? [];
+@endphp
 
 <div class="container-fluid">
     <div class="row">
@@ -15,8 +22,8 @@
                 <div class="card-body p-4">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
                         <div>
-                            <h4 class="fw-bold mb-1">Ticket Management</h4>
-                            <p class="text-muted mb-0">Pantau dan kelola request general yang sudah ada di sini.</p>
+                            <h4 class="fw-bold mb-1">{{ $pageTitle }}</h4>
+                            <p class="text-muted mb-0">{{ $pageSubtitle }}</p>
                         </div>
                         <div class="d-flex gap-2">
                             <a href="{{ route('ticket.index') }}" class="btn btn-light border shadow-sm px-4">
@@ -33,10 +40,10 @@
             {{-- 2. FILTER & SEARCH TOOLBAR --}}
             <div class="card border-0 mb-4 shadow-sm" style="border-radius: 12px;">
                 <div class="card-body p-3">
-                    <form id="filter-form" method="GET" action="{{ route('ticket.general') }}">
+                    <form id="filter-form" method="GET" action="{{ route($indexRoute) }}">
                         <div class="row g-3 align-items-center">
                             {{-- Search --}}
-                            <div class="col-md-4">
+                            <div class="{{ !empty($requestTypeOptions) ? 'col-md-3' : 'col-md-4' }}">
                                 <div class="position-relative">
                                     {{-- PENTING: Atribut 'name' harus ada --}}
                                     <input type="text" id="search-input" name="search" class="form-control ps-5" 
@@ -47,6 +54,19 @@
                                     </span>
                                 </div>
                             </div>
+
+                            @if(!empty($requestTypeOptions))
+                            <div class="col-md-3">
+                                <select class="form-select" id="request-type-filter" name="request_type" onchange="this.form.submit()">
+                                    <option value="">Semua Permintaan GA</option>
+                                    @foreach($requestTypeOptions as $value => $label)
+                                        <option value="{{ $value }}" {{ request('request_type') === $value ? 'selected' : '' }}>
+                                            {{ $label }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endif
 
                             {{-- Filter Priority --}}
                             <div class="col-md-3">
@@ -73,7 +93,7 @@
                             </div>
 
                             <div class="col-md-2">
-                                <a href="{{ route('ticket.general') }}" class="btn btn-outline-danger w-100">Reset</a>
+                                <a href="{{ $resetRoute }}" class="btn btn-outline-danger w-100">Reset</a>
                             </div>
                         </div>
                     </form>
@@ -179,7 +199,7 @@
                                                             <i class="bi bi-eye me-2 text-primary"></i> Lihat Detail
                                                         </a>
                                                     </li>
-                                                    @if ($statusName == 'Open')
+                                                    @if ($statusName == 'Open' && ((int) $ticket->requester_id === (int) auth()->id() || (auth()->user()->role ?? null) === 'admin'))
                                                     <li><hr class="dropdown-divider opacity-50"></li>
                                                     <li>
                                                         <button type="button" class="dropdown-item py-2 text-danger" onclick="confirmDelete('{{ $ticket->id }}', '{{ $ticket->ticket_no }}')">

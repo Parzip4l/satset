@@ -31,6 +31,8 @@
         } else {
             $filteredMenus = collect();
         }
+
+        $canAccessGaMenu = \App\Support\GaAccess::allowed(auth()->user());
     @endphp
 
     <ul class="pe-horizontal-menu list-unstyled" id="horizontal-menu">
@@ -82,10 +84,12 @@
 
         @php
             $bumMenuActive = request()->routeIs('bum.*')
+                || request()->routeIs('ticket.ga-requests')
                 || request()->routeIs('ticket.ga-permintaan-temuan.create')
                 || request()->routeIs('ticket.atk-rtk.create')
                 || request()->routeIs('ticket.atk-rtk.warehouse');
         @endphp
+        @if($canAccessGaMenu)
         <li class="pe-slide pe-has-sub">
             <a href="#collapseBumHorizontal" class="pe-nav-link {{ $bumMenuActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $bumMenuActive ? 'true' : 'false' }}" aria-controls="collapseBumHorizontal">
                 <i class="bi bi-box-seam pe-nav-icon"></i>
@@ -98,6 +102,9 @@
                 </li>
                 <li class="pe-slide-item">
                     <a href="{{ route('bum.guide') }}" class="pe-nav-link {{ request()->routeIs('bum.guide') ? 'active' : '' }}">Manual Guide</a>
+                </li>
+                <li class="pe-slide-item">
+                    <a href="{{ route('ticket.ga-requests') }}" class="pe-nav-link {{ request()->routeIs('ticket.ga-requests') ? 'active' : '' }}">Permintaan GA</a>
                 </li>
                 <li class="pe-slide-item">
                     <a href="{{ route('ticket.ga-permintaan-temuan.create') }}" class="pe-nav-link {{ request()->routeIs('ticket.ga-permintaan-temuan.create') ? 'active' : '' }}">Input Permintaan / Temuan</a>
@@ -128,6 +135,7 @@
                 </li>
             </ul>
         </li>
+        @endif
     </ul>
 </nav>
 </aside>

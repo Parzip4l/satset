@@ -83,6 +83,9 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     // Ticket
     Route::get('/ticket/general', [App\Http\Controllers\Master\TicketController::class, 'generalIndex'])
         ->name('ticket.general');
+    Route::get('/ticket/ga-requests', [App\Http\Controllers\Master\TicketController::class, 'gaRequestsIndex'])
+        ->middleware('ga.team')
+        ->name('ticket.ga-requests');
     Route::get('/ticket/permintaan-konsumsi/create', [App\Http\Controllers\Master\TicketController::class, 'createConsumption'])
         ->name('ticket.konsumsi.create');
     Route::get('/ticket/atk-rtk/create', [App\Http\Controllers\Master\TicketController::class, 'createAtkRtk'])
