@@ -20,10 +20,10 @@ class ConsumableItemImportService
     public static function templateRows(): array
     {
         return [
-            ['No', 'Kategori', 'Kode Barang', 'Nama Barang', 'Satuan', 'Satuan Disarankan', 'Binloc', 'Harga', 'Stok Minimum', 'Saldo Awal', 'Januari', null, 'Februari', null, 'Maret', null, 'April', null, 'Mei', null, 'Juni', null, 'Juli', null, 'Agustus', null, 'September', null, 'Oktober', null, 'November', null, 'Desember', null, 'SOH/Saldo Berjalan', 'Stok Gudang Kecil', 'Total Harga', 'Keterangan', 'Referensi PO Terakhir'],
-            [null, null, null, null, null, null, null, null, null, null, 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', null, null, null, null, null],
-            [1, 'ATK', 'ATK-001', 'Pulpen Hitam', 'Box', 'Box', 'GA-ATK-01', 3500, 24, 120, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 120, 12, 420000, null, null],
-            [2, 'RTK', 'RTK-001', 'Tisu Toilet', 'Dus', 'Dus', 'GA-RTK-01', 6500, 96, 240, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 240, 24, 1560000, null, null],
+            ['No', 'Kategori', 'Kode Barang', 'Nama Barang', 'Satuan Gudang Besar', 'Jumlah Konversi', 'UOM Gudang Kecil', 'Binloc', 'Harga', 'Stok Minimum', 'Saldo Awal', 'Januari', null, 'Februari', null, 'Maret', null, 'April', null, 'Mei', null, 'Juni', null, 'Juli', null, 'Agustus', null, 'September', null, 'Oktober', null, 'November', null, 'Desember', null, 'SOH/Saldo Berjalan', 'Stok Gudang Kecil', 'Total Harga', 'Keterangan', 'Referensi PO Terakhir'],
+            [null, null, null, null, null, null, null, null, null, null, null, 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', 'in', 'out', null, null, null, null, null],
+            [1, 'ATK', 'ATK-001', 'Pulpen Hitam', 'Box', 12, 'Pcs', 'GA-ATK-01', 3500, 24, 120, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 120, 12, 420000, null, null],
+            [2, 'RTK', 'RTK-001', 'Tisu Toilet', 'Dus', 48, 'Roll', 'GA-RTK-01', 6500, 96, 240, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 240, 24, 1560000, null, null],
         ];
     }
 
@@ -124,10 +124,10 @@ class ConsumableItemImportService
         $rows = self::templateRows();
         $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            . '<dimension ref="A1:AM5"/>'
+            . '<dimension ref="A1:AN5"/>'
             . '<sheetViews><sheetView workbookViewId="0"><pane ySplit="3" topLeftCell="A4" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>'
             . '<sheetFormatPr defaultRowHeight="15"/>'
-            . '<cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="3" width="16" customWidth="1"/><col min="4" max="4" width="36" customWidth="1"/><col min="5" max="6" width="18" customWidth="1"/><col min="7" max="9" width="14" customWidth="1"/><col min="10" max="36" width="12" customWidth="1"/><col min="37" max="39" width="22" customWidth="1"/></cols>'
+            . '<cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="3" width="16" customWidth="1"/><col min="4" max="4" width="36" customWidth="1"/><col min="5" max="7" width="18" customWidth="1"/><col min="8" max="10" width="14" customWidth="1"/><col min="11" max="37" width="12" customWidth="1"/><col min="38" max="40" width="22" customWidth="1"/></cols>'
             . '<sheetData>';
 
         foreach ($rows as $index => $row) {
@@ -150,7 +150,7 @@ class ConsumableItemImportService
             $xml .= '</row>';
         }
 
-        return $xml . '</sheetData><autoFilter ref="A2:AM5"/></worksheet>';
+        return $xml . '</sheetData><autoFilter ref="A2:AN5"/></worksheet>';
     }
 
     private static function xlsxColumnName(int $number): string
@@ -355,7 +355,7 @@ class ConsumableItemImportService
                 'kategori', 'category' => $columns['category'] = $index,
                 'kode_barang', 'kode', 'code', 'itemcode' => $columns['code'] = $index,
                 'nama_barang', 'description', 'name' => $columns['name'] = $index,
-                'satuan', 'unit', 'large_uom' => $columns['large_uom'] ??= $index,
+                'satuan', 'unit', 'large_uom', 'satuan_gudang_besar', 'uom_gudang_besar' => $columns['large_uom'] ??= $index,
                 'binloc', 'location', 'lokasi' => $columns['location'] = $index,
                 'harga', 'unit_price', 'value' => $columns['unit_price'] = $index,
                 'stok_minimum', 'minimum_stock' => $columns['minimum_stock'] = $index,
@@ -363,7 +363,7 @@ class ConsumableItemImportService
                 'soh_saldo_berjalan', 'soh', 'current_stock', 'stok_gudang_besar', 'gudang_besar' => $columns['stock'] = $index,
                 'stok_gudang_kecil', 'gudang_kecil', 'small_stock' => $columns['small_stock'] = $index,
                 'conversion_qty', 'jumlah_konversi' => $columns['conversion_qty'] = $index,
-                'small_uom', 'satuan_kecil', 'satuan_disarankan' => $columns['small_uom'] = $index,
+                'small_uom', 'satuan_kecil', 'satuan_disarankan', 'uom_gudang_kecil', 'satuan_gudang_kecil' => $columns['small_uom'] = $index,
                 default => null,
             };
         }

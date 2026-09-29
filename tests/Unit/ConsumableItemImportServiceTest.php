@@ -142,6 +142,9 @@ class ConsumableItemImportServiceTest extends TestCase
             'code' => 'ATK-001',
             'name' => 'Pulpen Hitam',
             'category' => 'ATK',
+            'large_uom' => 'box',
+            'small_uom' => 'pcs',
+            'conversion_qty' => 12,
             'current_stock' => 120,
             'small_stock' => 12,
         ]);
@@ -149,6 +152,9 @@ class ConsumableItemImportServiceTest extends TestCase
             'code' => 'RTK-001',
             'name' => 'Tisu Toilet',
             'category' => 'RTK',
+            'large_uom' => 'dus',
+            'small_uom' => 'roll',
+            'conversion_qty' => 48,
             'current_stock' => 240,
             'small_stock' => 24,
         ]);

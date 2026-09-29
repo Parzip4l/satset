@@ -357,7 +357,7 @@
                         </div>
                         <div class="col-12">
                             <div class="upload-note">
-                                Stok Gudang Besar diambil dari kolom <strong>SOH/Saldo Berjalan</strong>, atau <strong>Saldo Awal</strong> jika SOH kosong. Stok Gudang Kecil diambil dari kolom <strong>Stok Gudang Kecil</strong>; jika kolom ini kosong, sistem memakai angka Gudang Besar untuk menjaga kompatibilitas file lama.
+                                Stok Gudang Besar diambil dari kolom <strong>SOH/Saldo Berjalan</strong>, atau <strong>Saldo Awal</strong> jika SOH kosong. Stok Gudang Kecil diambil dari kolom <strong>Stok Gudang Kecil</strong>. Gunakan <strong>Satuan Gudang Besar</strong>, <strong>Jumlah Konversi</strong>, dan <strong>UOM Gudang Kecil</strong> jika satuan kedua gudang berbeda.
                             </div>
                         </div>
                     </div>
