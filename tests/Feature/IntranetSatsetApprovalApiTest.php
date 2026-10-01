@@ -111,7 +111,7 @@ class IntranetSatsetApprovalApiTest extends TestCase
             $table->foreignId('user_id');
             $table->string('title')->nullable();
             $table->text('message');
-            $table->string('url')->nullable();
+            $table->text('url')->nullable();
             $table->boolean('is_read')->default(false);
             $table->timestamps();
         });

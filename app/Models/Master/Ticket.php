@@ -18,7 +18,6 @@ use App\Models\Master\Comment;
 use App\Models\Master\TicketHistory;
 use App\Models\Master\TicketCategory;
 use App\Models\Master\Attachment;
-use Illuminate\Support\Facades\Crypt;
 
 class Ticket extends Model
 {
@@ -141,20 +140,56 @@ class Ticket extends Model
 
     private function encodeRouteKey(string $id): string
     {
-        return rtrim(strtr(base64_encode(Crypt::encryptString($id)), '+/', '-_'), '=');
+        $key = $this->routeKeySecret();
+        $ciphertext = openssl_encrypt($id, 'aes-256-ecb', $key, OPENSSL_RAW_DATA);
+        $mac = substr(hash_hmac('sha256', $ciphertext, $key, true), 0, 16);
+
+        return $this->base64UrlEncode($ciphertext.$mac);
     }
 
     private function decodeRouteKey(string $value): ?int
     {
-        $padded = str_pad(strtr($value, '-_', '+/'), strlen($value) % 4 === 0 ? strlen($value) : strlen($value) + 4 - strlen($value) % 4, '=', STR_PAD_RIGHT);
-
-        try {
-            $decrypted = Crypt::decryptString(base64_decode($padded, true) ?: '');
-        } catch (\Throwable) {
+        $decoded = $this->base64UrlDecode($value);
+        if ($decoded === null || strlen($decoded) <= 16) {
             return null;
         }
 
+        $ciphertext = substr($decoded, 0, -16);
+        $mac = substr($decoded, -16);
+        $key = $this->routeKeySecret();
+
+        if (! hash_equals($mac, substr(hash_hmac('sha256', $ciphertext, $key, true), 0, 16))) {
+            return null;
+        }
+
+        $decrypted = openssl_decrypt($ciphertext, 'aes-256-ecb', $key, OPENSSL_RAW_DATA);
+
         return is_numeric($decrypted) ? (int) $decrypted : null;
+    }
+
+    private function routeKeySecret(): string
+    {
+        $key = (string) config('app.key');
+        if (str_starts_with($key, 'base64:')) {
+            $decoded = base64_decode(substr($key, 7), true);
+            if ($decoded !== false) {
+                return hash('sha256', $decoded, true);
+            }
+        }
+
+        return hash('sha256', $key, true);
+    }
+
+    private function base64UrlEncode(string $value): string
+    {
+        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+    }
+
+    private function base64UrlDecode(string $value): ?string
+    {
+        $decoded = base64_decode(strtr($value, '-_', '+/'), true);
+
+        return $decoded === false ? null : $decoded;
     }
 
     public function customFields()
