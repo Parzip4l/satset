@@ -184,10 +184,27 @@ class LrtjSpaceApprovalResolverService
             data_get($response, 'bum_approver'),
             data_get($response, 'data.general_affair_department_head'),
             data_get($response, 'general_affair_department_head'),
+            data_get($response, 'data.user'),
+            data_get($response, 'data.users.0'),
+            data_get($response, 'users.0'),
+            data_get($response, 'data.members.0'),
+            data_get($response, 'members.0'),
             data_get($response, 'data.user_group_members.0'),
             data_get($response, 'user_group_members.0'),
             data_get($response, 'data.group_members.0'),
             data_get($response, 'group_members.0'),
+            data_get($response, 'data.user_group.users.0'),
+            data_get($response, 'user_group.users.0'),
+            data_get($response, 'data.user_group.members.0'),
+            data_get($response, 'user_group.members.0'),
+            data_get($response, 'data.group.users.0'),
+            data_get($response, 'group.users.0'),
+            data_get($response, 'data.group.members.0'),
+            data_get($response, 'group.members.0'),
+            data_get($response, 'data.groups.0.users.0'),
+            data_get($response, 'groups.0.users.0'),
+            data_get($response, 'data.groups.0.members.0'),
+            data_get($response, 'groups.0.members.0'),
         ];
 
         $genericCandidates = [
@@ -217,6 +234,8 @@ class LrtjSpaceApprovalResolverService
             }
 
             $email = $candidate['email']
+                ?? $candidate['mail']
+                ?? $candidate['email_address']
                 ?? $candidate['approver_email']
                 ?? $candidate['manager_email']
                 ?? $candidate['supervisor_email']
@@ -224,7 +243,9 @@ class LrtjSpaceApprovalResolverService
                 ?? $candidate['general_affair_department_head_email']
                 ?? $candidate['bum_email']
                 ?? data_get($candidate, 'user.email')
+                ?? data_get($candidate, 'user.mail')
                 ?? data_get($candidate, 'employee.email')
+                ?? data_get($candidate, 'employee.mail')
                 ?? data_get($candidate, 'manager.email')
                 ?? data_get($candidate, 'supervisor.email')
                 ?? data_get($candidate, 'general_affair_department_head.email')
@@ -243,8 +264,11 @@ class LrtjSpaceApprovalResolverService
                     ?? $candidate['general_affair_department_head_id']
                     ?? $candidate['bum_id']
                     ?? $candidate['user_id']
+                    ?? $candidate['employee_id']
                     ?? data_get($candidate, 'user.id')
+                    ?? data_get($candidate, 'user.user_id')
                     ?? data_get($candidate, 'employee.id')
+                    ?? data_get($candidate, 'employee.user_id')
                     ?? data_get($candidate, 'general_affair_department_head.id')
                     ?? data_get($candidate, 'bum.id'),
                 'email' => $email,
@@ -256,8 +280,13 @@ class LrtjSpaceApprovalResolverService
                     ?? $candidate['general_affair_department_head_name']
                     ?? $candidate['bum_name']
                     ?? $candidate['full_name']
+                    ?? $candidate['display_name']
                     ?? data_get($candidate, 'user.name')
+                    ?? data_get($candidate, 'user.full_name')
+                    ?? data_get($candidate, 'user.display_name')
                     ?? data_get($candidate, 'employee.name')
+                    ?? data_get($candidate, 'employee.full_name')
+                    ?? data_get($candidate, 'employee.display_name')
                     ?? data_get($candidate, 'manager.name')
                     ?? data_get($candidate, 'supervisor.name')
                     ?? data_get($candidate, 'general_affair_department_head.name')

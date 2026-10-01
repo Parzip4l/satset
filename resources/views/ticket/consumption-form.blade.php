@@ -42,7 +42,7 @@
     $bumApproval = $ticket->approvals
         ->sortBy('level')
         ->first(fn ($approval) => (int) $approval->level === 2);
-    $bumOfficer = $text(data_get($payload, 'bum_officer_name'), $closedHistory?->user?->name ?: 'Bagian Umum');
+    $bumOfficer = $text($bumApproval?->approver?->name, data_get($payload, 'bum_officer_name') ?: ($closedHistory?->user?->name ?: 'Bagian Umum'));
     $requesterSignature = data_get($payload, 'portal_signatures.requester', []);
     $signatureQrUrl = function ($signature) {
         if (! $signature) {
@@ -50,6 +50,26 @@
         }
 
         return data_get($signature, 'portal_qr_url');
+    };
+    $signatureQrInline = function ($signature) {
+        if (! $signature) {
+            return null;
+        }
+
+        $value = data_get($signature, 'portal_signature_url')
+            ?: data_get($signature, 'portal_qr_payload');
+
+        if (! $value) {
+            return null;
+        }
+
+        try {
+            $svg = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(76)->margin(0)->generate((string) $value);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return 'data:image/svg+xml;base64,'.base64_encode($svg);
     };
 @endphp
 <!DOCTYPE html>
@@ -425,6 +445,8 @@
                 <td class="sign-space">
                     @if($signatureQrUrl($requesterSignature))
                         <img class="signature-qr" src="{{ $signatureQrUrl($requesterSignature) }}" alt="QR Portal Pemohon">
+                    @elseif($signatureQrInline($requesterSignature))
+                        <img class="signature-qr" src="{{ $signatureQrInline($requesterSignature) }}" alt="QR Portal Pemohon">
                     @else
                         <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
                     @endif
@@ -432,6 +454,8 @@
                 <td class="sign-space">
                     @if($signatureQrUrl($managerApproval))
                         <img class="signature-qr" src="{{ $signatureQrUrl($managerApproval) }}" alt="QR Portal Kadiv Pemohon">
+                    @elseif($signatureQrInline($managerApproval))
+                        <img class="signature-qr" src="{{ $signatureQrInline($managerApproval) }}" alt="QR Portal Kadiv Pemohon">
                     @else
                         <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
                     @endif
@@ -439,6 +463,8 @@
                 <td class="sign-space">
                     @if($signatureQrUrl($bumApproval))
                         <img class="signature-qr" src="{{ $signatureQrUrl($bumApproval) }}" alt="QR Portal Bagian Umum">
+                    @elseif($signatureQrInline($bumApproval))
+                        <img class="signature-qr" src="{{ $signatureQrInline($bumApproval) }}" alt="QR Portal Bagian Umum">
                     @else
                         <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
                     @endif

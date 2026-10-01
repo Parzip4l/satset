@@ -235,6 +235,31 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         $this->assertSame('General Affair Department Head', $approver->name);
     }
 
+    public function test_consumption_bum_approver_accepts_nested_group_users_shape(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'group' => [
+                        'code' => 'BUM',
+                        'users' => [
+                            [
+                                'user_id' => 'portal-rifaldi',
+                                'mail' => 'rifaldi.lizarwan@lrtjakarta.co.id',
+                                'display_name' => 'Rifaldi Lizarwan',
+                            ],
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveConsumptionBumApprover($this->ticket('consumption', 0));
+
+        $this->assertSame('rifaldi.lizarwan@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('Rifaldi Lizarwan', $approver->name);
+    }
+
     public function test_throws_clear_validation_error_when_steps_are_missing(): void
     {
         Http::fake([

@@ -36,6 +36,12 @@ class SatsetApprovalDecisionService
             && data_get($ticket->payload, 'request_type') === 'consumption'
         ) {
             $bumApprover = $this->approvalResolver->resolveConsumptionBumApprover($ticket);
+            if (
+                (string) $bumApprover->id === (string) $approval->approver_id
+                || ($bumApprover->email && strcasecmp((string) $bumApprover->email, (string) $approval->approver?->email) === 0)
+            ) {
+                abort(422, 'Approver Bagian Umum dari Portal masih sama dengan Kadiv Pemohon. Periksa user group BUM atau jabatan General Affair Department Head di Portal.');
+            }
         }
 
         return DB::transaction(function () use ($ticket, $approval, $actor, $normalizedStatus, $comment, $source, $externalReferenceId, $portalSignature, $bumApprover) {
