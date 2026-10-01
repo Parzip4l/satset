@@ -1183,8 +1183,12 @@ class TicketController extends Controller
     /**
      * Show single ticket
      */
-    public function show(Ticket $ticket)
+    public function show(Request $request, Ticket $ticket)
     {
+        if (is_numeric($request->route()->originalParameter('ticket'))) {
+            return redirect()->route('ticket.show', $ticket);
+        }
+
         $ticket->load(['requester', 'priority', 'status', 'department', 'assignedUser', 'assignedDepartment', 'approvals.approver', 'histories.user', 'comments.user', 'attachments']);
         $users = User::all();
         $departments = Department::all();

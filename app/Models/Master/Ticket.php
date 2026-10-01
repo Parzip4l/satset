@@ -18,6 +18,7 @@ use App\Models\Master\Comment;
 use App\Models\Master\TicketHistory;
 use App\Models\Master\TicketCategory;
 use App\Models\Master\Attachment;
+use Illuminate\Support\Facades\Crypt;
 
 class Ticket extends Model
 {
@@ -121,6 +122,40 @@ class Ticket extends Model
     protected $casts = [
         'payload' => 'array',
     ];
+
+    public function getRouteKey(): mixed
+    {
+        return $this->encodeRouteKey((string) $this->getKey());
+    }
+
+    public function resolveRouteBinding($value, $field = null): ?self
+    {
+        if ($field !== null) {
+            return $this->where($field, $value)->first();
+        }
+
+        $id = $this->decodeRouteKey((string) $value) ?? (is_numeric($value) ? (int) $value : null);
+
+        return $id ? $this->whereKey($id)->first() : null;
+    }
+
+    private function encodeRouteKey(string $id): string
+    {
+        return rtrim(strtr(base64_encode(Crypt::encryptString($id)), '+/', '-_'), '=');
+    }
+
+    private function decodeRouteKey(string $value): ?int
+    {
+        $padded = str_pad(strtr($value, '-_', '+/'), strlen($value) % 4 === 0 ? strlen($value) : strlen($value) + 4 - strlen($value) % 4, '=', STR_PAD_RIGHT);
+
+        try {
+            $decrypted = Crypt::decryptString(base64_decode($padded, true) ?: '');
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return is_numeric($decrypted) ? (int) $decrypted : null;
+    }
 
     public function customFields()
     {
