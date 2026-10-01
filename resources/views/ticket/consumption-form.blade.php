@@ -63,14 +63,23 @@
             return null;
         }
 
+        if (is_array($value)) {
+            $value = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
         try {
-            $svg = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(76)->margin(0)->generate((string) $value);
+            $svg = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(76)->margin(0)->generate($value);
         } catch (\Throwable $e) {
             return null;
         }
 
         return 'data:image/svg+xml;base64,'.base64_encode($svg);
     };
+    $signatureQrImage = fn ($signature) => $signatureQrUrl($signature) ?: $signatureQrInline($signature);
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -297,10 +306,45 @@
             font-weight: 700;
         }
 
+        .signature-qr-frame {
+            position: relative;
+            display: inline-flex;
+            width: 72px;
+            height: 72px;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border: 1px solid #e4c693;
+            border-radius: 6px;
+            padding: 4px;
+        }
+
         .signature-qr {
-            max-width: 68px;
-            max-height: 68px;
-            display: inline-block;
+            width: 62px;
+            height: 62px;
+            display: block;
+            object-fit: contain;
+        }
+
+        .signature-qr-logo {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 24px;
+            height: 24px;
+            transform: translate(-50%, -50%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border-radius: 999px;
+            box-shadow: 0 0 0 2px #fff;
+        }
+
+        .signature-qr-logo img {
+            max-width: 19px;
+            max-height: 15px;
+            display: block;
         }
 
         .signature-placeholder {
@@ -443,28 +487,31 @@
             </tr>
             <tr>
                 <td class="sign-space">
-                    @if($signatureQrUrl($requesterSignature))
-                        <img class="signature-qr" src="{{ $signatureQrUrl($requesterSignature) }}" alt="QR Portal Pemohon">
-                    @elseif($signatureQrInline($requesterSignature))
-                        <img class="signature-qr" src="{{ $signatureQrInline($requesterSignature) }}" alt="QR Portal Pemohon">
+                    @if($qr = $signatureQrImage($requesterSignature))
+                        <span class="signature-qr-frame">
+                            <img class="signature-qr" src="{{ $qr }}" alt="QR Portal Pemohon">
+                            <span class="signature-qr-logo"><img src="{{ asset('assets/images/logo-esign.png') }}" alt=""></span>
+                        </span>
                     @else
                         <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
                     @endif
                 </td>
                 <td class="sign-space">
-                    @if($signatureQrUrl($managerApproval))
-                        <img class="signature-qr" src="{{ $signatureQrUrl($managerApproval) }}" alt="QR Portal Kadiv Pemohon">
-                    @elseif($signatureQrInline($managerApproval))
-                        <img class="signature-qr" src="{{ $signatureQrInline($managerApproval) }}" alt="QR Portal Kadiv Pemohon">
+                    @if($qr = $signatureQrImage($managerApproval))
+                        <span class="signature-qr-frame">
+                            <img class="signature-qr" src="{{ $qr }}" alt="QR Portal Kadiv Pemohon">
+                            <span class="signature-qr-logo"><img src="{{ asset('assets/images/logo-esign.png') }}" alt=""></span>
+                        </span>
                     @else
                         <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
                     @endif
                 </td>
                 <td class="sign-space">
-                    @if($signatureQrUrl($bumApproval))
-                        <img class="signature-qr" src="{{ $signatureQrUrl($bumApproval) }}" alt="QR Portal Bagian Umum">
-                    @elseif($signatureQrInline($bumApproval))
-                        <img class="signature-qr" src="{{ $signatureQrInline($bumApproval) }}" alt="QR Portal Bagian Umum">
+                    @if($qr = $signatureQrImage($bumApproval))
+                        <span class="signature-qr-frame">
+                            <img class="signature-qr" src="{{ $qr }}" alt="QR Portal Bagian Umum">
+                            <span class="signature-qr-logo"><img src="{{ asset('assets/images/logo-esign.png') }}" alt=""></span>
+                        </span>
                     @else
                         <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
                     @endif
