@@ -206,8 +206,14 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
 
             $this->assertSame(2, data_get($payload, 'approval_level'));
             $this->assertSame('bum_verification', data_get($payload, 'approval_scope'));
+            $this->assertSame('General Affair Department Head', data_get($payload, 'target_position'));
+            $this->assertSame('General Affair Department Head', data_get($payload, 'target_jabatan'));
+            $this->assertSame('BUM', data_get($payload, 'target_user_group'));
+            $this->assertSame('BUM', data_get($payload, 'user_group'));
             $this->assertSame('General Affair Department Head', data_get($payload, 'criteria.position'));
+            $this->assertSame('General Affair Department Head', data_get($payload, 'criteria.jabatan'));
             $this->assertSame('BUM', data_get($payload, 'criteria.user_group'));
+            $this->assertSame('BUM', data_get($payload, 'criteria.group'));
             $this->assertSame('BUM', data_get($payload, 'criteria.fallback_user_group'));
 
             return true;
@@ -277,6 +283,33 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
                                     'user_id' => 'portal-rifaldi',
                                     'email_address' => 'rifaldi.lizarwan@lrtjakarta.co.id',
                                     'display_name' => 'Rifaldi Lizarwan',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveConsumptionBumApprover($this->ticket('consumption', 0));
+
+        $this->assertSame('rifaldi.lizarwan@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('Rifaldi Lizarwan', $approver->name);
+    }
+
+    public function test_consumption_bum_approver_accepts_ldap_style_user_fields(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'groups' => [
+                        [
+                            'groupName' => 'BUM',
+                            'members' => [
+                                [
+                                    'userPrincipalName' => 'rifaldi.lizarwan@lrtjakarta.co.id',
+                                    'displayName' => 'Rifaldi Lizarwan',
+                                    'jobTitle' => 'General Affair Department Head',
                                 ],
                             ],
                         ],

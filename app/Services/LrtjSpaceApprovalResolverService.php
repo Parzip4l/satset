@@ -48,9 +48,15 @@ class LrtjSpaceApprovalResolverService
         $response = $this->resolve($ticket, [
             'approval_level' => 2,
             'approval_scope' => 'bum_verification',
+            'target_position' => $position,
+            'target_jabatan' => $position,
+            'target_user_group' => $group,
+            'user_group' => $group,
             'criteria' => [
                 'position' => $position,
+                'jabatan' => $position,
                 'user_group' => $group,
+                'group' => $group,
                 'fallback_user_group' => $group,
             ],
         ]);
@@ -64,6 +70,7 @@ class LrtjSpaceApprovalResolverService
                 'user_group' => $group,
                 'response_keys' => array_keys($response),
                 'data_keys' => is_array($response['data'] ?? null) ? array_keys($response['data']) : null,
+                'response_shape' => $this->responseShape($response),
             ]);
 
             $portalMessage = trim((string) data_get($response, 'message', ''));
@@ -308,6 +315,13 @@ class LrtjSpaceApprovalResolverService
         $email = $candidate['email']
             ?? $candidate['mail']
             ?? $candidate['email_address']
+            ?? $candidate['emailAddress']
+            ?? $candidate['mail_address']
+            ?? $candidate['email_kantor']
+            ?? $candidate['work_email']
+            ?? $candidate['userPrincipalName']
+            ?? $candidate['user_principal_name']
+            ?? $candidate['upn']
             ?? $candidate['approver_email']
             ?? $candidate['manager_email']
             ?? $candidate['supervisor_email']
@@ -316,8 +330,24 @@ class LrtjSpaceApprovalResolverService
             ?? $candidate['bum_email']
             ?? data_get($candidate, 'user.email')
             ?? data_get($candidate, 'user.mail')
+            ?? data_get($candidate, 'user.email_address')
+            ?? data_get($candidate, 'user.emailAddress')
+            ?? data_get($candidate, 'user.mail_address')
+            ?? data_get($candidate, 'user.email_kantor')
+            ?? data_get($candidate, 'user.work_email')
+            ?? data_get($candidate, 'user.userPrincipalName')
+            ?? data_get($candidate, 'user.user_principal_name')
+            ?? data_get($candidate, 'user.upn')
             ?? data_get($candidate, 'employee.email')
             ?? data_get($candidate, 'employee.mail')
+            ?? data_get($candidate, 'employee.email_address')
+            ?? data_get($candidate, 'employee.emailAddress')
+            ?? data_get($candidate, 'employee.mail_address')
+            ?? data_get($candidate, 'employee.email_kantor')
+            ?? data_get($candidate, 'employee.work_email')
+            ?? data_get($candidate, 'employee.userPrincipalName')
+            ?? data_get($candidate, 'employee.user_principal_name')
+            ?? data_get($candidate, 'employee.upn')
             ?? data_get($candidate, 'manager.email')
             ?? data_get($candidate, 'supervisor.email')
             ?? data_get($candidate, 'general_affair_department_head.email')
@@ -353,18 +383,55 @@ class LrtjSpaceApprovalResolverService
                 ?? $candidate['bum_name']
                 ?? $candidate['full_name']
                 ?? $candidate['display_name']
+                ?? $candidate['displayName']
+                ?? $candidate['nama']
+                ?? $candidate['nama_lengkap']
+                ?? $candidate['name_lengkap']
                 ?? data_get($candidate, 'user.name')
                 ?? data_get($candidate, 'user.full_name')
                 ?? data_get($candidate, 'user.display_name')
+                ?? data_get($candidate, 'user.displayName')
+                ?? data_get($candidate, 'user.nama')
+                ?? data_get($candidate, 'user.nama_lengkap')
                 ?? data_get($candidate, 'employee.name')
                 ?? data_get($candidate, 'employee.full_name')
                 ?? data_get($candidate, 'employee.display_name')
+                ?? data_get($candidate, 'employee.displayName')
+                ?? data_get($candidate, 'employee.nama')
+                ?? data_get($candidate, 'employee.nama_lengkap')
                 ?? data_get($candidate, 'manager.name')
                 ?? data_get($candidate, 'supervisor.name')
                 ?? data_get($candidate, 'general_affair_department_head.name')
                 ?? data_get($candidate, 'bum.name')
                 ?? $email,
         ];
+    }
+
+    private function responseShape(array $response): array
+    {
+        $shape = [];
+        $this->collectResponseShape($response, $shape);
+
+        return array_slice(array_values(array_unique($shape)), 0, 80);
+    }
+
+    private function collectResponseShape(mixed $node, array &$shape, string $path = ''): void
+    {
+        if (! is_array($node)) {
+            return;
+        }
+
+        foreach ($node as $key => $value) {
+            $segment = is_int($key) ? '*' : (string) $key;
+            $nextPath = $path === '' ? $segment : $path.'.'.$segment;
+
+            if (is_array($value)) {
+                $shape[] = $nextPath;
+                $this->collectResponseShape($value, $shape, $nextPath);
+            } else {
+                $shape[] = $nextPath;
+            }
+        }
     }
 
     private function findOrCreateApprover(array $approver): User
