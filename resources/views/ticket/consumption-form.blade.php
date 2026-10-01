@@ -72,14 +72,18 @@
         }
 
         try {
-            $svg = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')->size(76)->margin(0)->generate($value);
+            $svg = \SimpleSoftwareIO\QrCode\Facades\QrCode::format('svg')
+                ->size(132)
+                ->margin(2)
+                ->errorCorrection('H')
+                ->generate($value);
         } catch (\Throwable $e) {
             return null;
         }
 
         return 'data:image/svg+xml;base64,'.base64_encode($svg);
     };
-    $signatureQrImage = fn ($signature) => $signatureQrUrl($signature) ?: $signatureQrInline($signature);
+    $signatureQrImage = fn ($signature) => $signatureQrInline($signature) ?: $signatureQrUrl($signature);
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -295,7 +299,7 @@
         }
 
         .sign-space {
-            height: 78px;
+            height: 108px;
             text-align: center;
         }
 
@@ -309,19 +313,19 @@
         .signature-qr-frame {
             position: relative;
             display: inline-flex;
-            width: 72px;
-            height: 72px;
+            width: 94px;
+            height: 94px;
             align-items: center;
             justify-content: center;
             background: #fff;
             border: 1px solid #e4c693;
             border-radius: 6px;
-            padding: 4px;
+            padding: 5px;
         }
 
         .signature-qr {
-            width: 62px;
-            height: 62px;
+            width: 82px;
+            height: 82px;
             display: block;
             object-fit: contain;
         }
@@ -330,20 +334,20 @@
             position: absolute;
             left: 50%;
             top: 50%;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             transform: translate(-50%, -50%);
             display: inline-flex;
             align-items: center;
             justify-content: center;
             background: #fff;
             border-radius: 999px;
-            box-shadow: 0 0 0 2px #fff;
+            box-shadow: 0 0 0 3px #fff;
         }
 
         .signature-qr-logo img {
-            max-width: 19px;
-            max-height: 15px;
+            max-width: 15px;
+            max-height: 12px;
             display: block;
         }
 

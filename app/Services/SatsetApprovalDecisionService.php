@@ -44,7 +44,9 @@ class SatsetApprovalDecisionService
             }
         }
 
-        return DB::transaction(function () use ($ticket, $approval, $actor, $normalizedStatus, $comment, $source, $externalReferenceId, $portalSignature, $bumApprover) {
+        $bumApproverReassigned = false;
+
+        return DB::transaction(function () use ($ticket, $approval, $actor, $normalizedStatus, $comment, $source, $externalReferenceId, $portalSignature, $bumApprover, &$bumApproverReassigned) {
             $lockedApproval = Approval::query()
                 ->whereKey($approval->id)
                 ->lockForUpdate()
@@ -109,11 +111,12 @@ class SatsetApprovalDecisionService
                     'status' => 'Pending',
                 ]);
 
-                if (! $bumApproval->wasRecentlyCreated && strtolower((string) $bumApproval->status) === 'pending' && (int) $bumApproval->approver_id !== (int) $bumApprover->id) {
+                if (! $bumApproval->wasRecentlyCreated && trim(strtolower((string) $bumApproval->status)) === 'pending' && (string) $bumApproval->approver_id !== (string) $bumApprover->id) {
                     $bumApproval->update(['approver_id' => $bumApprover->id]);
+                    $bumApproverReassigned = true;
                 }
 
-                if ($bumApproval->wasRecentlyCreated) {
+                if ($bumApproval->wasRecentlyCreated || $bumApproverReassigned) {
                     $this->notifications->notifyApprovalRequested($freshTicket, $bumApproval);
                 }
             }

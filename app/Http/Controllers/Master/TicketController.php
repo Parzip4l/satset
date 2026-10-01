@@ -1633,6 +1633,8 @@ class TicketController extends Controller
             'status',
         ]);
 
+        $this->ensureRequesterSignature($ticket);
+
         $managerApproval = $ticket->approvals
             ->sortBy('level')
             ->first(fn ($approval) => in_array(strtolower((string) $approval->status), ['approved', 'pending'], true))
@@ -1721,6 +1723,29 @@ class TicketController extends Controller
         $payload = $ticket->payload ?? [];
         $payload['portal_signatures']['requester'] = $signature;
         $ticket->update(['payload' => $payload]);
+    }
+
+    private function ensureRequesterSignature(Ticket $ticket): void
+    {
+        if (filled(data_get($ticket->payload, 'portal_signatures.requester'))) {
+            return;
+        }
+
+        $requester = $ticket->requester;
+        if (! $requester) {
+            return;
+        }
+
+        $this->attachRequesterSignature($ticket, $requester);
+        $ticket->refresh();
+        $ticket->loadMissing([
+            'requester.division',
+            'department.division',
+            'assignedDepartment.division',
+            'approvals.approver',
+            'histories.user',
+            'status',
+        ]);
     }
 
     private function mobileNotifications(): LrtjSpaceMobileNotificationService
