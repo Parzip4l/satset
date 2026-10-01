@@ -260,6 +260,55 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         $this->assertSame('Rifaldi Lizarwan', $approver->name);
     }
 
+    public function test_consumption_bum_approver_finds_user_from_bum_context_in_recursive_response(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'steps' => [
+                        ['approver' => ['email' => 'manager@lrtjakarta.co.id', 'name' => 'Manager LRTJ']],
+                    ],
+                    'userGroups' => [
+                        [
+                            'code' => 'BUM',
+                            'name' => 'BUM',
+                            'members' => [
+                                [
+                                    'user_id' => 'portal-rifaldi',
+                                    'email_address' => 'rifaldi.lizarwan@lrtjakarta.co.id',
+                                    'display_name' => 'Rifaldi Lizarwan',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveConsumptionBumApprover($this->ticket('consumption', 0));
+
+        $this->assertSame('rifaldi.lizarwan@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('Rifaldi Lizarwan', $approver->name);
+    }
+
+    public function test_consumption_bum_approver_does_not_fallback_to_manager_step(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'steps' => [
+                        ['approver' => ['email' => 'manager@lrtjakarta.co.id', 'name' => 'Manager LRTJ']],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Data approver Bagian Umum dari Portal belum lengkap');
+
+        app(LrtjSpaceApprovalResolverService::class)->resolveConsumptionBumApprover($this->ticket('consumption', 0));
+    }
+
     public function test_throws_clear_validation_error_when_steps_are_missing(): void
     {
         Http::fake([

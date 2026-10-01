@@ -54,7 +54,7 @@ class LrtjSpaceApprovalResolverService
                 'fallback_user_group' => $group,
             ],
         ]);
-        $approver = $this->extractApprover($response, true);
+        $approver = $this->extractBumApprover($response, $position, $group);
 
         if (! is_array($approver) || empty($approver['email'])) {
             Log::warning('LRTJ Space approval resolver response missing BUM approver.', [
@@ -177,7 +177,7 @@ class LrtjSpaceApprovalResolverService
         return 0.0;
     }
 
-    private function extractApprover(array $response, bool $preferBumCandidates = false): ?array
+    private function extractBumApprover(array $response, string $position, string $group): ?array
     {
         $bumCandidates = [
             data_get($response, 'data.bum_approver'),
@@ -207,6 +207,18 @@ class LrtjSpaceApprovalResolverService
             data_get($response, 'groups.0.members.0'),
         ];
 
+        foreach ($bumCandidates as $candidate) {
+            $approver = $this->normalizeApprover($candidate);
+            if ($approver) {
+                return $approver;
+            }
+        }
+
+        return $this->findApproverByBumContext($response, $position, $group);
+    }
+
+    private function extractApprover(array $response): ?array
+    {
         $genericCandidates = [
             data_get($response, 'data.steps.0.approver'),
             data_get($response, 'data.approver'),
@@ -224,78 +236,135 @@ class LrtjSpaceApprovalResolverService
             data_get($response, 'data.steps.0'),
         ];
 
-        $candidates = $preferBumCandidates
-            ? array_merge($bumCandidates, $genericCandidates)
-            : array_merge($genericCandidates, $bumCandidates);
-
-        foreach ($candidates as $candidate) {
-            if (! is_array($candidate)) {
-                continue;
+        foreach ($genericCandidates as $candidate) {
+            $approver = $this->normalizeApprover($candidate);
+            if ($approver) {
+                return $approver;
             }
-
-            $email = $candidate['email']
-                ?? $candidate['mail']
-                ?? $candidate['email_address']
-                ?? $candidate['approver_email']
-                ?? $candidate['manager_email']
-                ?? $candidate['supervisor_email']
-                ?? $candidate['department_head_email']
-                ?? $candidate['general_affair_department_head_email']
-                ?? $candidate['bum_email']
-                ?? data_get($candidate, 'user.email')
-                ?? data_get($candidate, 'user.mail')
-                ?? data_get($candidate, 'employee.email')
-                ?? data_get($candidate, 'employee.mail')
-                ?? data_get($candidate, 'manager.email')
-                ?? data_get($candidate, 'supervisor.email')
-                ?? data_get($candidate, 'general_affair_department_head.email')
-                ?? data_get($candidate, 'bum.email');
-
-            if (! $email) {
-                continue;
-            }
-
-            return [
-                'id' => $candidate['id']
-                    ?? $candidate['approver_id']
-                    ?? $candidate['manager_id']
-                    ?? $candidate['supervisor_id']
-                    ?? $candidate['department_head_id']
-                    ?? $candidate['general_affair_department_head_id']
-                    ?? $candidate['bum_id']
-                    ?? $candidate['user_id']
-                    ?? $candidate['employee_id']
-                    ?? data_get($candidate, 'user.id')
-                    ?? data_get($candidate, 'user.user_id')
-                    ?? data_get($candidate, 'employee.id')
-                    ?? data_get($candidate, 'employee.user_id')
-                    ?? data_get($candidate, 'general_affair_department_head.id')
-                    ?? data_get($candidate, 'bum.id'),
-                'email' => $email,
-                'name' => $candidate['name']
-                    ?? $candidate['approver_name']
-                    ?? $candidate['manager_name']
-                    ?? $candidate['supervisor_name']
-                    ?? $candidate['department_head_name']
-                    ?? $candidate['general_affair_department_head_name']
-                    ?? $candidate['bum_name']
-                    ?? $candidate['full_name']
-                    ?? $candidate['display_name']
-                    ?? data_get($candidate, 'user.name')
-                    ?? data_get($candidate, 'user.full_name')
-                    ?? data_get($candidate, 'user.display_name')
-                    ?? data_get($candidate, 'employee.name')
-                    ?? data_get($candidate, 'employee.full_name')
-                    ?? data_get($candidate, 'employee.display_name')
-                    ?? data_get($candidate, 'manager.name')
-                    ?? data_get($candidate, 'supervisor.name')
-                    ?? data_get($candidate, 'general_affair_department_head.name')
-                    ?? data_get($candidate, 'bum.name')
-                    ?? $email,
-            ];
         }
 
         return null;
+    }
+
+    private function findApproverByBumContext(mixed $node, string $position, string $group, bool $contextMatches = false): ?array
+    {
+        if (! is_array($node)) {
+            return null;
+        }
+
+        $contextMatches = $contextMatches || $this->matchesBumContext($node, $position, $group);
+        $approver = $this->normalizeApprover($node);
+        if ($contextMatches && $approver) {
+            return $approver;
+        }
+
+        foreach ($node as $child) {
+            $approver = $this->findApproverByBumContext($child, $position, $group, $contextMatches);
+            if ($approver) {
+                return $approver;
+            }
+        }
+
+        return null;
+    }
+
+    private function matchesBumContext(array $candidate, string $position, string $group): bool
+    {
+        $needles = array_filter([
+            Str::lower($position),
+            Str::lower($group),
+            'general affair department head',
+            'general affairs department head',
+            'bagian umum',
+        ]);
+
+        foreach ($candidate as $key => $value) {
+            if (is_array($value)) {
+                continue;
+            }
+
+            $key = Str::lower((string) $key);
+            if (! Str::contains($key, ['group', 'jabatan', 'position', 'title', 'role', 'code', 'department', 'name'])) {
+                continue;
+            }
+
+            $haystack = Str::lower((string) $value);
+            foreach ($needles as $needle) {
+                if ($needle !== '' && Str::contains($haystack, $needle)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeApprover(mixed $candidate): ?array
+    {
+        if (! is_array($candidate)) {
+            return null;
+        }
+
+        $email = $candidate['email']
+            ?? $candidate['mail']
+            ?? $candidate['email_address']
+            ?? $candidate['approver_email']
+            ?? $candidate['manager_email']
+            ?? $candidate['supervisor_email']
+            ?? $candidate['department_head_email']
+            ?? $candidate['general_affair_department_head_email']
+            ?? $candidate['bum_email']
+            ?? data_get($candidate, 'user.email')
+            ?? data_get($candidate, 'user.mail')
+            ?? data_get($candidate, 'employee.email')
+            ?? data_get($candidate, 'employee.mail')
+            ?? data_get($candidate, 'manager.email')
+            ?? data_get($candidate, 'supervisor.email')
+            ?? data_get($candidate, 'general_affair_department_head.email')
+            ?? data_get($candidate, 'bum.email');
+
+        if (! $email) {
+            return null;
+        }
+
+        return [
+            'id' => $candidate['id']
+                ?? $candidate['approver_id']
+                ?? $candidate['manager_id']
+                ?? $candidate['supervisor_id']
+                ?? $candidate['department_head_id']
+                ?? $candidate['general_affair_department_head_id']
+                ?? $candidate['bum_id']
+                ?? $candidate['user_id']
+                ?? $candidate['employee_id']
+                ?? data_get($candidate, 'user.id')
+                ?? data_get($candidate, 'user.user_id')
+                ?? data_get($candidate, 'employee.id')
+                ?? data_get($candidate, 'employee.user_id')
+                ?? data_get($candidate, 'general_affair_department_head.id')
+                ?? data_get($candidate, 'bum.id'),
+            'email' => $email,
+            'name' => $candidate['name']
+                ?? $candidate['approver_name']
+                ?? $candidate['manager_name']
+                ?? $candidate['supervisor_name']
+                ?? $candidate['department_head_name']
+                ?? $candidate['general_affair_department_head_name']
+                ?? $candidate['bum_name']
+                ?? $candidate['full_name']
+                ?? $candidate['display_name']
+                ?? data_get($candidate, 'user.name')
+                ?? data_get($candidate, 'user.full_name')
+                ?? data_get($candidate, 'user.display_name')
+                ?? data_get($candidate, 'employee.name')
+                ?? data_get($candidate, 'employee.full_name')
+                ?? data_get($candidate, 'employee.display_name')
+                ?? data_get($candidate, 'manager.name')
+                ?? data_get($candidate, 'supervisor.name')
+                ?? data_get($candidate, 'general_affair_department_head.name')
+                ?? data_get($candidate, 'bum.name')
+                ?? $email,
+        ];
     }
 
     private function findOrCreateApprover(array $approver): User
