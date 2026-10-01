@@ -24,6 +24,7 @@ use App\Models\User;
 use App\Services\ConsumableStockService;
 use App\Services\LrtjSpaceApprovalResolverService;
 use App\Services\LrtjSpaceMobileNotificationService;
+use App\Services\LrtjSpacePortalSignatureService;
 use App\Services\SatsetApprovalDecisionService;
 use App\Support\GaAccess;
 use Carbon\Carbon;
@@ -848,6 +849,8 @@ class TicketController extends Controller
                 'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).' - Public)',
             ]);
 
+            $this->attachRequesterSignature($ticket, $requester);
+
             if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                 $this->createManagerApproval($ticket);
             }
@@ -1112,6 +1115,8 @@ class TicketController extends Controller
                 'status_id' => $ticket->status_id,
                 'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).')',
             ]);
+
+            $this->attachRequesterSignature($ticket, auth()->user());
 
             if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                 $this->createManagerApproval($ticket);
@@ -1700,6 +1705,18 @@ class TicketController extends Controller
         if ($approval->wasRecentlyCreated) {
             $this->mobileNotifications()->notifyApprovalRequested($ticket, $approval);
         }
+    }
+
+    private function attachRequesterSignature(Ticket $ticket, User $requester): void
+    {
+        $signature = app(LrtjSpacePortalSignatureService::class)->createRequesterSignature($ticket, $requester);
+        if (! $signature) {
+            return;
+        }
+
+        $payload = $ticket->payload ?? [];
+        $payload['portal_signatures']['requester'] = $signature;
+        $ticket->update(['payload' => $payload]);
     }
 
     private function mobileNotifications(): LrtjSpaceMobileNotificationService

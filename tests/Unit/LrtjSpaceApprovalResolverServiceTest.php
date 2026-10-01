@@ -177,6 +177,43 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         $this->assertSame('Gunadya Nugraha', $approver->name);
     }
 
+    public function test_resolves_consumption_bum_approver_by_position_or_group(): void
+    {
+        config([
+            'satset.approval_resolver.consumption_bum_position' => 'General Affair Department Head',
+            'satset.approval_resolver.consumption_bum_group' => 'BUM',
+        ]);
+
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'general_affair_department_head' => [
+                        'id' => 'gah-1',
+                        'email' => 'bum.head@lrtjakarta.co.id',
+                        'name' => 'BUM Head',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveConsumptionBumApprover($this->ticket('consumption', 0));
+
+        $this->assertSame('bum.head@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('BUM Head', $approver->name);
+
+        Http::assertSent(function ($request) {
+            $payload = json_decode($request->body(), true);
+
+            $this->assertSame(2, data_get($payload, 'approval_level'));
+            $this->assertSame('bum_verification', data_get($payload, 'approval_scope'));
+            $this->assertSame('General Affair Department Head', data_get($payload, 'criteria.position'));
+            $this->assertSame('BUM', data_get($payload, 'criteria.user_group'));
+            $this->assertSame('BUM', data_get($payload, 'criteria.fallback_user_group'));
+
+            return true;
+        });
+    }
+
     public function test_throws_clear_validation_error_when_steps_are_missing(): void
     {
         Http::fake([

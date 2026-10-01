@@ -39,7 +39,18 @@
     $needsOther = ! \Illuminate\Support\Str::contains($consumptionType, ['snack', 'makan siang', 'makan malam']);
     $requesterName = $text(data_get($payload, 'reporter_name'), $ticket->requester?->name ?: '-');
     $kadivName = $text($managerApproval?->approver?->name, data_get($payload, 'supervisor_name'));
+    $bumApproval = $ticket->approvals
+        ->sortBy('level')
+        ->first(fn ($approval) => (int) $approval->level === 2);
     $bumOfficer = $text(data_get($payload, 'bum_officer_name'), $closedHistory?->user?->name ?: 'Bagian Umum');
+    $requesterSignature = data_get($payload, 'portal_signatures.requester', []);
+    $signatureQrUrl = function ($signature) {
+        if (! $signature) {
+            return null;
+        }
+
+        return data_get($signature, 'portal_qr_url');
+    };
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -256,6 +267,7 @@
 
         .sign-space {
             height: 78px;
+            text-align: center;
         }
 
         .sign-name {
@@ -263,6 +275,18 @@
             text-align: center;
             font-size: 14px;
             font-weight: 700;
+        }
+
+        .signature-qr {
+            max-width: 68px;
+            max-height: 68px;
+            display: inline-block;
+        }
+
+        .signature-placeholder {
+            color: #777;
+            font-size: 11px;
+            line-height: 1.2;
         }
 
         @media print {
@@ -398,9 +422,27 @@
                 <td class="sign-role">BAGIAN UMUM</td>
             </tr>
             <tr>
-                <td class="sign-space"></td>
-                <td class="sign-space"></td>
-                <td class="sign-space"></td>
+                <td class="sign-space">
+                    @if($signatureQrUrl($requesterSignature))
+                        <img class="signature-qr" src="{{ $signatureQrUrl($requesterSignature) }}" alt="QR Portal Pemohon">
+                    @else
+                        <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
+                    @endif
+                </td>
+                <td class="sign-space">
+                    @if($signatureQrUrl($managerApproval))
+                        <img class="signature-qr" src="{{ $signatureQrUrl($managerApproval) }}" alt="QR Portal Kadiv Pemohon">
+                    @else
+                        <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
+                    @endif
+                </td>
+                <td class="sign-space">
+                    @if($signatureQrUrl($bumApproval))
+                        <img class="signature-qr" src="{{ $signatureQrUrl($bumApproval) }}" alt="QR Portal Bagian Umum">
+                    @else
+                        <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
+                    @endif
+                </td>
             </tr>
             <tr>
                 <td class="sign-name">{{ $requesterName }}</td>

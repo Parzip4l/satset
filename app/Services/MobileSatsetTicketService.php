@@ -39,6 +39,7 @@ class MobileSatsetTicketService
         private readonly LrtjSpaceMobileNotificationService $notifications,
         private readonly LrtjSpaceApprovalResolverService $approvalResolver,
         private readonly SatsetApprovalDecisionService $approvalDecisions,
+        private readonly LrtjSpacePortalSignatureService $portalSignatures,
     ) {}
 
     public function bootstrap(User $user): array
@@ -122,6 +123,8 @@ class MobileSatsetTicketService
                 'status_id' => $ticket->status_id,
                 'action' => 'Ticket dibuat dari LRTJ Space Mobile ('.$this->getRequestTypeLabel($requestType).')',
             ]);
+
+            $this->attachRequesterSignature($ticket, $user);
 
             if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                 $this->createManagerApproval($ticket);
@@ -292,6 +295,18 @@ class MobileSatsetTicketService
                 $this->storeAttachment($user, $ticket, $request->file($field), $type);
             }
         }
+    }
+
+    private function attachRequesterSignature(Ticket $ticket, User $requester): void
+    {
+        $signature = $this->portalSignatures->createRequesterSignature($ticket, $requester);
+        if (! $signature) {
+            return;
+        }
+
+        $payload = $ticket->payload ?? [];
+        $payload['portal_signatures']['requester'] = $signature;
+        $ticket->update(['payload' => $payload]);
     }
 
     private function assignedDepartment(int $categoryId, string $requestType): ?Department

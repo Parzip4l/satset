@@ -40,14 +40,52 @@ class LrtjSpaceApprovalResolverService
         return $this->findOrCreateApprover($approver);
     }
 
-    private function resolve(Ticket $ticket): array
+    public function resolveConsumptionBumApprover(Ticket $ticket): User
+    {
+        $position = (string) config('satset.approval_resolver.consumption_bum_position', 'General Affair Department Head');
+        $group = (string) config('satset.approval_resolver.consumption_bum_group', 'BUM');
+
+        $response = $this->resolve($ticket, [
+            'approval_level' => 2,
+            'approval_scope' => 'bum_verification',
+            'criteria' => [
+                'position' => $position,
+                'user_group' => $group,
+                'fallback_user_group' => $group,
+            ],
+        ]);
+        $approver = $this->extractApprover($response);
+
+        if (! is_array($approver) || empty($approver['email'])) {
+            Log::warning('LRTJ Space approval resolver response missing BUM approver.', [
+                'ticket_id' => $ticket->id,
+                'ticket_no' => $ticket->ticket_no,
+                'position' => $position,
+                'user_group' => $group,
+                'response_keys' => array_keys($response),
+                'data_keys' => is_array($response['data'] ?? null) ? array_keys($response['data']) : null,
+            ]);
+
+            $portalMessage = trim((string) data_get($response, 'message', ''));
+            $message = 'Data approver Bagian Umum dari Portal belum lengkap untuk '.$ticket->ticket_no.'. Portal harus mengirim email user dengan jabatan '.$position.' atau user group '.$group.'.';
+            if ($portalMessage !== '' && ! str_contains(strtolower($portalMessage), 'success')) {
+                $message .= ' Pesan Portal: '.$portalMessage;
+            }
+
+            $this->fail($message);
+        }
+
+        return $this->findOrCreateApprover($approver);
+    }
+
+    private function resolve(Ticket $ticket, array $extraPayload = []): array
     {
         $secret = (string) config('satset.approval_resolver.shared_secret');
         if ($secret === '') {
             $this->fail('Shared secret approval resolver belum dikonfigurasi.');
         }
 
-        $payload = $this->payload($ticket);
+        $payload = array_replace_recursive($this->payload($ticket), $extraPayload);
         $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if ($body === false) {
             $this->fail('Payload approval resolver gagal dibuat.');
@@ -143,6 +181,14 @@ class LrtjSpaceApprovalResolverService
     {
         $candidates = [
             data_get($response, 'data.steps.0.approver'),
+            data_get($response, 'data.bum_approver'),
+            data_get($response, 'bum_approver'),
+            data_get($response, 'data.general_affair_department_head'),
+            data_get($response, 'general_affair_department_head'),
+            data_get($response, 'data.user_group_members.0'),
+            data_get($response, 'user_group_members.0'),
+            data_get($response, 'data.group_members.0'),
+            data_get($response, 'group_members.0'),
             data_get($response, 'data.approver'),
             data_get($response, 'approver'),
             data_get($response, 'data.manager'),
@@ -168,10 +214,14 @@ class LrtjSpaceApprovalResolverService
                 ?? $candidate['manager_email']
                 ?? $candidate['supervisor_email']
                 ?? $candidate['department_head_email']
+                ?? $candidate['general_affair_department_head_email']
+                ?? $candidate['bum_email']
                 ?? data_get($candidate, 'user.email')
                 ?? data_get($candidate, 'employee.email')
                 ?? data_get($candidate, 'manager.email')
-                ?? data_get($candidate, 'supervisor.email');
+                ?? data_get($candidate, 'supervisor.email')
+                ?? data_get($candidate, 'general_affair_department_head.email')
+                ?? data_get($candidate, 'bum.email');
 
             if (! $email) {
                 continue;
@@ -182,20 +232,29 @@ class LrtjSpaceApprovalResolverService
                     ?? $candidate['approver_id']
                     ?? $candidate['manager_id']
                     ?? $candidate['supervisor_id']
+                    ?? $candidate['department_head_id']
+                    ?? $candidate['general_affair_department_head_id']
+                    ?? $candidate['bum_id']
                     ?? $candidate['user_id']
                     ?? data_get($candidate, 'user.id')
-                    ?? data_get($candidate, 'employee.id'),
+                    ?? data_get($candidate, 'employee.id')
+                    ?? data_get($candidate, 'general_affair_department_head.id')
+                    ?? data_get($candidate, 'bum.id'),
                 'email' => $email,
                 'name' => $candidate['name']
                     ?? $candidate['approver_name']
                     ?? $candidate['manager_name']
                     ?? $candidate['supervisor_name']
                     ?? $candidate['department_head_name']
+                    ?? $candidate['general_affair_department_head_name']
+                    ?? $candidate['bum_name']
                     ?? $candidate['full_name']
                     ?? data_get($candidate, 'user.name')
                     ?? data_get($candidate, 'employee.name')
                     ?? data_get($candidate, 'manager.name')
                     ?? data_get($candidate, 'supervisor.name')
+                    ?? data_get($candidate, 'general_affair_department_head.name')
+                    ?? data_get($candidate, 'bum.name')
                     ?? $email,
             ];
         }

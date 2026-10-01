@@ -10,7 +10,26 @@ class Approval extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['request_id', 'approver_id', 'status', 'note', 'notes', 'level', 'decided_at', 'last_action_source', 'portal_reference_id'];
+    protected $fillable = [
+        'request_id',
+        'approver_id',
+        'status',
+        'note',
+        'notes',
+        'level',
+        'decided_at',
+        'last_action_source',
+        'portal_reference_id',
+        'portal_signature_id',
+        'portal_signature_url',
+        'portal_qr_url',
+        'portal_qr_payload',
+    ];
+
+    protected $casts = [
+        'portal_qr_payload' => 'array',
+        'decided_at' => 'datetime',
+    ];
 
     public function request()
     {

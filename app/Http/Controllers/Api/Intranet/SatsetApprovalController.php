@@ -7,6 +7,7 @@ use App\Models\Master\Approval;
 use App\Models\Master\ApprovalAudit;
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Services\LrtjSpacePortalSignatureService;
 use App\Services\MobileSatsetTicketService;
 use App\Services\SatsetApprovalDecisionService;
 use Illuminate\Http\JsonResponse;
@@ -72,6 +73,11 @@ class SatsetApprovalController extends Controller
             'approver.id' => 'nullable',
             'approver.email' => 'required|email|max:255',
             'approver.name' => 'nullable|string|max:255',
+            'portal_signature_id' => 'nullable|string|max:120',
+            'portal_signature_url' => 'nullable|url|max:2048',
+            'portal_qr_url' => 'nullable|url|max:2048',
+            'portal_qr_payload' => 'nullable',
+            'signature' => 'nullable|array',
         ]);
 
         $approval->load(['request', 'approver']);
@@ -90,6 +96,7 @@ class SatsetApprovalController extends Controller
             $validated['comment'] ?? null,
             'portal_intranet',
             $validated['portal_reference_id'] ?? null,
+            app(LrtjSpacePortalSignatureService::class)->normalizeSignature($validated),
         );
 
         $freshApproval = Approval::with(['request.requester', 'request.status', 'approver', 'audits'])->findOrFail($approval->id);
@@ -149,6 +156,10 @@ class SatsetApprovalController extends Controller
             'decided_at' => optional($approval->decided_at)->toIso8601String(),
             'last_action_source' => $approval->last_action_source,
             'portal_reference_id' => $approval->portal_reference_id,
+            'portal_signature_id' => $approval->portal_signature_id,
+            'portal_signature_url' => $approval->portal_signature_url,
+            'portal_qr_url' => $approval->portal_qr_url,
+            'portal_qr_payload' => $approval->portal_qr_payload,
             'request_type' => data_get($ticket?->payload, 'request_type'),
             'amount' => $ticket ? $this->amount($ticket) : 0,
             'ticket' => $ticket ? [

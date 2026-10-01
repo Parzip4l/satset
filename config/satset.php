@@ -22,6 +22,16 @@ return [
         'shared_secret' => env('LRTJ_SPACE_SATSET_SHARED_SECRET'),
         'timeout' => (int) env('LRTJ_SPACE_APPROVAL_RESOLVER_TIMEOUT', 15),
         'verify_ssl' => filter_var(env('LRTJ_SPACE_APPROVAL_RESOLVER_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+        'consumption_bum_position' => env('SATSET_CONSUMPTION_BUM_POSITION', 'General Affair Department Head'),
+        'consumption_bum_group' => env('SATSET_CONSUMPTION_BUM_GROUP', 'BUM'),
+    ],
+
+    'portal_signatures' => [
+        'base_url' => rtrim(env('LRTJ_SPACE_BASE_URL', 'https://portal.lrtjakarta.co.id'), '/'),
+        'endpoint' => env('LRTJ_SPACE_SIGNATURE_ENDPOINT', '/api/v1/signatures'),
+        'shared_secret' => env('LRTJ_SPACE_SATSET_SHARED_SECRET'),
+        'timeout' => (int) env('LRTJ_SPACE_SIGNATURE_TIMEOUT', 15),
+        'verify_ssl' => filter_var(env('LRTJ_SPACE_SIGNATURE_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
     'intranet_api' => [

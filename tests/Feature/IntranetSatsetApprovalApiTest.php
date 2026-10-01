@@ -74,6 +74,10 @@ class IntranetSatsetApprovalApiTest extends TestCase
             $table->text('notes')->nullable();
             $table->string('last_action_source', 40)->nullable();
             $table->string('portal_reference_id', 120)->nullable();
+            $table->string('portal_signature_id', 120)->nullable();
+            $table->string('portal_signature_url', 2048)->nullable();
+            $table->string('portal_qr_url', 2048)->nullable();
+            $table->json('portal_qr_payload')->nullable();
             $table->timestamps();
         });
 
@@ -175,6 +179,9 @@ class IntranetSatsetApprovalApiTest extends TestCase
             'status' => 'approved',
             'comment' => 'Approved from portal',
             'portal_reference_id' => 'PORTAL-APP-1',
+            'portal_signature_id' => 'SIG-KADIV-1',
+            'portal_signature_url' => 'https://portal.test/signatures/SIG-KADIV-1',
+            'portal_qr_url' => 'https://portal.test/signatures/SIG-KADIV-1/qr.png',
             'approver' => [
                 'email' => 'manager@lrtjakarta.co.id',
                 'name' => 'Manager Portal',
@@ -184,6 +191,9 @@ class IntranetSatsetApprovalApiTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.status', 'approved')
             ->assertJsonPath('data.last_action_source', 'portal_intranet')
+            ->assertJsonPath('data.portal_signature_id', 'SIG-KADIV-1')
+            ->assertJsonPath('data.portal_signature_url', 'https://portal.test/signatures/SIG-KADIV-1')
+            ->assertJsonPath('data.portal_qr_url', 'https://portal.test/signatures/SIG-KADIV-1/qr.png')
             ->assertJsonPath('ticket.workflow_status', 'WAITING_BUM_REVIEW');
 
         $this->assertDatabaseHas('approvals', [
@@ -191,6 +201,9 @@ class IntranetSatsetApprovalApiTest extends TestCase
             'status' => 'approved',
             'last_action_source' => 'portal_intranet',
             'portal_reference_id' => 'PORTAL-APP-1',
+            'portal_signature_id' => 'SIG-KADIV-1',
+            'portal_signature_url' => 'https://portal.test/signatures/SIG-KADIV-1',
+            'portal_qr_url' => 'https://portal.test/signatures/SIG-KADIV-1/qr.png',
         ]);
         $this->assertDatabaseHas('approval_audits', [
             'approval_id' => $approval->id,
@@ -221,6 +234,86 @@ class IntranetSatsetApprovalApiTest extends TestCase
         });
     }
 
+    public function test_consumption_manager_approval_creates_bum_level_two_approval_from_portal(): void
+    {
+        config([
+            'satset.approval_resolver.base_url' => 'https://space.test',
+            'satset.approval_resolver.endpoint' => '/api/v1/approval/resolve',
+            'satset.approval_resolver.shared_secret' => 'resolver-secret',
+            'satset.approval_resolver.verify_ssl' => true,
+            'satset.approval_resolver.consumption_bum_position' => 'General Affair Department Head',
+            'satset.approval_resolver.consumption_bum_group' => 'BUM',
+        ]);
+
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'user_group_members' => [
+                        [
+                            'user_id' => 'bum-1',
+                            'email' => 'bum.head@lrtjakarta.co.id',
+                            'full_name' => 'BUM Head',
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approval = $this->approvalFixture('consumption');
+
+        $this->signedCall('POST', "/api/intranet/v1/satset/approvals/{$approval->id}/decision", [
+            'status' => 'approved',
+            'comment' => 'Kadiv approved',
+            'portal_reference_id' => 'PORTAL-KADIV-1',
+            'approver' => [
+                'email' => 'manager@lrtjakarta.co.id',
+                'name' => 'Manager Portal',
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('ticket.workflow_status', 'WAITING_BUM_VERIFICATION');
+
+        $bumApprover = User::where('email', 'bum.head@lrtjakarta.co.id')->firstOrFail();
+
+        $this->assertDatabaseHas('approvals', [
+            'request_id' => $approval->request_id,
+            'approver_id' => $bumApprover->id,
+            'level' => 2,
+            'status' => 'Pending',
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $bumApprover->id,
+            'title' => 'Approval SatSet menunggu Anda',
+            'is_read' => false,
+        ]);
+
+        Http::assertSent(function ($request) {
+            $payload = json_decode($request->body(), true);
+
+            return $request->url() === 'https://space.test/api/v1/approval/resolve'
+                && data_get($payload, 'approval_level') === 2
+                && data_get($payload, 'approval_scope') === 'bum_verification'
+                && data_get($payload, 'criteria.position') === 'General Affair Department Head'
+                && data_get($payload, 'criteria.user_group') === 'BUM';
+        });
+    }
+
+    public function test_consumption_bum_level_two_decision_marks_bum_result(): void
+    {
+        $approval = $this->approvalFixture('consumption', 2, 'bum.head@lrtjakarta.co.id');
+
+        $this->signedCall('POST', "/api/intranet/v1/satset/approvals/{$approval->id}/decision", [
+            'status' => 'approved',
+            'portal_reference_id' => 'PORTAL-BUM-1',
+            'approver' => [
+                'email' => 'bum.head@lrtjakarta.co.id',
+                'name' => 'BUM Head',
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('ticket.workflow_status', 'APPROVED_BY_BUM');
+    }
+
     public function test_portal_cannot_process_approval_twice(): void
     {
         $approval = $this->approvalFixture();
@@ -245,7 +338,7 @@ class IntranetSatsetApprovalApiTest extends TestCase
         ])->assertUnauthorized();
     }
 
-    private function approvalFixture(): Approval
+    private function approvalFixture(string $requestType = 'atk_rtk', int $level = 1, string $approverEmail = 'manager@lrtjakarta.co.id'): Approval
     {
         $requester = User::forceCreate([
             'name' => 'Requester',
@@ -253,8 +346,8 @@ class IntranetSatsetApprovalApiTest extends TestCase
             'password' => 'secret',
         ]);
         $approver = User::forceCreate([
-            'name' => 'Manager',
-            'email' => 'manager@lrtjakarta.co.id',
+            'name' => $approverEmail === 'manager@lrtjakarta.co.id' ? 'Manager' : 'BUM Head',
+            'email' => $approverEmail,
             'password' => 'secret',
             'role' => 'approver',
         ]);
@@ -262,11 +355,11 @@ class IntranetSatsetApprovalApiTest extends TestCase
         $ticket = Ticket::create([
             'ticket_no' => 'TCK-ATKRTK-0001',
             'requester_id' => $requester->id,
-            'title' => 'Permintaan ATK/RTK',
+            'title' => $requestType === 'consumption' ? 'Permintaan Konsumsi' : 'Permintaan ATK/RTK',
             'description' => 'Need approval',
             'payload' => [
-                'request_type' => 'atk_rtk',
-                'workflow_status' => 'WAITING_MANAGER_APPROVAL',
+                'request_type' => $requestType,
+                'workflow_status' => $level === 1 ? 'WAITING_MANAGER_APPROVAL' : 'WAITING_BUM_VERIFICATION',
                 'total_estimated_amount' => 150000,
             ],
         ]);
@@ -274,7 +367,7 @@ class IntranetSatsetApprovalApiTest extends TestCase
         return Approval::create([
             'request_id' => $ticket->id,
             'approver_id' => $approver->id,
-            'level' => 1,
+            'level' => $level,
             'status' => 'Pending',
         ]);
     }

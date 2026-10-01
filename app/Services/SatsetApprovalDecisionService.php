@@ -11,7 +11,10 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class SatsetApprovalDecisionService
 {
-    public function __construct(private readonly LrtjSpaceMobileNotificationService $notifications) {}
+    public function __construct(
+        private readonly LrtjSpaceMobileNotificationService $notifications,
+        private readonly LrtjSpaceApprovalResolverService $approvalResolver,
+    ) {}
 
     public function decide(
         Ticket $ticket,
@@ -21,10 +24,20 @@ class SatsetApprovalDecisionService
         ?string $comment = null,
         string $source = 'satset',
         ?string $externalReferenceId = null,
+        ?array $portalSignature = null,
     ): Ticket {
         $normalizedStatus = strtolower($status);
+        $bumApprover = null;
 
-        return DB::transaction(function () use ($ticket, $approval, $actor, $normalizedStatus, $comment, $source, $externalReferenceId) {
+        if (
+            $normalizedStatus === 'approved'
+            && (int) $approval->level === 1
+            && data_get($ticket->payload, 'request_type') === 'consumption'
+        ) {
+            $bumApprover = $this->approvalResolver->resolveConsumptionBumApprover($ticket);
+        }
+
+        return DB::transaction(function () use ($ticket, $approval, $actor, $normalizedStatus, $comment, $source, $externalReferenceId, $portalSignature, $bumApprover) {
             $lockedApproval = Approval::query()
                 ->whereKey($approval->id)
                 ->lockForUpdate()
@@ -40,22 +53,55 @@ class SatsetApprovalDecisionService
 
             $freshTicket = Ticket::query()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
 
-            $lockedApproval->update([
+            $approvalUpdates = [
                 'status' => $normalizedStatus,
                 'notes' => $comment,
                 'decided_at' => now(),
                 'last_action_source' => $source,
                 'portal_reference_id' => $source === 'portal_intranet' ? $externalReferenceId : $lockedApproval->portal_reference_id,
-            ]);
+            ];
+
+            if ($source === 'portal_intranet' && $portalSignature) {
+                $approvalUpdates = array_merge($approvalUpdates, array_intersect_key($portalSignature, array_flip([
+                    'portal_signature_id',
+                    'portal_signature_url',
+                    'portal_qr_url',
+                    'portal_qr_payload',
+                ])));
+            }
+
+            $lockedApproval->update($approvalUpdates);
 
             $payload = $freshTicket->payload ?? [];
             $requestType = data_get($payload, 'request_type');
             if ($requestType === 'atk_rtk') {
                 $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'WAITING_BUM_REVIEW' : 'REJECTED_BY_MANAGER';
             } elseif ($requestType === 'consumption') {
-                $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'WAITING_BUM_VERIFICATION' : 'REJECTED_BY_MANAGER';
+                if ((int) $lockedApproval->level === 1) {
+                    $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'WAITING_BUM_VERIFICATION' : 'REJECTED_BY_MANAGER';
+                } else {
+                    $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'APPROVED_BY_BUM' : 'REJECTED_BY_BUM';
+                }
             }
             $freshTicket->update(['payload' => $payload]);
+
+            if ($requestType === 'consumption' && $normalizedStatus === 'approved' && (int) $lockedApproval->level === 1 && $bumApprover) {
+                $bumApproval = Approval::firstOrCreate([
+                    'request_id' => $freshTicket->id,
+                    'level' => 2,
+                ], [
+                    'approver_id' => $bumApprover->id,
+                    'status' => 'Pending',
+                ]);
+
+                if (! $bumApproval->wasRecentlyCreated && strtolower((string) $bumApproval->status) === 'pending' && (int) $bumApproval->approver_id !== (int) $bumApprover->id) {
+                    $bumApproval->update(['approver_id' => $bumApprover->id]);
+                }
+
+                if ($bumApproval->wasRecentlyCreated) {
+                    $this->notifications->notifyApprovalRequested($freshTicket, $bumApproval);
+                }
+            }
 
             ApprovalAudit::create([
                 'approval_id' => $lockedApproval->id,
