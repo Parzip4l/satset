@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Master\Approval;
 use App\Models\Master\ApprovalAudit;
+use App\Models\Master\Status;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -74,16 +75,24 @@ class SatsetApprovalDecisionService
 
             $payload = $freshTicket->payload ?? [];
             $requestType = data_get($payload, 'request_type');
+            $ticketStatusName = 'In Progress';
             if ($requestType === 'atk_rtk') {
                 $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'WAITING_BUM_REVIEW' : 'REJECTED_BY_MANAGER';
+                $ticketStatusName = $normalizedStatus === 'approved' ? 'In Progress' : 'Closed';
             } elseif ($requestType === 'consumption') {
                 if ((int) $lockedApproval->level === 1) {
                     $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'WAITING_BUM_VERIFICATION' : 'REJECTED_BY_MANAGER';
+                    $ticketStatusName = $normalizedStatus === 'approved' ? 'In Progress' : 'Closed';
                 } else {
                     $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'APPROVED_BY_BUM' : 'REJECTED_BY_BUM';
+                    $ticketStatusName = $normalizedStatus === 'approved' ? 'In Progress' : 'Closed';
                 }
             }
-            $freshTicket->update(['payload' => $payload]);
+            $ticketStatusId = Status::where('name', $ticketStatusName)->value('id');
+            $freshTicket->update(array_filter([
+                'payload' => $payload,
+                'status_id' => $ticketStatusId,
+            ], fn ($value) => $value !== null));
 
             if ($requestType === 'consumption' && $normalizedStatus === 'approved' && (int) $lockedApproval->level === 1 && $bumApprover) {
                 $bumApproval = Approval::firstOrCreate([

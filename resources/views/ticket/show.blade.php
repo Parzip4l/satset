@@ -498,6 +498,7 @@
                         <div class="col-12">
                             <span class="meta-label">Menunggu Approval</span>
                             <div class="border rounded-3 p-3 bg-light bg-opacity-50">
+                                <div class="text-muted small mb-1">Level {{ $pendingApproval->level }} - {{ (int) $pendingApproval->level === 2 ? 'Bagian Umum' : 'Kadiv Pemohon' }}</div>
                                 <div class="fw-bold text-dark">{{ $pendingApproval->approver->name ?? 'Approver belum tersedia' }}</div>
                                 <div class="text-muted small">{{ $pendingApproval->approver->email ?? '-' }}</div>
                                 @if($pendingApprovalIsRequester)
@@ -505,6 +506,36 @@
                                         Approver saat ini sama dengan pemohon. Periksa reporting line atau Authority Matrix SatSet di Portal.
                                     </div>
                                 @endif
+                            </div>
+                        </div>
+                        @endif
+                        @if($ticket->approvals->isNotEmpty())
+                        <div class="col-12">
+                            <span class="meta-label">Alur Approval</span>
+                            <div class="d-grid gap-2">
+                                @foreach($ticket->approvals->sortBy('level') as $approvalStep)
+                                    @php
+                                        $approvalStatus = strtolower((string) $approvalStep->status);
+                                        $approvalBadge = match ($approvalStatus) {
+                                            'approved' => 'bg-success-subtle text-success',
+                                            'rejected' => 'bg-danger-subtle text-danger',
+                                            default => 'bg-warning-subtle text-warning',
+                                        };
+                                    @endphp
+                                    <div class="border rounded-3 p-3">
+                                        <div class="d-flex justify-content-between gap-2 align-items-start">
+                                            <div>
+                                                <div class="text-muted small">Level {{ $approvalStep->level }} - {{ (int) $approvalStep->level === 2 ? 'Bagian Umum' : 'Kadiv Pemohon' }}</div>
+                                                <div class="fw-semibold text-dark">{{ $approvalStep->approver->name ?? 'Approver belum tersedia' }}</div>
+                                                <div class="text-muted small">{{ $approvalStep->approver->email ?? '-' }}</div>
+                                            </div>
+                                            <span class="badge {{ $approvalBadge }}">{{ $approvalStep->status }}</span>
+                                        </div>
+                                        @if($approvalStep->decided_at)
+                                            <div class="text-muted small mt-2">Diproses {{ $approvalStep->decided_at->format('d M Y H:i') }}</div>
+                                        @endif
+                                    </div>
+                                @endforeach
                             </div>
                         </div>
                         @endif

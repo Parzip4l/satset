@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Master\Approval;
+use App\Models\Master\Status;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
@@ -116,6 +117,10 @@ class IntranetSatsetApprovalApiTest extends TestCase
             $table->timestamps();
         });
 
+        Status::forceCreate(['id' => 1, 'name' => 'Open', 'code' => 'OPEN']);
+        Status::forceCreate(['id' => 2, 'name' => 'In Progress', 'code' => 'IN_PROGRESS']);
+        Status::forceCreate(['id' => 3, 'name' => 'Closed', 'code' => 'CLOSED']);
+
         config([
             'satset.intranet_api.shared_secret' => 'portal-secret',
             'satset.lrtj_space_notifications.enabled' => false,
@@ -194,7 +199,8 @@ class IntranetSatsetApprovalApiTest extends TestCase
             ->assertJsonPath('data.portal_signature_id', 'SIG-KADIV-1')
             ->assertJsonPath('data.portal_signature_url', 'https://portal.test/signatures/SIG-KADIV-1')
             ->assertJsonPath('data.portal_qr_url', 'https://portal.test/signatures/SIG-KADIV-1/qr.png')
-            ->assertJsonPath('ticket.workflow_status', 'WAITING_BUM_REVIEW');
+            ->assertJsonPath('ticket.workflow_status', 'WAITING_BUM_REVIEW')
+            ->assertJsonPath('ticket.status.name', 'In Progress');
 
         $this->assertDatabaseHas('approvals', [
             'id' => $approval->id,
@@ -204,6 +210,10 @@ class IntranetSatsetApprovalApiTest extends TestCase
             'portal_signature_id' => 'SIG-KADIV-1',
             'portal_signature_url' => 'https://portal.test/signatures/SIG-KADIV-1',
             'portal_qr_url' => 'https://portal.test/signatures/SIG-KADIV-1/qr.png',
+        ]);
+        $this->assertDatabaseHas('requests', [
+            'id' => $approval->request_id,
+            'status_id' => 2,
         ]);
         $this->assertDatabaseHas('approval_audits', [
             'approval_id' => $approval->id,

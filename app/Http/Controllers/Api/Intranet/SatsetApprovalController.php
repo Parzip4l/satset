@@ -109,6 +109,11 @@ class SatsetApprovalController extends Controller
                 'id' => $updated->id,
                 'ticket_no' => $updated->ticket_no,
                 'workflow_status' => data_get($updated->payload, 'workflow_status'),
+                'status' => $updated->status ? [
+                    'id' => $updated->status->id,
+                    'name' => $updated->status->name,
+                    'code' => $updated->status->code,
+                ] : null,
             ],
         ]);
     }
@@ -168,6 +173,11 @@ class SatsetApprovalController extends Controller
                 'title' => $ticket->title,
                 'description' => $ticket->description,
                 'workflow_status' => data_get($ticket->payload, 'workflow_status'),
+                'status' => $ticket->status ? [
+                    'id' => $ticket->status->id,
+                    'name' => $ticket->status->name,
+                    'code' => $ticket->status->code,
+                ] : null,
                 'created_at' => optional($ticket->created_at)->toIso8601String(),
                 'requester' => $ticket->requester ? [
                     'id' => $ticket->requester->id,

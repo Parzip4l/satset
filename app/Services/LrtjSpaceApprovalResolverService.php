@@ -54,7 +54,7 @@ class LrtjSpaceApprovalResolverService
                 'fallback_user_group' => $group,
             ],
         ]);
-        $approver = $this->extractApprover($response);
+        $approver = $this->extractApprover($response, true);
 
         if (! is_array($approver) || empty($approver['email'])) {
             Log::warning('LRTJ Space approval resolver response missing BUM approver.', [
@@ -177,10 +177,9 @@ class LrtjSpaceApprovalResolverService
         return 0.0;
     }
 
-    private function extractApprover(array $response): ?array
+    private function extractApprover(array $response, bool $preferBumCandidates = false): ?array
     {
-        $candidates = [
-            data_get($response, 'data.steps.0.approver'),
+        $bumCandidates = [
             data_get($response, 'data.bum_approver'),
             data_get($response, 'bum_approver'),
             data_get($response, 'data.general_affair_department_head'),
@@ -189,6 +188,10 @@ class LrtjSpaceApprovalResolverService
             data_get($response, 'user_group_members.0'),
             data_get($response, 'data.group_members.0'),
             data_get($response, 'group_members.0'),
+        ];
+
+        $genericCandidates = [
+            data_get($response, 'data.steps.0.approver'),
             data_get($response, 'data.approver'),
             data_get($response, 'approver'),
             data_get($response, 'data.manager'),
@@ -203,6 +206,10 @@ class LrtjSpaceApprovalResolverService
             data_get($response, 'approvers.0'),
             data_get($response, 'data.steps.0'),
         ];
+
+        $candidates = $preferBumCandidates
+            ? array_merge($bumCandidates, $genericCandidates)
+            : array_merge($genericCandidates, $bumCandidates);
 
         foreach ($candidates as $candidate) {
             if (! is_array($candidate)) {

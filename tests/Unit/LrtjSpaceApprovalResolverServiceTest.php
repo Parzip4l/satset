@@ -214,6 +214,27 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         });
     }
 
+    public function test_consumption_bum_approver_prefers_bum_candidates_over_manager_steps(): void
+    {
+        Http::fake([
+            'https://space.test/api/v1/approval/resolve' => Http::response([
+                'data' => [
+                    'steps' => [
+                        ['approver' => ['email' => 'manager@lrtjakarta.co.id', 'name' => 'Manager LRTJ']],
+                    ],
+                    'user_group_members' => [
+                        ['email' => 'ga.head@lrtjakarta.co.id', 'full_name' => 'General Affair Department Head'],
+                    ],
+                ],
+            ]),
+        ]);
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveConsumptionBumApprover($this->ticket('consumption', 0));
+
+        $this->assertSame('ga.head@lrtjakarta.co.id', $approver->email);
+        $this->assertSame('General Affair Department Head', $approver->name);
+    }
+
     public function test_throws_clear_validation_error_when_steps_are_missing(): void
     {
         Http::fake([
