@@ -849,7 +849,7 @@ class TicketController extends Controller
                 'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).' - Public)',
             ]);
 
-            $this->attachRequesterSignature($ticket, $requester);
+            $this->attachRequesterSignature($ticket, $requester, $requestType === 'consumption');
 
             if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                 $this->createManagerApproval($ticket);
@@ -1116,7 +1116,7 @@ class TicketController extends Controller
                 'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).')',
             ]);
 
-            $this->attachRequesterSignature($ticket, auth()->user());
+            $this->attachRequesterSignature($ticket, auth()->user(), $requestType === 'consumption');
 
             if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                 $this->createManagerApproval($ticket);
@@ -1713,16 +1713,24 @@ class TicketController extends Controller
         }
     }
 
-    private function attachRequesterSignature(Ticket $ticket, User $requester): void
+    private function attachRequesterSignature(Ticket $ticket, User $requester, bool $required = false): bool
     {
         $signature = app(LrtjSpacePortalSignatureService::class)->createRequesterSignature($ticket, $requester);
         if (! $signature) {
-            return;
+            if ($required) {
+                throw ValidationException::withMessages([
+                    'portal_signature' => 'QR Portal pemohon belum berhasil dibuat. Pastikan user pemohon aktif di Portal dan konfigurasi signature SatSet sudah benar.',
+                ]);
+            }
+
+            return false;
         }
 
         $payload = $ticket->payload ?? [];
         $payload['portal_signatures']['requester'] = $signature;
         $ticket->update(['payload' => $payload]);
+
+        return true;
     }
 
     private function ensureRequesterSignature(Ticket $ticket): void
@@ -1736,16 +1744,17 @@ class TicketController extends Controller
             return;
         }
 
-        $this->attachRequesterSignature($ticket, $requester);
-        $ticket->refresh();
-        $ticket->loadMissing([
-            'requester.division',
-            'department.division',
-            'assignedDepartment.division',
-            'approvals.approver',
-            'histories.user',
-            'status',
-        ]);
+        if ($this->attachRequesterSignature($ticket, $requester)) {
+            $ticket->refresh();
+            $ticket->loadMissing([
+                'requester.division',
+                'department.division',
+                'assignedDepartment.division',
+                'approvals.approver',
+                'histories.user',
+                'status',
+            ]);
+        }
     }
 
     private function mobileNotifications(): LrtjSpaceMobileNotificationService

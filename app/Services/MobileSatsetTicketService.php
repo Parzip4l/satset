@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class MobileSatsetTicketService
 {
@@ -124,7 +125,7 @@ class MobileSatsetTicketService
                 'action' => 'Ticket dibuat dari LRTJ Space Mobile ('.$this->getRequestTypeLabel($requestType).')',
             ]);
 
-            $this->attachRequesterSignature($ticket, $user);
+            $this->attachRequesterSignature($ticket, $user, $requestType === 'consumption');
 
             if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                 $this->createManagerApproval($ticket);
@@ -297,16 +298,24 @@ class MobileSatsetTicketService
         }
     }
 
-    private function attachRequesterSignature(Ticket $ticket, User $requester): void
+    private function attachRequesterSignature(Ticket $ticket, User $requester, bool $required = false): bool
     {
         $signature = $this->portalSignatures->createRequesterSignature($ticket, $requester);
         if (! $signature) {
-            return;
+            if ($required) {
+                throw ValidationException::withMessages([
+                    'portal_signature' => 'QR Portal pemohon belum berhasil dibuat. Pastikan user pemohon aktif di Portal dan konfigurasi signature SatSet sudah benar.',
+                ]);
+            }
+
+            return false;
         }
 
         $payload = $ticket->payload ?? [];
         $payload['portal_signatures']['requester'] = $signature;
         $ticket->update(['payload' => $payload]);
+
+        return true;
     }
 
     private function assignedDepartment(int $categoryId, string $requestType): ?Department
