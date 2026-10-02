@@ -85,6 +85,26 @@ class LrtjSpaceApprovalResolverService
         return $this->findOrCreateApprover($approver);
     }
 
+    public function resolveRequester(Ticket $ticket): array
+    {
+        $response = $this->resolve($ticket);
+        $requester = $this->normalizeApprover(data_get($response, 'data.requester') ?? data_get($response, 'requester'));
+
+        if (! is_array($requester) || empty($requester['email'])) {
+            Log::warning('LRTJ Space approval resolver response missing requester.', [
+                'ticket_id' => $ticket->id,
+                'ticket_no' => $ticket->ticket_no,
+                'requester_email' => $ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email'),
+                'response_keys' => array_keys($response),
+                'data_keys' => is_array($response['data'] ?? null) ? array_keys($response['data']) : null,
+            ]);
+
+            $this->fail('Data pemohon dari Portal belum lengkap untuk '.$ticket->ticket_no.'. Portal harus mengirim email pemohon yang aktif.');
+        }
+
+        return $requester;
+    }
+
     private function resolve(Ticket $ticket, array $extraPayload = []): array
     {
         $secret = (string) config('satset.approval_resolver.shared_secret');

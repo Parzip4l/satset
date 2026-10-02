@@ -12,6 +12,37 @@ class LrtjSpacePortalSignatureService
 {
     public function createRequesterSignature(Ticket $ticket, User $requester): ?array
     {
+        $signature = $this->createRequesterSignatureWithSigner($ticket, [
+            'id' => (string) $requester->id,
+            'name' => $requester->name,
+            'email' => $requester->email,
+        ]);
+
+        if ($signature) {
+            return $signature;
+        }
+
+        try {
+            $portalRequester = app(LrtjSpaceApprovalResolverService::class)->resolveRequester($ticket);
+        } catch (\Throwable $exception) {
+            Log::warning('Portal signature requester fallback resolver failed.', [
+                'message' => $exception->getMessage(),
+                'ticket_no' => $ticket->ticket_no,
+                'requester_email' => $requester->email,
+            ]);
+
+            return null;
+        }
+
+        return $this->createRequesterSignatureWithSigner($ticket, [
+            'id' => isset($portalRequester['id']) ? (string) $portalRequester['id'] : (string) $requester->id,
+            'name' => $portalRequester['name'] ?? $requester->name,
+            'email' => $portalRequester['email'] ?? $requester->email,
+        ]);
+    }
+
+    private function createRequesterSignatureWithSigner(Ticket $ticket, array $signer): ?array
+    {
         return $this->createSignature([
             'module' => 'satset',
             'signature_type' => 'requester_submission',
@@ -22,11 +53,7 @@ class LrtjSpacePortalSignatureService
                 'title' => $ticket->title,
                 'request_type' => data_get($ticket->payload, 'request_type'),
             ],
-            'signer' => [
-                'id' => (string) $requester->id,
-                'name' => $requester->name,
-                'email' => $requester->email,
-            ],
+            'signer' => $signer,
             'signed_at' => optional($ticket->created_at ?: now())->toIso8601String(),
         ]);
     }

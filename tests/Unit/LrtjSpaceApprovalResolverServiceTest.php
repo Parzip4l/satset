@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use App\Services\LrtjSpaceApprovalResolverService;
+use App\Services\LrtjSpacePortalSignatureService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -367,6 +368,70 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         $this->expectExceptionMessage('Data approver dari Portal belum lengkap');
 
         app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($this->ticket('atk_rtk', 150000));
+    }
+
+    public function test_requester_signature_retries_with_portal_resolved_requester(): void
+    {
+        config([
+            'satset.portal_signatures.base_url' => 'https://space.test',
+            'satset.portal_signatures.endpoint' => '/api/v1/signatures',
+            'satset.portal_signatures.shared_secret' => 'resolver-secret',
+            'satset.portal_signatures.verify_ssl' => true,
+        ]);
+
+        $signatureCalls = 0;
+        Http::fake(function ($request) use (&$signatureCalls) {
+            if ((string) $request->url() === 'https://space.test/api/v1/signatures') {
+                $signatureCalls++;
+
+                if ($signatureCalls === 1) {
+                    return Http::response([
+                        'message' => 'Signature SatSet tidak dapat dibuat.',
+                        'errors' => ['signer.email' => ['Signer aktif tidak ditemukan.']],
+                    ], 422);
+                }
+
+                return Http::response([
+                    'data' => [
+                        'signature' => [
+                            'portal_signature_id' => 'sig_requester_1',
+                            'portal_signature_url' => 'https://space.test/verify/document/ver_requester_1',
+                            'portal_qr_payload' => [
+                                'verification_url' => 'https://space.test/verify/document/ver_requester_1',
+                                'signer' => ['email' => 'portal.requester@lrtjakarta.co.id'],
+                            ],
+                        ],
+                    ],
+                ]);
+            }
+
+            return Http::response([
+                'data' => [
+                    'requester' => [
+                        'id' => 'portal-user-1',
+                        'email' => 'portal.requester@lrtjakarta.co.id',
+                        'name' => 'Requester Portal',
+                    ],
+                    'steps' => [],
+                ],
+            ]);
+        });
+
+        $ticket = $this->ticket('consumption', 0);
+        $signature = app(LrtjSpacePortalSignatureService::class)->createRequesterSignature($ticket, $ticket->requester);
+
+        $this->assertSame('sig_requester_1', $signature['portal_signature_id'] ?? null);
+        $this->assertSame(2, $signatureCalls);
+
+        Http::assertSent(function ($request) {
+            if ((string) $request->url() !== 'https://space.test/api/v1/signatures') {
+                return false;
+            }
+
+            $payload = json_decode($request->body(), true);
+
+            return data_get($payload, 'signer.email') === 'portal.requester@lrtjakarta.co.id';
+        });
     }
 
     private function ticket(string $requestType, float $amount): Ticket
