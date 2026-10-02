@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class LrtjSpacePortalSignatureService
 {
@@ -16,7 +17,7 @@ class LrtjSpacePortalSignatureService
             'id' => (string) $requester->id,
             'name' => $requester->name,
             'email' => $requester->email,
-        ]);
+        ], false);
 
         if ($signature) {
             return $signature;
@@ -24,6 +25,8 @@ class LrtjSpacePortalSignatureService
 
         try {
             $portalRequester = app(LrtjSpaceApprovalResolverService::class)->resolveRequester($ticket);
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             Log::warning('Portal signature requester fallback resolver failed.', [
                 'message' => $exception->getMessage(),
@@ -38,10 +41,10 @@ class LrtjSpacePortalSignatureService
             'id' => isset($portalRequester['id']) ? (string) $portalRequester['id'] : (string) $requester->id,
             'name' => $portalRequester['name'] ?? $requester->name,
             'email' => $portalRequester['email'] ?? $requester->email,
-        ]);
+        ], true);
     }
 
-    private function createRequesterSignatureWithSigner(Ticket $ticket, array $signer): ?array
+    private function createRequesterSignatureWithSigner(Ticket $ticket, array $signer, bool $throwOnFailure = false): ?array
     {
         return $this->createSignature([
             'module' => 'satset',
@@ -55,10 +58,10 @@ class LrtjSpacePortalSignatureService
             ],
             'signer' => $signer,
             'signed_at' => optional($ticket->created_at ?: now())->toIso8601String(),
-        ]);
+        ], $throwOnFailure);
     }
 
-    private function createSignature(array $payload): ?array
+    private function createSignature(array $payload, bool $throwOnFailure = false): ?array
     {
         $secret = (string) config('satset.portal_signatures.shared_secret');
         if ($secret === '') {
@@ -67,12 +70,20 @@ class LrtjSpacePortalSignatureService
                 'ticket_no' => data_get($payload, 'ticket.ticket_no'),
             ]);
 
+            if ($throwOnFailure) {
+                $this->fail('Shared secret signature Portal belum dikonfigurasi di SatSet.');
+            }
+
             return null;
         }
 
         $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if ($body === false) {
             Log::warning('Portal signature skipped because payload cannot be encoded.');
+
+            if ($throwOnFailure) {
+                $this->fail('Payload signature Portal gagal dibuat.');
+            }
 
             return null;
         }
@@ -101,15 +112,26 @@ class LrtjSpacePortalSignatureService
                 'ticket_no' => data_get($payload, 'ticket.ticket_no'),
             ]);
 
+            if ($throwOnFailure) {
+                $this->fail('Endpoint signature Portal tidak dapat dihubungi: '.$exception->getMessage());
+            }
+
             return null;
         }
 
         if (! $response->successful()) {
+            $message = data_get($response->json(), 'message')
+                ?: data_get($response->json(), 'errors.signer.email.0')
+                ?: $response->body();
             Log::warning('Portal signature request rejected.', [
                 'status' => $response->status(),
                 'body' => $response->body(),
                 'ticket_no' => data_get($payload, 'ticket.ticket_no'),
             ]);
+
+            if ($throwOnFailure) {
+                $this->fail('Portal menolak pembuatan QR pemohon. Status '.$response->status().': '.trim((string) $message));
+            }
 
             return null;
         }
@@ -157,5 +179,12 @@ class LrtjSpacePortalSignatureService
             'portal_qr_url' => $qrUrl ? (string) $qrUrl : null,
             'portal_qr_payload' => $source['qr_payload'] ?? $source['payload'] ?? null,
         ], fn ($value) => $value !== null);
+    }
+
+    private function fail(string $message): never
+    {
+        throw ValidationException::withMessages([
+            'portal_signature' => $message,
+        ]);
     }
 }
