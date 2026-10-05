@@ -84,7 +84,6 @@
         .form-head td { height: 24px; }
         .brand-cell { text-align: center; }
         .brand-cell img { width: 122px; max-height: 74px; object-fit: contain; }
-        .brand-name { margin-top: 3px; font-size: 16px; font-weight: 700; font-style: italic; color: #555; }
         .gi-title { text-align: center; font-size: 27px; font-weight: 900; font-style: italic; letter-spacing: 1px; color: #1f4f68; }
         .gi-subtitle { text-align: center; margin-top: 8px; font-size: 16px; font-weight: 800; font-style: italic; color: #ed2b49; }
         .items { margin-top: 18px; }
@@ -141,7 +140,6 @@
                 <tr>
                     <td rowspan="5" class="brand-cell">
                         <img src="{{ asset('logo-lrtj.png') }}" alt="LRT Jakarta">
-                        <div class="brand-name">LRT JAKARTA</div>
                     </td>
                     <td colspan="2" rowspan="2">
                         <div class="gi-title">GOODS ISSUE</div>
