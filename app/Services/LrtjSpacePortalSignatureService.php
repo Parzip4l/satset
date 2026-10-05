@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Master\Ticket;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -42,6 +43,31 @@ class LrtjSpacePortalSignatureService
             'name' => $portalRequester['name'] ?? $requester->name,
             'email' => $portalRequester['email'] ?? $requester->email,
         ], true);
+    }
+
+    public function createGoodsIssueSignature(Ticket $ticket, User $signer, string $role, mixed $signedAt = null): ?array
+    {
+        if (! in_array($role, ['issuer', 'receiver'], true)) {
+            throw new \InvalidArgumentException('Role Goods Issue tidak valid.');
+        }
+
+        return $this->createSignature([
+            'module' => 'satset',
+            'signature_type' => 'goods_issue_'.$role,
+            'role' => $role,
+            'ticket' => [
+                'id' => (string) $ticket->id,
+                'ticket_no' => $ticket->ticket_no,
+                'title' => $ticket->title,
+                'request_type' => data_get($ticket->payload, 'request_type'),
+            ],
+            'signer' => [
+                'id' => (string) $signer->id,
+                'name' => $signer->name,
+                'email' => $signer->email,
+            ],
+            'signed_at' => Carbon::parse($signedAt ?: now())->toIso8601String(),
+        ]);
     }
 
     private function createRequesterSignatureWithSigner(Ticket $ticket, array $signer, bool $throwOnFailure = false): ?array

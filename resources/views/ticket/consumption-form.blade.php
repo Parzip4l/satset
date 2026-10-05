@@ -33,8 +33,18 @@
 
     $text = fn ($value, $fallback = '-') => filled($value) ? $value : $fallback;
     $requesterDivision = $ticket->requester?->division?->name;
-    $departmentName = $ticket->department?->name ?: $ticket->assignedDepartment?->name;
-    $unitName = $text(data_get($payload, 'organizer_unit'), $requesterDivision ?: $departmentName);
+    $requesterSignature = data_get($payload, 'portal_signatures.requester', []);
+    $portalRequesterUnit = data_get($requesterSignature, 'portal_qr_payload.signer.department')
+        ?: data_get($requesterSignature, 'portal_qr_payload.signer.position')
+        ?: data_get($requesterSignature, 'signer.department')
+        ?: data_get($requesterSignature, 'signer.position');
+    $unitName = $text(
+        $portalRequesterUnit,
+        data_get($payload, 'requester_department')
+            ?: data_get($payload, 'requester_position')
+            ?: data_get($payload, 'organizer_unit')
+            ?: $requesterDivision
+    );
     $consumptionType = strtolower((string) data_get($payload, 'consumption_type', ''));
     $needsOther = ! \Illuminate\Support\Str::contains($consumptionType, ['snack', 'makan siang', 'makan malam']);
     $requesterName = $text(data_get($payload, 'reporter_name'), $ticket->requester?->name ?: '-');
@@ -43,7 +53,6 @@
         ->sortBy('level')
         ->first(fn ($approval) => (int) $approval->level === 2);
     $bumOfficer = $text($bumApproval?->approver?->name, data_get($payload, 'bum_officer_name') ?: ($closedHistory?->user?->name ?: 'Bagian Umum'));
-    $requesterSignature = data_get($payload, 'portal_signatures.requester', []);
     $signatureQrUrl = function ($signature) {
         if (! $signature) {
             return null;
@@ -228,26 +237,34 @@
         }
 
         .needs-row td {
-            height: 76px;
+            min-height: 76px;
         }
 
         .checkbox-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            column-gap: 56px;
+            column-gap: 22px;
             row-gap: 12px;
-            padding: 6px 0px;
+            padding: 8px 0;
             font-size: 15px;
             font-weight: 700;
             text-transform: uppercase;
         }
 
         .checkline {
-            display: inline-flex;
-            align-items: center;
+            display: flex;
+            align-items: flex-start;
             gap: 10px;
             min-height: 20px;
-            white-space: nowrap;
+            min-width: 0;
+            line-height: 1.2;
+        }
+
+        .check-label {
+            display: block;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: normal;
         }
 
         .box {
@@ -460,10 +477,10 @@
                 <td class="label-col">Kebutuhan<br>Konsumsi</td>
                 <td class="value-col">
                     <div class="checkbox-grid">
-                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'snack') ? 'V' : '' }}</span> Snack</span>
-                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'makan malam') ? 'V' : '' }}</span> Makan Malam</span>
-                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'makan siang') ? 'V' : '' }}</span> Makan Siang</span>
-                        <span class="checkline"><span class="box">{{ $needsOther ? 'V' : '' }}</span> Lainnya: {{ $needsOther ? $text(data_get($payload, 'consumption_type')) : '' }}</span>
+                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'snack') ? 'V' : '' }}</span><span class="check-label">Snack</span></span>
+                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'makan malam') ? 'V' : '' }}</span><span class="check-label">Makan Malam</span></span>
+                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'makan siang') ? 'V' : '' }}</span><span class="check-label">Makan Siang</span></span>
+                        <span class="checkline"><span class="box">{{ $needsOther ? 'V' : '' }}</span><span class="check-label">Lainnya: {{ $needsOther ? $text(data_get($payload, 'consumption_type')) : '' }}</span></span>
                     </div>
                 </td>
             </tr>

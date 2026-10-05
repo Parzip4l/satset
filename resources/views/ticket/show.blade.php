@@ -187,6 +187,9 @@
         $canProcessAtkRtk = $canManageGaOperations && (!$atkRtkRequiresManagerApproval || $atkRtkManagerApproved);
         $canGenerateConsumptionForm = $requestType === 'consumption'
             && ($workflowStatus === 'CLOSED' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true));
+        $canGenerateAtkRtkGoodsIssue = $requestType === 'atk_rtk'
+            && ($workflowStatus === 'HANDED_OVER' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true))
+            && \App\Support\AtkRtkGoodsIssue::isBulk($ticket->payload ?? []);
         $displayStatusName = $isBumRequest
             ? match ($workflowStatus) {
                 'CLOSED' => 'Closed',
@@ -577,6 +580,28 @@
                             <i class="bi bi-printer me-1"></i> Buka & Print
                         </a>
                         <a href="{{ route('ticket.consumption.form', [$ticket, 'download' => 1]) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-download me-1"></i> Download Form
+                        </a>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            @if($canGenerateAtkRtkGoodsIssue)
+            <div class="card-clean">
+                <div class="card-header-clean">
+                    <span class="header-title"><i class="bi bi-printer text-danger"></i> Goods Issue ATK/RTK</span>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-20">Siap Print</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="text-muted small mb-3">
+                        Dokumen tersedia karena barang sudah diserahterimakan dan jumlah permintaan mencapai minimal 1 UOM Gudang Besar.
+                    </div>
+                    <div class="d-grid gap-2">
+                        <a href="{{ route('ticket.atk-rtk.goods-issue', $ticket) }}" target="_blank" class="btn btn-primary">
+                            <i class="bi bi-printer me-1"></i> Buka & Print
+                        </a>
+                        <a href="{{ route('ticket.atk-rtk.goods-issue', [$ticket, 'download' => 1]) }}" class="btn btn-outline-secondary">
                             <i class="bi bi-download me-1"></i> Download Form
                         </a>
                     </div>

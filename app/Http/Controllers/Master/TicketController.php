@@ -26,6 +26,7 @@ use App\Services\LrtjSpaceApprovalResolverService;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\LrtjSpacePortalSignatureService;
 use App\Services\SatsetApprovalDecisionService;
+use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -1661,6 +1662,138 @@ class TicketController extends Controller
         }
 
         return $view;
+    }
+
+    public function atkRtkGoodsIssue(Request $request, Ticket $ticket)
+    {
+        if (data_get($ticket->payload, 'request_type') !== 'atk_rtk') {
+            abort(404);
+        }
+
+        $workflowStatus = data_get($ticket->payload, 'workflow_status');
+        $ticketStatus = $ticket->status?->name;
+        $isCompleted = $workflowStatus === 'HANDED_OVER'
+            || in_array($ticketStatus, ['Closed', 'Resolved'], true);
+
+        if (! $isCompleted) {
+            return back()->with('error', 'Goods Issue baru bisa dibuat setelah barang ATK/RTK diserahterimakan.');
+        }
+
+        if (! AtkRtkGoodsIssue::isBulk($ticket->payload ?? [])) {
+            return back()->with('error', 'Goods Issue hanya dibuat untuk permintaan yang mencapai minimal 1 UOM Gudang Besar.');
+        }
+
+        $ticket->loadMissing([
+            'requester.division',
+            'department.division',
+            'assignedDepartment.division',
+            'approvals.approver',
+            'histories.user',
+            'status',
+        ]);
+
+        $this->ensureRequesterSignature($ticket);
+
+        $issueHistory = $ticket->histories
+            ->sortByDesc('created_at')
+            ->first(fn ($history) => Str::contains(strtolower((string) $history->action), ['diserahkan', 'handover']));
+
+        $this->ensureAtkRtkGoodsIssueSignatures($ticket, $issueHistory);
+        $this->ensureAtkRtkGoodsIssueMetadata($ticket);
+
+        $view = view('ticket.atk-rtk-goods-issue', [
+            'ticket' => $ticket,
+            'payload' => $ticket->payload ?? [],
+            'items' => AtkRtkGoodsIssue::items($ticket->payload ?? []),
+            'issueHistory' => $issueHistory,
+        ]);
+
+        if ($request->boolean('download')) {
+            $filename = Str::slug('goods-issue-'.$ticket->ticket_no).'.html';
+
+            return response($view->render(), 200, [
+                'Content-Type' => 'text/html; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            ]);
+        }
+
+        return $view;
+    }
+
+    private function ensureAtkRtkGoodsIssueMetadata(Ticket $ticket): void
+    {
+        if (
+            filled(data_get($ticket->payload, 'goods_issue.reservation_no'))
+            && filled(data_get($ticket->payload, 'goods_issue.number'))
+        ) {
+            return;
+        }
+
+        $payload = $ticket->payload ?? [];
+        $requesterSignature = data_get($payload, 'portal_signatures.requester', []);
+        $departmentName = data_get($requesterSignature, 'portal_qr_payload.signer.department')
+            ?: data_get($requesterSignature, 'signer.department')
+            ?: data_get($payload, 'requester_department')
+            ?: data_get($payload, 'requester_position')
+            ?: $ticket->requester?->division?->name
+            ?: 'UMUM';
+        $departmentCode = $ticket->requester?->division?->code;
+
+        if (blank($departmentCode)) {
+            $departmentCode = collect(preg_split('/\s+/', Str::ascii((string) $departmentName)))
+                ->filter()
+                ->map(fn ($word) => Str::upper(Str::substr($word, 0, 1)))
+                ->implode('');
+        }
+
+        $departmentCode = Str::substr(preg_replace('/[^A-Z0-9]/', '', Str::upper((string) $departmentCode)) ?: 'UMUM', 0, 8);
+        $documentDate = Carbon::parse(data_get($payload, 'needed_date') ?: $ticket->created_at ?: now());
+        $runningNumber = str_pad((string) $ticket->getKey(), 5, '0', STR_PAD_LEFT);
+        $numberSuffix = $departmentCode.'-'.$documentDate->format('Ymd').'-'.$runningNumber;
+
+        $payload['goods_issue'] = array_merge(data_get($payload, 'goods_issue', []), [
+            'reservation_no' => 'RSV-'.$numberSuffix,
+            'number' => 'GI-'.$numberSuffix,
+            'department' => $departmentName,
+            'request_date' => $documentDate->toDateString(),
+            'request_for' => data_get($payload, 'request_subject') ?: data_get($payload, 'item_type'),
+        ]);
+
+        $ticket->update(['payload' => $payload]);
+        $ticket->refresh();
+    }
+
+    private function ensureAtkRtkGoodsIssueSignatures(Ticket $ticket, ?TicketHistory $issueHistory): void
+    {
+        $payload = $ticket->payload ?? [];
+        $changed = false;
+        $signatureService = app(LrtjSpacePortalSignatureService::class);
+        $signedAt = data_get($payload, 'handover_date') ?: $issueHistory?->created_at ?: now();
+
+        if (! filled(data_get($payload, 'portal_signatures.issue')) && $issueHistory?->user) {
+            $signature = $signatureService->createGoodsIssueSignature($ticket, $issueHistory->user, 'issuer', $signedAt);
+            if ($signature) {
+                $payload['portal_signatures']['issue'] = $signature;
+                $changed = true;
+            }
+        }
+
+        $receivedBy = trim((string) data_get($payload, 'received_by'));
+        $requesterIsReceiver = $ticket->requester
+            && ($receivedBy === '' || strcasecmp($receivedBy, (string) $ticket->requester->name) === 0);
+
+        if (! filled(data_get($payload, 'portal_signatures.receive')) && $requesterIsReceiver) {
+            $signature = $signatureService->createGoodsIssueSignature($ticket, $ticket->requester, 'receiver', $signedAt);
+            if ($signature) {
+                $payload['portal_signatures']['receive'] = $signature;
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $ticket->update(['payload' => $payload]);
+            $ticket->refresh();
+        }
     }
 
     public function uploadConsumptionEvidence(Request $request, Ticket $ticket)
