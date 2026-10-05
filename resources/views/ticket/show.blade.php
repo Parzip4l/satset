@@ -190,6 +190,7 @@
         $canGenerateAtkRtkGoodsIssue = $requestType === 'atk_rtk'
             && ($workflowStatus === 'HANDED_OVER' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true))
             && \App\Support\AtkRtkGoodsIssue::isBulk($ticket->payload ?? []);
+        $requesterApproverLabel = $requestType === 'atk_rtk' ? 'Kadep Pemohon' : 'Kadiv Pemohon';
         $displayStatusName = $isBumRequest
             ? match ($workflowStatus) {
                 'CLOSED' => 'Closed',
@@ -501,7 +502,7 @@
                         <div class="col-12">
                             <span class="meta-label">Menunggu Approval</span>
                             <div class="border rounded-3 p-3 bg-light bg-opacity-50">
-                                <div class="text-muted small mb-1">Level {{ $pendingApproval->level }} - {{ (int) $pendingApproval->level === 2 ? 'Bagian Umum' : 'Kadiv Pemohon' }}</div>
+                                <div class="text-muted small mb-1">Level {{ $pendingApproval->level }} - {{ (int) $pendingApproval->level === 2 ? 'Bagian Umum' : $requesterApproverLabel }}</div>
                                 <div class="fw-bold text-dark">{{ $pendingApproval->approver->name ?? 'Approver belum tersedia' }}</div>
                                 <div class="text-muted small">{{ $pendingApproval->approver->email ?? '-' }}</div>
                                 @if($pendingApprovalIsRequester)
@@ -528,7 +529,7 @@
                                     <div class="border rounded-3 p-3">
                                         <div class="d-flex justify-content-between gap-2 align-items-start">
                                             <div>
-                                                <div class="text-muted small">Level {{ $approvalStep->level }} - {{ (int) $approvalStep->level === 2 ? 'Bagian Umum' : 'Kadiv Pemohon' }}</div>
+                                                <div class="text-muted small">Level {{ $approvalStep->level }} - {{ (int) $approvalStep->level === 2 ? 'Bagian Umum' : $requesterApproverLabel }}</div>
                                                 <div class="fw-semibold text-dark">{{ $approvalStep->approver->name ?? 'Approver belum tersedia' }}</div>
                                                 <div class="text-muted small">{{ $approvalStep->approver->email ?? '-' }}</div>
                                             </div>
