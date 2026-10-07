@@ -6,245 +6,362 @@
 
 @section('css')
 <style>
-    .request-hub {
-        --hub-ink: #102542;
-        --hub-muted: #5f6c7b;
-        --hub-surface: #ffffff;
-        --hub-line: #d8e1eb;
-        --hub-warm: #f3ede2;
-        --hub-blue: #0f5cc0;
-        --hub-teal: #0e7490;
-        --hub-gold: #e21a1a;
-        --hub-shadow: 0 24px 60px rgba(16, 37, 66, 0.08);
+    .requests-page {
+        --request-border: #e6e9ee;
+        --request-ink: #20252c;
+        --request-muted: #69727e;
+        --request-soft: #f6f7f9;
+        --request-red: #e21a1a;
+        color: var(--request-ink);
+        max-width: 1480px;
     }
 
-    .request-hero {
-        background:
-            radial-gradient(circle at top right, rgba(15, 92, 192, 0.14), transparent 26%),
-            linear-gradient(135deg, #fff8ef 0%, #ffffff 48%, #eef6ff 100%);
-        border: 1px solid rgba(16, 37, 66, 0.08);
-        border-radius: 28px;
-        box-shadow: var(--hub-shadow);
-        overflow: hidden;
-        position: relative;
-    }
-
-    .request-hero::after {
-        content: "";
-        position: absolute;
-        inset: auto -60px -80px auto;
-        width: 220px;
-        height: 220px;
-        background: radial-gradient(circle, rgba(14, 116, 144, 0.16), transparent 70%);
-    }
-
-    .request-stat {
-        background: rgba(255, 255, 255, 0.72);
-        border: 1px solid rgba(16, 37, 66, 0.08);
-        border-radius: 20px;
-        padding: 1rem 1.1rem;
-        backdrop-filter: blur(8px);
-    }
-
-    .request-card {
-        background: var(--hub-surface);
-        border: 1px solid var(--hub-line);
-        border-radius: 24px;
-        box-shadow: 0 16px 45px rgba(16, 37, 66, 0.07);
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-        transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-    }
-
-    .request-card:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 24px 54px rgba(16, 37, 66, 0.11);
-        border-color: rgba(15, 92, 192, 0.22);
-    }
-
-    .request-card::before {
-        content: "";
-        position: absolute;
-        inset: 0 auto 0 0;
-        width: 6px;
-    }
-
-    .request-card.general::before { background: linear-gradient(180deg, #0f5cc0, #55a3ff); }
-    .request-card.konsumsi::before { background: linear-gradient(180deg, #0e7490, #39b6c8); }
-    .request-card.atk::before { background: linear-gradient(180deg, #e21a1a, #f87171); }
-    .request-card.ga::before { background: linear-gradient(180deg, #e21a1a, #f87171); }
-
-    .request-icon {
-        width: 64px;
-        height: 64px;
-        border-radius: 18px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.6rem;
-    }
-
-    .request-flow {
+    .requests-intro {
+        align-items: flex-end;
         display: flex;
-        flex-wrap: wrap;
-        gap: .5rem;
+        gap: 32px;
+        justify-content: space-between;
+        margin-bottom: 28px;
     }
 
-    .request-flow span {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 999px;
-        color: #475569;
+    .requests-eyebrow {
+        color: var(--request-red);
+        font-size: .72rem;
+        font-weight: 800;
+        letter-spacing: .1em;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+    }
+
+    .requests-title {
+        color: var(--request-ink);
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+        font-weight: 750;
+        letter-spacing: -.04em;
+        line-height: 1.08;
+        margin: 0 0 10px;
+    }
+
+    .requests-description {
+        color: var(--request-muted);
+        line-height: 1.65;
+        margin: 0;
+        max-width: 720px;
+    }
+
+    .requests-history-link {
+        align-items: center;
+        background: #fff;
+        border: 1px solid var(--request-border);
+        border-radius: 9px;
+        color: var(--request-ink);
+        display: inline-flex;
+        flex: 0 0 auto;
+        font-weight: 650;
+        gap: 8px;
+        padding: 10px 14px;
+        text-decoration: none;
+        transition: border-color .18s ease, color .18s ease;
+    }
+
+    .requests-history-link:hover {
+        border-color: #c7ccd3;
+        color: var(--request-red);
+    }
+
+    .request-metrics {
+        display: grid;
+        gap: 1px;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        background: var(--request-border);
+        border: 1px solid var(--request-border);
+        border-radius: 12px;
+        margin-bottom: 38px;
+        overflow: hidden;
+    }
+
+    .request-metric {
+        background: #fff;
+        min-height: 98px;
+        padding: 18px 20px;
+    }
+
+    .request-metric-label {
+        color: var(--request-muted);
         font-size: .76rem;
-        font-weight: 600;
-        padding: .45rem .75rem;
+        font-weight: 650;
+        margin-bottom: 10px;
+    }
+
+    .request-metric-value {
+        color: var(--request-ink);
+        font-size: 1.75rem;
+        font-weight: 750;
+        letter-spacing: -.04em;
+        line-height: 1;
+    }
+
+    .request-metric.pending .request-metric-value {
+        color: var(--request-red);
+    }
+
+    .request-section-heading {
+        align-items: end;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .request-section-heading h2 {
+        color: var(--request-ink);
+        font-size: 1.2rem;
+        font-weight: 750;
+        letter-spacing: -.02em;
+        margin: 0 0 4px;
+    }
+
+    .request-section-heading p {
+        color: var(--request-muted);
+        font-size: .82rem;
+        margin: 0;
+    }
+
+    .request-services {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .request-service {
+        align-items: flex-start;
+        background: #fff;
+        border: 1px solid var(--request-border);
+        border-radius: 12px;
+        color: inherit;
+        display: grid;
+        gap: 18px;
+        grid-template-columns: 44px minmax(0, 1fr) 24px;
+        min-height: 154px;
+        padding: 22px;
+        position: relative;
+        text-decoration: none;
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+
+    .request-service:hover {
+        border-color: #cfd4da;
+        box-shadow: 0 10px 28px rgba(21, 27, 35, .06);
+        color: inherit;
+        transform: translateY(-2px);
+    }
+
+    .request-service-icon {
+        align-items: center;
+        background: var(--request-soft);
+        border: 1px solid #eceef1;
+        border-radius: 10px;
+        color: #4d5865;
+        display: inline-flex;
+        font-size: 1.15rem;
+        height: 44px;
+        justify-content: center;
+        width: 44px;
+    }
+
+    .request-service:hover .request-service-icon,
+    .request-service.featured .request-service-icon {
+        background: rgba(226, 26, 26, .08);
+        border-color: rgba(226, 26, 26, .12);
+        color: var(--request-red);
+    }
+
+    .request-service-kicker {
+        color: var(--request-muted);
+        font-size: .7rem;
+        font-weight: 750;
+        letter-spacing: .07em;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+    }
+
+    .request-service h3 {
+        color: var(--request-ink);
+        font-size: 1.05rem;
+        font-weight: 750;
+        letter-spacing: -.02em;
+        margin: 0 0 7px;
+    }
+
+    .request-service p {
+        color: var(--request-muted);
+        font-size: .82rem;
+        line-height: 1.55;
+        margin: 0;
+        max-width: 580px;
+    }
+
+    .request-service-arrow {
+        color: #a0a7b0;
+        font-size: 1.05rem;
+        padding-top: 10px;
+        transition: color .18s ease, transform .18s ease;
+    }
+
+    .request-service:hover .request-service-arrow {
+        color: var(--request-red);
+        transform: translateX(3px);
+    }
+
+    .request-service.featured {
+        border-color: rgba(226, 26, 26, .24);
+    }
+
+    @media (max-width: 991.98px) {
+        .request-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .request-metric:last-child {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .requests-intro {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .request-services {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 479.98px) {
+        .request-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .request-metric:last-child {
+            grid-column: auto;
+        }
+
+        .request-service {
+            gap: 14px;
+            grid-template-columns: 40px minmax(0, 1fr) 18px;
+            padding: 18px;
+        }
+
+        .request-service-icon {
+            height: 40px;
+            width: 40px;
+        }
     }
 </style>
 @endsection
 
 @section('content')
-<div class="container-fluid request-hub mt-8">
+@php
+    $metrics = [
+        ['label' => 'Total request', 'value' => $stats['total'] ?? 0],
+        ['label' => 'Open', 'value' => $stats['open'] ?? 0],
+        ['label' => 'Dalam proses', 'value' => $stats['in_progress'] ?? 0],
+        ['label' => 'Selesai', 'value' => $stats['completed'] ?? 0],
+        ['label' => 'Menunggu approval', 'value' => $stats['pending_approvals'] ?? 0, 'class' => 'pending'],
+    ];
+
+    $services = [
+        [
+            'title' => 'General Request',
+            'kicker' => 'Tiket umum',
+            'description' => 'Laporkan kebutuhan umum dan pantau status tiket yang pernah Anda buat.',
+            'icon' => 'bi-ticket-perforated',
+            'route' => 'ticket.general',
+        ],
+        [
+            'title' => 'Permintaan Konsumsi',
+            'kicker' => 'Kegiatan & rapat',
+            'description' => 'Ajukan konsumsi kegiatan dengan alur approval atasan dan verifikasi Bagian Umum.',
+            'icon' => 'bi-cup-hot',
+            'route' => 'ticket.konsumsi.create',
+        ],
+        [
+            'title' => 'Permintaan ATK / RTK',
+            'kicker' => 'Kebutuhan kantor',
+            'description' => 'Ajukan alat tulis atau perlengkapan rumah tangga kantor dari katalog yang tersedia.',
+            'icon' => 'bi-box-seam',
+            'route' => 'ticket.atk-rtk.create',
+        ],
+        [
+            'title' => 'GA Permintaan & Temuan',
+            'kicker' => 'Layanan fasilitas',
+            'description' => 'Sampaikan kebutuhan dukungan atau temuan fasilitas agar dapat segera ditindaklanjuti.',
+            'icon' => 'bi-building-gear',
+            'route' => 'ticket.ga-permintaan-temuan.create',
+            'class' => 'featured',
+        ],
+        [
+            'title' => 'Approval Saya',
+            'kicker' => 'Tugas persetujuan',
+            'description' => 'Tinjau permintaan yang menunggu keputusan Anda dan lihat riwayat persetujuannya.',
+            'icon' => 'bi-check2-square',
+            'route' => 'ticket.approvals',
+        ],
+    ];
+@endphp
+
+<div class="container-fluid requests-page mt-7">
     @if(session('success'))
-        <div class="alert alert-success border-0 shadow-sm rounded-4 mb-4">
-            {{ session('success') }}
-        </div>
+        <div class="alert alert-success border-0 mb-4">{{ session('success') }}</div>
     @endif
 
     @if(session('error'))
-        <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4">
-            {{ session('error') }}
-        </div>
+        <div class="alert alert-danger border-0 mb-4">{{ session('error') }}</div>
     @endif
 
-    <div class="request-hero p-4 p-lg-5 mb-4">
-        <div class="row align-items-center g-4">
-            <div class="col-lg-7">
-                <h3 class="fw-bold text-dark mb-2">Requests Center</h3>
-                <p class="text-muted">Request Center adalah pusat pengelolaan seluruh permintaan operasional yang masuk ke dalam sistem. Halaman ini memberikan visibilitas menyeluruh terhadap status request mulai dari permintaan baru, yang sedang diproses, hingga yang telah selesai.</p>
-            </div>
-            <div class="col-lg-5">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="request-stat">
-                            <div class="text-muted small mb-1">Total Request</div>
-                            <div class="fs-3 fw-bold text-dark">{{ $stats['total'] ?? 0 }}</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="request-stat">
-                            <div class="text-muted small mb-1">Open</div>
-                            <div class="fs-3 fw-bold text-primary">{{ $stats['open'] ?? 0 }}</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="request-stat">
-                            <div class="text-muted small mb-1">In Progress</div>
-                            <div class="fs-3 fw-bold" style="color:#0e7490;">{{ $stats['in_progress'] ?? 0 }}</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="request-stat">
-                            <div class="text-muted small mb-1">Selesai</div>
-                            <div class="fs-3 fw-bold" style="color:#e21a1a;">{{ $stats['completed'] ?? 0 }}</div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="request-stat">
-                            <div class="text-muted small mb-1">Approval Pending</div>
-                            <div class="fs-3 fw-bold" style="color:#d97706;">{{ $stats['pending_approvals'] ?? 0 }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <header class="requests-intro">
+        <div>
+            <div class="requests-eyebrow">Request Center</div>
+            <h1 class="requests-title">Apa yang Anda butuhkan?</h1>
+            <p class="requests-description">Pilih layanan untuk membuat permintaan baru. Seluruh status, approval, dan progres tindak lanjut tersimpan dalam satu tempat.</p>
         </div>
-    </div>
+        <a href="{{ route('ticket.general') }}" class="requests-history-link">
+            <i class="bi bi-clock-history"></i>
+            Lihat tiket saya
+        </a>
+    </header>
 
-    <div class="row g-4">
-        <div class="col-xl-4 col-md-6">
-            <div class="request-card general">
-                <div class="card-body p-4 p-xl-5">
-                    <div class="request-icon text-primary bg-primary-subtle mb-4">
-                        <i class="bi bi-kanban"></i>
-                    </div>
-                    <h4 class="fw-bold mb-2">General</h4>
-                    <p class="text-muted mb-4">
-                        Masuk ke modul request existing untuk melihat daftar tiket, filter status, dan membuat ticket general baru.
-                    </p>
-                    <a href="{{ route('ticket.general') }}" class="btn btn-primary px-4 rounded-pill">
-                        Buka General
-                    </a>
-                </div>
+    <section class="request-metrics" aria-label="Ringkasan request">
+        @foreach($metrics as $metric)
+            <div class="request-metric {{ $metric['class'] ?? '' }}">
+                <div class="request-metric-label">{{ $metric['label'] }}</div>
+                <div class="request-metric-value">{{ number_format($metric['value']) }}</div>
+            </div>
+        @endforeach
+    </section>
+
+    <section>
+        <div class="request-section-heading">
+            <div>
+                <h2>Layanan</h2>
+                <p>Pilih jenis permintaan yang sesuai.</p>
             </div>
         </div>
 
-        <div class="col-xl-4 col-md-6">
-            <div class="request-card konsumsi">
-                <div class="card-body p-4 p-xl-5">
-                    <div class="request-icon mb-4" style="background: rgba(14,116,144,.12); color:#0e7490;">
-                        <i class="bi bi-cup-hot"></i>
-                    </div>
-                    <h4 class="fw-bold mb-2">Permintaan Konsumsi</h4>
-                    <p class="text-muted mb-4">
-                        Form khusus pengajuan konsumsi dengan alur karyawan, approval atasan, verifikasi Bagian Umum, vendor, sampai laporan pertanggungjawaban.
-                    </p>
-                    <a href="{{ route('ticket.konsumsi.create') }}" class="btn rounded-pill px-4 text-white" style="background:#0e7490;">
-                        Buka Form Konsumsi
-                    </a>
-                </div>
-            </div>
+        <div class="request-services">
+            @foreach($services as $service)
+                <a href="{{ route($service['route']) }}" class="request-service {{ $service['class'] ?? '' }}">
+                    <span class="request-service-icon"><i class="bi {{ $service['icon'] }}"></i></span>
+                    <span>
+                        <span class="request-service-kicker">{{ $service['kicker'] }}</span>
+                        <h3>{{ $service['title'] }}</h3>
+                        <p>{{ $service['description'] }}</p>
+                    </span>
+                    <i class="bi bi-arrow-right request-service-arrow"></i>
+                </a>
+            @endforeach
         </div>
-
-        <div class="col-xl-4 col-md-6">
-            <div class="request-card atk">
-                <div class="card-body p-4 p-xl-5">
-                    <div class="request-icon mb-4" style="background: rgba(226,26,26,.12); color:#e21a1a;">
-                        <i class="bi bi-box-seam"></i>
-                    </div>
-                    <h4 class="fw-bold mb-2">ATK / RTK</h4>
-                    <p class="text-muted mb-4">
-                        Pengajuan kebutuhan alat tulis atau rumah tangga kantor dengan form khusus supaya request operasional tidak tercampur dengan tiket general.
-                    </p>
-                    <a href="{{ route('ticket.atk-rtk.create') }}" class="btn rounded-pill px-4 text-white" style="background:#e21a1a;">
-                        Buka Form ATK/RTK
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-4 col-md-6">
-            <div class="request-card general">
-                <div class="card-body p-4 p-xl-5">
-                    <div class="request-icon mb-4" style="background: rgba(217,119,6,.12); color:#d97706;">
-                        <i class="bi bi-check2-square"></i>
-                    </div>
-                    <h4 class="fw-bold mb-2">Approval Saya</h4>
-                    <p class="text-muted mb-4">
-                        Lihat request yang menunggu persetujuan atasan dan proses approve atau reject dari detail tiket.
-                    </p>
-                    <a href="{{ route('ticket.approvals') }}" class="btn rounded-pill px-4 text-white" style="background:#d97706;">
-                        Buka Approval
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-4 col-md-6">
-            <div class="request-card ga">
-                <div class="card-body p-4 p-xl-5">
-                    <div class="request-icon mb-4" style="background: rgba(226,26,26,.12); color:#e21a1a;">
-                        <i class="bi bi-qr-code-scan"></i>
-                    </div>
-                    <h4 class="fw-bold mb-2">GA Permintaan & Temuan</h4>
-                    <p class="text-muted mb-4">
-                        Form QR Code Bagian Umum untuk mencatat permintaan dukungan dan temuan kerusakan agar tindak lanjutnya termonitor.
-                    </p>
-                    <a href="{{ route('ticket.ga-permintaan-temuan.create') }}" class="btn rounded-pill px-4 text-white" style="background:#e21a1a;">
-                        Buka Form GA
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+    </section>
 </div>
 @endsection
