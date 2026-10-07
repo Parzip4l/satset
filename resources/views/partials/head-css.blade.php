@@ -98,7 +98,7 @@
         padding-bottom: 7px;
         padding-top: 7px;
     }
-    aside.pe-app-sidebar:not(.horizontal-sidebar) .ga-compact-menu-item > .pe-nav-link .pe-nav-content {
+    aside.pe-app-sidebar:not(.horizontal-sidebar) .pe-main-menu > .pe-slide > .pe-nav-link .pe-nav-content {
         font-size: 0.82rem;
     }
     .bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
