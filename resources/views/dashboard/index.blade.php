@@ -128,8 +128,8 @@
                                     <td class="ps-4">
                                         <div class="d-flex align-items-center">
                                             <div class="avatar-xs me-3">
-                                                <div class="avatar-title rounded bg-light text-primary fw-bold fs-10">
-                                                    #{{ substr($t->id, -3) }}
+                                                <div class="avatar-title rounded bg-light text-primary" title="Ticket">
+                                                    <i class="ri-ticket-2-fill fs-5" aria-hidden="true"></i>
                                                 </div>
                                             </div>
                                             <div>
