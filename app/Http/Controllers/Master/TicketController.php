@@ -174,12 +174,32 @@ class TicketController extends Controller
             'atk_rtk' => 'Permintaan ATK/RTK',
             'ga_request_finding' => 'GA Permintaan & Temuan',
         ];
+        $createActions = [
+            [
+                'label' => 'Permintaan / Temuan',
+                'description' => 'Laporan fasilitas dan kebutuhan operasional GA',
+                'icon' => 'bi-qr-code-scan',
+                'route' => 'ticket.ga-permintaan-temuan.create',
+            ],
+            [
+                'label' => 'Permintaan Konsumsi',
+                'description' => 'Konsumsi rapat atau kegiatan',
+                'icon' => 'bi-cup-hot',
+                'route' => 'ticket.konsumsi.create',
+            ],
+            [
+                'label' => 'Permintaan ATK / RTK',
+                'description' => 'Barang alat tulis dan rumah tangga kantor',
+                'icon' => 'bi-box-seam',
+                'route' => 'ticket.atk-rtk.create',
+            ],
+        ];
 
         if ($request->ajax()) {
-            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions'))->render();
+            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions', 'createActions'))->render();
         }
 
-        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions'));
+        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions', 'createActions'));
     }
 
     public function create()

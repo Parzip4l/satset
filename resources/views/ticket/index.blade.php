@@ -11,6 +11,7 @@
     $pageSubtitle = $pageSubtitle ?? 'Pantau dan kelola request general yang sudah ada di sini.';
     $resetRoute = $resetRoute ?? route($indexRoute);
     $requestTypeOptions = $requestTypeOptions ?? [];
+    $createActions = $createActions ?? [];
 @endphp
 
 <div class="container-fluid">
@@ -27,11 +28,32 @@
                         </div>
                         <div class="d-flex gap-2">
                             <a href="{{ route('ticket.index') }}" class="btn btn-light border shadow-sm px-4">
-                                <i class="bi bi-grid me-1"></i> Menu Requests
+                                <i class="bi bi-grid me-1"></i> Menu Tiket
                             </a>
-                            <a href="{{ route('ticket.create') }}" class="btn btn-primary shadow-sm px-4">
-                                <i class="bi bi-plus-lg me-1"></i> Buat Ticket Baru
-                            </a>
+                            @if(!empty($createActions))
+                                <div class="dropdown">
+                                    <button class="btn btn-primary shadow-sm px-4 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-plus-lg me-1"></i> Buat Permintaan GA
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2" style="min-width: 310px; border-radius: 12px;">
+                                        @foreach($createActions as $action)
+                                            <li>
+                                                <a href="{{ route($action['route']) }}" class="dropdown-item rounded-2 d-flex align-items-start gap-3 py-2 px-3">
+                                                    <i class="bi {{ $action['icon'] }} text-primary fs-5 mt-1"></i>
+                                                    <span>
+                                                        <span class="d-block fw-semibold text-dark">{{ $action['label'] }}</span>
+                                                        <small class="text-muted">{{ $action['description'] }}</small>
+                                                    </span>
+                                                </a>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @else
+                                <a href="{{ route('ticket.create') }}" class="btn btn-primary shadow-sm px-4">
+                                    <i class="bi bi-plus-lg me-1"></i> Buat Tiket Baru
+                                </a>
+                            @endif
                         </div>
                     </div>
                 </div>
