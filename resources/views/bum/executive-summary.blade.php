@@ -21,7 +21,7 @@
         display: flex;
         gap: 24px;
         justify-content: space-between;
-        margin-bottom: 18px;
+        margin-bottom: 24px;
     }
 
     .executive-title {
@@ -59,7 +59,7 @@
     }
 
     .executive-filter {
-        margin-bottom: 16px;
+        margin-bottom: 24px;
         padding: 16px;
     }
 
@@ -86,16 +86,17 @@
     }
 
     .executive-summary {
-        background: linear-gradient(125deg, #25292f, #353b44);
-        border: 0;
-        color: #fff;
+        background: linear-gradient(125deg, #fff7f7, #fff 68%);
+        border: 1px solid rgba(226, 26, 26, .16);
+        border-left: 4px solid var(--executive-red);
+        color: var(--executive-ink);
         overflow: hidden;
         padding: 22px;
         position: relative;
     }
 
     .executive-summary::after {
-        border: 30px solid rgba(255, 255, 255, .035);
+        border: 30px solid rgba(226, 26, 26, .035);
         border-radius: 50%;
         content: '';
         height: 170px;
@@ -106,7 +107,7 @@
     }
 
     .executive-kicker {
-        color: #ff8585;
+        color: var(--executive-red);
         font-size: .68rem;
         font-weight: 800;
         letter-spacing: .09em;
@@ -115,6 +116,7 @@
     }
 
     .executive-summary h2 {
+        color: var(--executive-ink);
         font-size: 1.2rem;
         font-weight: 750;
         line-height: 1.35;
@@ -123,11 +125,17 @@
     }
 
     .executive-summary p {
-        color: #c6cbd2;
+        color: var(--executive-muted);
         font-size: .79rem;
         line-height: 1.55;
         margin: 0;
         max-width: 850px;
+    }
+
+    .executive-period-badge {
+        background: rgba(226, 26, 26, .08);
+        border: 1px solid rgba(226, 26, 26, .12);
+        color: var(--executive-red);
     }
 
     .executive-snapshot {
@@ -173,9 +181,9 @@
 
     .executive-metrics {
         display: grid;
-        gap: 12px;
+        gap: 24px;
         grid-template-columns: repeat(6, minmax(0, 1fr));
-        margin: 16px 0;
+        margin: 24px 0;
     }
 
     .executive-metric {
@@ -224,7 +232,7 @@
     }
 
     .executive-section {
-        margin-top: 16px;
+        margin-top: 24px !important;
     }
 
     .executive-section-head {
@@ -237,7 +245,7 @@
 
     .recommendation-grid {
         display: grid;
-        gap: 12px;
+        gap: 16px;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         padding: 14px;
     }
@@ -306,7 +314,7 @@
 
     .comparison-grid {
         display: grid;
-        gap: 12px;
+        gap: 16px;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         padding: 14px;
     }
@@ -375,6 +383,11 @@
 
     .progress.executive-progress .progress-bar {
         background: var(--executive-red);
+    }
+
+    .executive-page .row.g-3 {
+        --bs-gutter-x: 1.5rem;
+        --bs-gutter-y: 1.5rem;
     }
 
     @media (max-width: 1199.98px) {
@@ -476,7 +489,7 @@
                 <h2>{{ $narrative['headline'] }}</h2>
                 <p>{{ $narrative['detail'] }}</p>
                 <div class="mt-3">
-                    <span class="executive-badge bg-{{ $narrative['tone'] }} bg-opacity-25 text-white">
+                    <span class="executive-badge executive-period-badge">
                         {{ $dateFrom->translatedFormat('d M Y') }} – {{ $dateTo->translatedFormat('d M Y') }}
                     </span>
                 </div>
