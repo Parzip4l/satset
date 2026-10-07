@@ -32,10 +32,10 @@
         .pdf-note { background: #fff5f5; border: 1px solid #f2c3c5; padding: 8px; margin-bottom: 6px; }
         .signature { margin-top: 28px; width: 100%; page-break-inside: avoid; }
         .signature td { width: 50%; text-align: center; vertical-align: bottom; padding: 4px 20px; }
-        .sign-space { height: 106px; vertical-align: middle !important; }
-        .signature-qr-frame { position: relative; display: inline-block; width: 92px; height: 92px; padding: 4px; border: 1px solid #e4c693; border-radius: 6px; background: #fff; }
-        .signature-qr { display: block; width: 82px; height: 82px; }
-        .signature-qr-logo { position: absolute; left: 36px; top: 36px; width: 20px; height: 20px; padding: 3px; border-radius: 50%; background: #fff; }
+        .sign-space { height: 112px; vertical-align: middle !important; }
+        .signature-qr-frame { position: relative; display: block; width: 92px; height: 92px; margin: 0 auto; padding: 4px; overflow: hidden; line-height: 0; border: 1px solid #e4c693; border-radius: 6px; background: #fff; }
+        .signature-qr { display: block; width: 82px; height: 82px; margin: 0; }
+        .signature-qr-logo { position: absolute; left: 36px; top: 36px; display: block; width: 20px; height: 20px; padding: 3px; border-radius: 50%; background: #fff; line-height: 14px; }
         .signature-qr-logo img { display: block; max-width: 14px; max-height: 14px; margin: auto; }
         .signature-placeholder { color: #9a3412; font-size: 8px; }
         .line { border-top: 1px solid #687286; padding-top: 4px; font-weight: bold; }
@@ -107,10 +107,10 @@
     <tr>
         <td class="sign-space">
             @if($requesterSignatureQr)
-                <span class="signature-qr-frame">
+                <div class="signature-qr-frame">
                     <img class="signature-qr" src="{{ $requesterSignatureQr }}" alt="QR Portal Pelapor">
                     @if($esignLogoDataUri)<span class="signature-qr-logo"><img src="{{ $esignLogoDataUri }}" alt=""></span>@endif
-                </span>
+                </div>
                 <div class="signature-verified">Terverifikasi melalui LRTJ Portal</div>
             @else
                 <span class="signature-placeholder">QR Portal belum tersedia</span>
@@ -118,10 +118,10 @@
         </td>
         <td class="sign-space">
             @if($gaOfficerSignatureQr)
-                <span class="signature-qr-frame">
+                <div class="signature-qr-frame">
                     <img class="signature-qr" src="{{ $gaOfficerSignatureQr }}" alt="QR Portal Tim GA">
                     @if($esignLogoDataUri)<span class="signature-qr-logo"><img src="{{ $esignLogoDataUri }}" alt=""></span>@endif
-                </span>
+                </div>
                 <div class="signature-verified">Terverifikasi melalui LRTJ Portal</div>
             @else
                 <span class="signature-placeholder">QR Portal belum tersedia</span>

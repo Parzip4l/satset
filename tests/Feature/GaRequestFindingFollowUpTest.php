@@ -159,7 +159,7 @@ class GaRequestFindingFollowUpTest extends TestCase
 
         $report->assertOk()
             ->assertHeader('content-type', 'application/pdf')
-            ->assertHeader('content-disposition', 'attachment; filename="laporan-tck-ga-0001.pdf"');
+            ->assertHeader('content-disposition', 'inline; filename="laporan-tck-ga-0001.pdf"');
         $this->assertStringStartsWith('%PDF', $report->getContent());
         $pdfReader = new Fpdi;
         $this->assertGreaterThanOrEqual(

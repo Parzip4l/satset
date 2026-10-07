@@ -1979,7 +1979,7 @@ class TicketController extends Controller
 
         $user = auth()->user();
         if ((int) $ticket->requester_id !== (int) $user?->id && ! GaAccess::allowed($user)) {
-            abort(403, 'Laporan hanya dapat diunduh oleh pelapor atau tim GA.');
+            abort(403, 'Laporan hanya dapat dibuka oleh pelapor atau tim GA.');
         }
 
         if (data_get($ticket->payload, 'workflow_status') !== 'CLOSED' && $ticket->status?->name !== 'Closed') {
@@ -1992,7 +1992,7 @@ class TicketController extends Controller
 
         return response($reportService->make($ticket), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
         ]);
     }
 

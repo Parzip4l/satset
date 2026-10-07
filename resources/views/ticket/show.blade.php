@@ -916,8 +916,8 @@
                             <i class="bi bi-check-circle-fill me-1"></i>
                             Tiket sudah ditutup. Evidence penyelesaian tersimpan pada bagian Lampiran dan aktivitas tercatat di Riwayat.
                         </div>
-                        <a href="{{ route('ticket.ga-request-finding.report', $ticket) }}" class="btn btn-primary w-100 mt-3">
-                            <i class="bi bi-file-earmark-pdf me-1"></i> Download Laporan PDF
+                        <a href="{{ route('ticket.ga-request-finding.report', $ticket) }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary w-100 mt-3">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Buka Laporan PDF
                         </a>
                     @else
                         <form action="{{ route('ticket.ga-request-finding.follow-up', $ticket) }}" method="POST" enctype="multipart/form-data" class="row g-3">
