@@ -132,12 +132,6 @@ class TicketController extends Controller
         $createButtonLabel = 'Buat Permintaan';
         $createActions = [
             [
-                'label' => 'Tiket Umum',
-                'description' => 'Permintaan dukungan umum di luar layanan khusus',
-                'icon' => 'bi-ticket-perforated',
-                'route' => 'ticket.create',
-            ],
-            [
                 'label' => 'Permintaan Konsumsi',
                 'description' => 'Konsumsi rapat atau kegiatan',
                 'icon' => 'bi-cup-hot',
