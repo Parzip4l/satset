@@ -19,6 +19,7 @@ use App\Http\Controllers\VCardController;
 use App\Http\Controllers\Master\TicketFormSchemaController;
 use App\Http\Controllers\Master\BumInventoryController;
 use App\Http\Controllers\Master\BumAnalyticsController;
+use App\Http\Controllers\Setting\TicketDataController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -76,6 +77,14 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::post('/update-status/{id}', [App\Http\Controllers\Setting\MenuController::class, 'updateStatus'])->name('update.status');
     Route::resource('user', App\Http\Controllers\General\userController::class);
     Route::resource('role', App\Http\Controllers\Setting\RoleController::class);
+    Route::prefix('settings/ticket-data')->name('settings.ticket-data.')->middleware('admin.only')->group(function () {
+        Route::get('/', [TicketDataController::class, 'index'])->name('index');
+        Route::post('/backup', [TicketDataController::class, 'backup'])->name('backup');
+        Route::post('/restore', [TicketDataController::class, 'restore'])->name('restore');
+        Route::delete('/clear', [TicketDataController::class, 'clear'])->name('clear');
+        Route::get('/backups/{filename}', [TicketDataController::class, 'downloadSaved'])->name('backups.download');
+        Route::post('/backups/{filename}/restore', [TicketDataController::class, 'restoreSaved'])->name('backups.restore');
+    });
 
     // Page
     Route::get('dashboard', [dashboardController::class, 'index'])->name('dashboard.index');

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\AuthenticateMobileSatset;
 use App\Http\Middleware\EnsureGaTeam;
+use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\VerifyIntranetSatsetSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PROTO
         );
         $middleware->alias([
+            'admin.only' => EnsureAdmin::class,
             'satset.mobile' => AuthenticateMobileSatset::class,
             'ga.team' => EnsureGaTeam::class,
             'satset.intranet' => VerifyIntranetSatsetSignature::class,

@@ -143,6 +143,22 @@
                 </ul>
             </li>
             @endif
+
+            @if(strtolower((string) (auth()->user()->role ?? '')) === 'admin')
+            <li class="pe-menu-title">Pengaturan Sistem</li>
+            <li class="pe-slide pe-has-sub">
+                <a href="#collapseSystemSettings" class="pe-nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ request()->routeIs('settings.*') ? 'true' : 'false' }}" aria-controls="collapseSystemSettings">
+                    <i class="bi bi-gear pe-nav-icon"></i>
+                    <span class="pe-nav-content">Settings</span>
+                    <i class="ri-arrow-down-s-line pe-nav-arrow"></i>
+                </a>
+                <ul class="pe-slide-menu collapse {{ request()->routeIs('settings.*') ? 'show' : '' }}" id="collapseSystemSettings">
+                    <li class="pe-slide-item">
+                        <a href="{{ route('settings.ticket-data.index') }}" class="pe-nav-link {{ request()->routeIs('settings.ticket-data.*') ? 'active' : '' }}">Backup & Data Tiket</a>
+                    </li>
+                </ul>
+            </li>
+            @endif
         </ul>
     </nav>
 </aside>
