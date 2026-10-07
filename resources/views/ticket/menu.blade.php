@@ -17,11 +17,28 @@
     }
 
     .requests-intro {
-        align-items: flex-end;
+        align-items: center;
+        background: #202328;
+        border: 1px solid #2c3036;
+        border-radius: 16px;
         display: flex;
         gap: 32px;
         justify-content: space-between;
-        margin-bottom: 28px;
+        margin-bottom: 16px;
+        overflow: hidden;
+        padding: 30px 32px;
+        position: relative;
+    }
+
+    .requests-intro::after {
+        border: 34px solid rgba(255, 255, 255, .035);
+        border-radius: 50%;
+        content: "";
+        height: 190px;
+        position: absolute;
+        right: 18%;
+        top: -105px;
+        width: 190px;
     }
 
     .requests-eyebrow {
@@ -34,7 +51,7 @@
     }
 
     .requests-title {
-        color: var(--request-ink);
+        color: #fff;
         font-size: clamp(1.8rem, 3vw, 2.5rem);
         font-weight: 750;
         letter-spacing: -.04em;
@@ -43,7 +60,7 @@
     }
 
     .requests-description {
-        color: var(--request-muted);
+        color: #b9bec6;
         line-height: 1.65;
         margin: 0;
         max-width: 720px;
@@ -51,10 +68,10 @@
 
     .requests-history-link {
         align-items: center;
-        background: #fff;
-        border: 1px solid var(--request-border);
+        background: rgba(255, 255, 255, .08);
+        border: 1px solid rgba(255, 255, 255, .14);
         border-radius: 9px;
-        color: var(--request-ink);
+        color: #fff;
         display: inline-flex;
         flex: 0 0 auto;
         font-weight: 650;
@@ -62,11 +79,13 @@
         padding: 10px 14px;
         text-decoration: none;
         transition: border-color .18s ease, color .18s ease;
+        z-index: 1;
     }
 
     .requests-history-link:hover {
-        border-color: #c7ccd3;
-        color: var(--request-red);
+        background: #fff;
+        border-color: #fff;
+        color: #202328;
     }
 
     .request-metrics {
@@ -75,15 +94,31 @@
         grid-template-columns: repeat(5, minmax(0, 1fr));
         background: var(--request-border);
         border: 1px solid var(--request-border);
-        border-radius: 12px;
-        margin-bottom: 38px;
+        border-radius: 14px;
+        margin-bottom: 34px;
         overflow: hidden;
     }
 
     .request-metric {
+        align-items: center;
         background: #fff;
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 38px minmax(0, 1fr);
         min-height: 98px;
-        padding: 18px 20px;
+        padding: 18px;
+    }
+
+    .request-metric-icon {
+        align-items: center;
+        background: var(--request-soft);
+        border-radius: 9px;
+        color: #65707d;
+        display: inline-flex;
+        font-size: 1rem;
+        height: 38px;
+        justify-content: center;
+        width: 38px;
     }
 
     .request-metric-label {
@@ -102,6 +137,11 @@
     }
 
     .request-metric.pending .request-metric-value {
+        color: var(--request-red);
+    }
+
+    .request-metric.pending .request-metric-icon {
+        background: rgba(226, 26, 26, .08);
         color: var(--request-red);
     }
 
@@ -128,21 +168,20 @@
 
     .request-services {
         display: grid;
-        gap: 14px;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .request-service {
-        align-items: flex-start;
         background: #fff;
         border: 1px solid var(--request-border);
-        border-radius: 12px;
+        border-radius: 14px;
         color: inherit;
-        display: grid;
-        gap: 18px;
-        grid-template-columns: 44px minmax(0, 1fr) 24px;
-        min-height: 154px;
-        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        min-height: 224px;
+        overflow: hidden;
+        padding: 24px;
         position: relative;
         text-decoration: none;
         transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
@@ -155,24 +194,37 @@
         transform: translateY(-2px);
     }
 
+    .request-service::before {
+        background: var(--service-accent, #7a838e);
+        content: "";
+        height: 3px;
+        left: 0;
+        position: absolute;
+        right: 0;
+        top: 0;
+    }
+
+    .request-service.tone-blue { --service-accent: #4676a9; --service-soft: #edf3f9; }
+    .request-service.tone-teal { --service-accent: #31828a; --service-soft: #edf7f7; }
+    .request-service.tone-amber { --service-accent: #a9762a; --service-soft: #faf4e9; }
+    .request-service.tone-red { --service-accent: #e21a1a; --service-soft: #fff0f0; }
+    .request-service.tone-slate { --service-accent: #626c78; --service-soft: #f1f3f5; }
+
     .request-service-icon {
         align-items: center;
-        background: var(--request-soft);
-        border: 1px solid #eceef1;
-        border-radius: 10px;
-        color: #4d5865;
+        background: var(--service-soft, var(--request-soft));
+        border-radius: 12px;
+        color: var(--service-accent, #4d5865);
         display: inline-flex;
-        font-size: 1.15rem;
-        height: 44px;
+        font-size: 1.25rem;
+        height: 48px;
         justify-content: center;
-        width: 44px;
+        width: 48px;
     }
 
     .request-service:hover .request-service-icon,
     .request-service.featured .request-service-icon {
-        background: rgba(226, 26, 26, .08);
-        border-color: rgba(226, 26, 26, .12);
-        color: var(--request-red);
+        color: var(--service-accent, var(--request-red));
     }
 
     .request-service-kicker {
@@ -180,7 +232,8 @@
         font-size: .7rem;
         font-weight: 750;
         letter-spacing: .07em;
-        margin-bottom: 5px;
+        margin-bottom: 6px;
+        margin-top: 20px;
         text-transform: uppercase;
     }
 
@@ -201,10 +254,18 @@
     }
 
     .request-service-arrow {
+        align-items: center;
+        align-self: flex-end;
+        background: var(--request-soft);
+        border-radius: 50%;
         color: #a0a7b0;
+        display: inline-flex;
         font-size: 1.05rem;
-        padding-top: 10px;
+        height: 34px;
+        justify-content: center;
+        margin-top: auto;
         transition: color .18s ease, transform .18s ease;
+        width: 34px;
     }
 
     .request-service:hover .request-service-arrow {
@@ -214,6 +275,11 @@
 
     .request-service.featured {
         border-color: rgba(226, 26, 26, .24);
+        grid-column: span 2;
+    }
+
+    .request-service.featured p {
+        max-width: 680px;
     }
 
     @media (max-width: 991.98px) {
@@ -223,6 +289,10 @@
 
         .request-metric:last-child {
             grid-column: 1 / -1;
+        }
+
+        .request-services {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
@@ -236,6 +306,10 @@
         .request-services {
             grid-template-columns: 1fr;
         }
+
+        .request-service.featured {
+            grid-column: auto;
+        }
     }
 
     @media (max-width: 479.98px) {
@@ -248,8 +322,7 @@
         }
 
         .request-service {
-            gap: 14px;
-            grid-template-columns: 40px minmax(0, 1fr) 18px;
+            min-height: 208px;
             padding: 18px;
         }
 
@@ -264,11 +337,11 @@
 @section('content')
 @php
     $metrics = [
-        ['label' => 'Total request', 'value' => $stats['total'] ?? 0],
-        ['label' => 'Open', 'value' => $stats['open'] ?? 0],
-        ['label' => 'Dalam proses', 'value' => $stats['in_progress'] ?? 0],
-        ['label' => 'Selesai', 'value' => $stats['completed'] ?? 0],
-        ['label' => 'Menunggu approval', 'value' => $stats['pending_approvals'] ?? 0, 'class' => 'pending'],
+        ['label' => 'Total request', 'value' => $stats['total'] ?? 0, 'icon' => 'bi-layers'],
+        ['label' => 'Open', 'value' => $stats['open'] ?? 0, 'icon' => 'bi-inbox'],
+        ['label' => 'Dalam proses', 'value' => $stats['in_progress'] ?? 0, 'icon' => 'bi-arrow-repeat'],
+        ['label' => 'Selesai', 'value' => $stats['completed'] ?? 0, 'icon' => 'bi-check2-circle'],
+        ['label' => 'Menunggu approval', 'value' => $stats['pending_approvals'] ?? 0, 'icon' => 'bi-person-check', 'class' => 'pending'],
     ];
 
     $services = [
@@ -278,6 +351,7 @@
             'description' => 'Laporkan kebutuhan umum dan pantau status tiket yang pernah Anda buat.',
             'icon' => 'bi-ticket-perforated',
             'route' => 'ticket.general',
+            'class' => 'tone-blue',
         ],
         [
             'title' => 'Permintaan Konsumsi',
@@ -285,6 +359,7 @@
             'description' => 'Ajukan konsumsi kegiatan dengan alur approval atasan dan verifikasi Bagian Umum.',
             'icon' => 'bi-cup-hot',
             'route' => 'ticket.konsumsi.create',
+            'class' => 'tone-teal',
         ],
         [
             'title' => 'Permintaan ATK / RTK',
@@ -292,6 +367,7 @@
             'description' => 'Ajukan alat tulis atau perlengkapan rumah tangga kantor dari katalog yang tersedia.',
             'icon' => 'bi-box-seam',
             'route' => 'ticket.atk-rtk.create',
+            'class' => 'tone-amber',
         ],
         [
             'title' => 'GA Permintaan & Temuan',
@@ -299,7 +375,7 @@
             'description' => 'Sampaikan kebutuhan dukungan atau temuan fasilitas agar dapat segera ditindaklanjuti.',
             'icon' => 'bi-building-gear',
             'route' => 'ticket.ga-permintaan-temuan.create',
-            'class' => 'featured',
+            'class' => 'featured tone-red',
         ],
         [
             'title' => 'Approval Saya',
@@ -307,6 +383,7 @@
             'description' => 'Tinjau permintaan yang menunggu keputusan Anda dan lihat riwayat persetujuannya.',
             'icon' => 'bi-check2-square',
             'route' => 'ticket.approvals',
+            'class' => 'tone-slate',
         ],
     ];
 @endphp
@@ -335,8 +412,11 @@
     <section class="request-metrics" aria-label="Ringkasan request">
         @foreach($metrics as $metric)
             <div class="request-metric {{ $metric['class'] ?? '' }}">
-                <div class="request-metric-label">{{ $metric['label'] }}</div>
-                <div class="request-metric-value">{{ number_format($metric['value']) }}</div>
+                <span class="request-metric-icon"><i class="bi {{ $metric['icon'] }}"></i></span>
+                <span>
+                    <span class="request-metric-label d-block">{{ $metric['label'] }}</span>
+                    <span class="request-metric-value d-block">{{ number_format($metric['value']) }}</span>
+                </span>
             </div>
         @endforeach
     </section>
