@@ -127,8 +127,10 @@ class GaRequestFindingReportService
         if (is_string($value) && $value !== '') {
             try {
                 $svg = QrCode::format('svg')
-                    ->size(180)
-                    ->margin(1)
+                    // DomPDF does not reliably scale an SVG whose intrinsic
+                    // dimensions are larger than its CSS box and can crop it.
+                    ->size(76)
+                    ->margin(2)
                     ->errorCorrection('H')
                     ->generate($value);
 

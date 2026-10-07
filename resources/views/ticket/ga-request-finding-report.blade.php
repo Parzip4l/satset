@@ -33,9 +33,9 @@
         .signature { margin-top: 28px; width: 100%; page-break-inside: avoid; }
         .signature td { width: 50%; text-align: center; vertical-align: bottom; padding: 4px 20px; }
         .sign-space { height: 112px; vertical-align: middle !important; }
-        .signature-qr-frame { position: relative; display: block; width: 92px; height: 92px; margin: 0 auto; padding: 4px; overflow: hidden; line-height: 0; border: 1px solid #e4c693; border-radius: 6px; background: #fff; }
-        .signature-qr { display: block; width: 82px; height: 82px; margin: 0; }
-        .signature-qr-logo { position: absolute; left: 36px; top: 36px; display: block; width: 20px; height: 20px; padding: 3px; border-radius: 50%; background: #fff; line-height: 14px; }
+        .signature-qr-frame { position: relative; display: block; width: 96px; height: 96px; margin: 0 auto; padding: 6px; overflow: visible; line-height: 0; border: 1px solid #e4c693; border-radius: 6px; background: #fff; }
+        .signature-qr { position: absolute; left: 10px; top: 10px; display: block; width: 76px; height: 76px; margin: 0; }
+        .signature-qr-logo { position: absolute; left: 38px; top: 38px; display: block; width: 20px; height: 20px; padding: 3px; border-radius: 50%; background: #fff; line-height: 14px; }
         .signature-qr-logo img { display: block; max-width: 14px; max-height: 14px; margin: auto; }
         .signature-placeholder { color: #9a3412; font-size: 8px; }
         .line { border-top: 1px solid #687286; padding-top: 4px; font-weight: bold; }
