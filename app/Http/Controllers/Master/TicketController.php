@@ -22,6 +22,7 @@ use App\Models\Master\TicketHistory;
 use App\Models\Master\Urgency;
 use App\Models\User;
 use App\Services\ConsumableStockService;
+use App\Services\GaRequestFindingReportService;
 use App\Services\LrtjSpaceApprovalResolverService;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\LrtjSpacePortalSignatureService;
@@ -1952,6 +1953,30 @@ class TicketController extends Controller
                 ? 'Tindak lanjut dan evidence berhasil disimpan. Tiket telah ditutup.'
                 : 'Tindak lanjut dan evidence berhasil disimpan.'
         );
+    }
+
+    public function downloadGaRequestFindingReport(Ticket $ticket, GaRequestFindingReportService $reportService)
+    {
+        if (data_get($ticket->payload, 'request_type') !== 'ga_request_finding') {
+            abort(404);
+        }
+
+        $user = auth()->user();
+        if ((int) $ticket->requester_id !== (int) $user?->id && ! GaAccess::allowed($user)) {
+            abort(403, 'Laporan hanya dapat diunduh oleh pelapor atau tim GA.');
+        }
+
+        if (data_get($ticket->payload, 'workflow_status') !== 'CLOSED' && $ticket->status?->name !== 'Closed') {
+            return back()->with('error', 'Laporan PDF hanya tersedia setelah tiket ditutup.');
+        }
+
+        $ticket->loadMissing(['requester', 'status', 'attachments', 'histories.user']);
+        $filename = Str::slug('laporan-'.$ticket->ticket_no).'.pdf';
+
+        return response($reportService->make($ticket), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 
     private function createManagerApproval(Ticket $ticket): void

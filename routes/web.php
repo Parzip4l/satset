@@ -160,6 +160,8 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::post('/tickets/{ticket}/ga-request-finding/follow-up', [App\Http\Controllers\Master\TicketController::class, 'followUpGaRequestFinding'])
         ->middleware('ga.team')
         ->name('ticket.ga-request-finding.follow-up');
+    Route::get('/tickets/{ticket}/ga-request-finding/report', [App\Http\Controllers\Master\TicketController::class, 'downloadGaRequestFindingReport'])
+        ->name('ticket.ga-request-finding.report');
 
     Route::get('/ticket-form-schema/{category}', function ($category) {
         return TicketFormSchema::where('ticket_category_id', $category)

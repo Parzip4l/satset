@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\Master\Attachment;
 use App\Models\Master\Ticket;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use setasign\Fpdi\Fpdi;
+use setasign\Fpdi\PdfParser\StreamReader;
 use Tests\TestCase;
 
 class GaRequestFindingFollowUpTest extends TestCase
@@ -94,7 +98,10 @@ class GaRequestFindingFollowUpTest extends TestCase
             [
                 'workflow_status' => 'CLOSED',
                 'follow_up_notes' => 'Lampu lobby sudah diganti dan berfungsi normal.',
-                'follow_up_evidence_file' => UploadedFile::fake()->create('bukti.pdf', 100, 'application/pdf'),
+                'follow_up_evidence_file' => UploadedFile::fake()->createWithContent(
+                    'bukti.png',
+                    base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
+                ),
             ]
         );
 
@@ -108,13 +115,40 @@ class GaRequestFindingFollowUpTest extends TestCase
             'request_id' => $ticket->id,
             'uploaded_by' => $gaOfficer->id,
             'attachment_type' => 'ga_follow_up_evidence',
-            'file_name' => 'bukti.pdf',
+            'file_name' => 'bukti.png',
         ]);
         $this->assertDatabaseHas('ticket_histories', [
             'ticket_id' => $ticket->id,
             'user_id' => $gaOfficer->id,
             'status_id' => $closedStatus,
         ]);
+
+        $pdfEvidence = Pdf::loadHTML(
+            '<h1>Evidence PDF</h1><p>Halaman satu.</p><div style="page-break-before:always"></div><p>Halaman dua.</p>'
+        )->output();
+        Storage::disk('public')->put('request-attachments/'.$ticket->id.'/evidence-tambahan.pdf', $pdfEvidence);
+        Attachment::create([
+            'request_id' => $ticket->id,
+            'uploaded_by' => $gaOfficer->id,
+            'file_name' => 'evidence-tambahan.pdf',
+            'file_path' => 'request-attachments/'.$ticket->id.'/evidence-tambahan.pdf',
+            'mime_type' => 'application/pdf',
+            'size' => strlen($pdfEvidence),
+            'attachment_type' => 'ga_follow_up_evidence',
+            'uploaded_at' => now(),
+        ]);
+
+        $report = $this->actingAs($requester)->get(route('ticket.ga-request-finding.report', $ticket));
+
+        $report->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'attachment; filename="laporan-tck-ga-0001.pdf"');
+        $this->assertStringStartsWith('%PDF', $report->getContent());
+        $pdfReader = new Fpdi;
+        $this->assertGreaterThanOrEqual(
+            4,
+            $pdfReader->setSourceFile(StreamReader::createByString($report->getContent()))
+        );
     }
 
     public function test_non_ga_user_cannot_submit_follow_up(): void

@@ -902,7 +902,7 @@
             </div>
             @endif
 
-            @if($requestType === 'ga_request_finding' && $canManageGaOperations)
+            @if($requestType === 'ga_request_finding' && ($canManageGaOperations || ($isRequester && $isGaRequestFindingClosed)))
             <div class="card-clean">
                 <div class="card-header-clean">
                     <span class="header-title"><i class="bi bi-check2-circle text-danger"></i> Tindak Lanjut Tim GA</span>
@@ -916,6 +916,9 @@
                             <i class="bi bi-check-circle-fill me-1"></i>
                             Tiket sudah ditutup. Evidence penyelesaian tersimpan pada bagian Lampiran dan aktivitas tercatat di Riwayat.
                         </div>
+                        <a href="{{ route('ticket.ga-request-finding.report', $ticket) }}" class="btn btn-primary w-100 mt-3">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Download Laporan PDF
+                        </a>
                     @else
                         <form action="{{ route('ticket.ga-request-finding.follow-up', $ticket) }}" method="POST" enctype="multipart/form-data" class="row g-3">
                             @csrf
