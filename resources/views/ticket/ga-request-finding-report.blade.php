@@ -16,7 +16,6 @@
         .page-number:after { content: counter(page); }
         h1 { margin: 0 0 4px; font-size: 20px; color: #172033; }
         .subtitle { color: #657086; margin-bottom: 18px; }
-        .status { display: inline-block; background: #e8f7ee; color: #137a43; border: 1px solid #a8ddbd; border-radius: 12px; padding: 3px 10px; font-weight: bold; }
         .section { margin-top: 18px; page-break-inside: avoid; }
         .section-title { color: #e21b23; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #e4e7ed; padding-bottom: 5px; margin-bottom: 9px; }
         table { width: 100%; border-collapse: collapse; }
@@ -51,7 +50,7 @@
 </footer>
 
 <h1>{{ $ticket->title }}</h1>
-<div class="subtitle">Dokumen penyelesaian tiket <strong>#{{ $ticket->ticket_no }}</strong> &nbsp; <span class="status">CLOSED</span></div>
+<div class="subtitle">Dokumen penyelesaian tiket <strong>#{{ $ticket->ticket_no }}</strong></div>
 
 <div class="section">
     <div class="section-title">Informasi Laporan</div>
@@ -69,8 +68,7 @@
             <td><div class="label">Detail Lokasi</div><div class="value">{{ data_get($payload, 'detail_location', '-') }}</div></td>
         </tr>
         <tr>
-            <td><div class="label">Kontak Pelapor</div><div class="value">{{ data_get($payload, 'reporter_phone', '-') }}</div></td>
-            <td><div class="label">Status Akhir</div><div class="value">Closed / Selesai</div></td>
+            <td colspan="2"><div class="label">Kontak Pelapor</div><div class="value">{{ data_get($payload, 'reporter_phone', '-') }}</div></td>
         </tr>
     </table>
 </div>
@@ -85,7 +83,7 @@
     <div class="section-title">Tindak Lanjut Tim GA</div>
     @forelse($followUps as $index => $followUp)
         <div class="follow-up">
-            <div class="follow-up-head">Tindak Lanjut {{ $index + 1 }} - {{ data_get($followUp, 'status') === 'CLOSED' ? 'Closed' : 'Dalam Proses' }}</div>
+            <div class="follow-up-head">Tindak Lanjut {{ $index + 1 }}</div>
             <div>{{ data_get($followUp, 'notes', '-') }}</div>
             <div class="follow-up-meta">
                 {{ data_get($followUp, 'followed_up_by_name', 'Tim GA') }} -
