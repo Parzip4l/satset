@@ -100,7 +100,6 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::get('/ticket/atk-rtk/create', [App\Http\Controllers\Master\TicketController::class, 'createAtkRtk'])
         ->name('ticket.atk-rtk.create');
     Route::get('/ticket/ga-permintaan-temuan/create', [App\Http\Controllers\Master\TicketController::class, 'createGaRequestFinding'])
-        ->middleware('ga.team')
         ->name('ticket.ga-permintaan-temuan.create');
     Route::get('/ticket/gudang-atk-rtk', [App\Http\Controllers\Master\TicketController::class, 'warehouseAtkRtk'])
         ->middleware('ga.team')

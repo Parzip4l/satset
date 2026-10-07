@@ -101,6 +101,17 @@
     aside.pe-app-sidebar:not(.horizontal-sidebar) .pe-main-menu > .pe-slide > .pe-nav-link .pe-nav-content {
         font-size: 0.82rem;
     }
+    aside.pe-app-sidebar:not(.horizontal-sidebar) .pe-main-menu .pe-slide-menu > .pe-slide-item > .pe-nav-link {
+        font-size: 0.82rem;
+        line-height: 1.2;
+        min-height: 36px;
+        padding-bottom: 7px;
+        padding-top: 7px;
+    }
+    aside.pe-app-sidebar:not(.horizontal-sidebar) .pe-main-menu .pe-slide-menu > .pe-slide-item > .pe-nav-link::before {
+        top: 50%;
+        transform: translateY(-50%);
+    }
     .bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
     .bg-warning-subtle { background-color: rgba(255, 193, 7, 0.1) !important; }
     .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }
