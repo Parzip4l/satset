@@ -131,7 +131,7 @@
         }
 
         .stock-detail-modal .modal-dialog {
-            max-width: min(860px, calc(100vw - 2rem));
+            max-width: min(980px, calc(100vw - 2rem));
         }
 
         .stock-detail-modal .modal-content {
@@ -316,6 +316,160 @@
             min-width: 112px;
         }
 
+        .movement-ticket-shell {
+            background: #fff;
+            display: grid;
+            grid-template-columns: 270px minmax(0, 1fr);
+            min-height: 500px;
+        }
+
+        .movement-ticket-stub {
+            background:
+                radial-gradient(circle at 10% 5%, rgba(255, 255, 255, .16), transparent 28%),
+                linear-gradient(150deg, #c9141d, #ed2525 62%, #bb1019);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 1.6rem;
+            position: relative;
+        }
+
+        .movement-ticket-stub::after {
+            border: 28px solid rgba(255, 255, 255, .06);
+            border-radius: 50%;
+            content: '';
+            height: 170px;
+            position: absolute;
+            right: -75px;
+            top: -55px;
+            width: 170px;
+        }
+
+        .ticket-stub-label {
+            font-size: .66rem;
+            font-weight: 850;
+            letter-spacing: .12em;
+            opacity: .82;
+            text-transform: uppercase;
+        }
+
+        .ticket-stub-number {
+            font-size: .74rem;
+            font-weight: 800;
+            margin-top: .25rem;
+            opacity: .9;
+        }
+
+        .ticket-stub-center {
+            align-items: center;
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .movement-ticket-stub .movement-type-icon {
+            background: rgba(255, 255, 255, .14);
+            border: 1px solid rgba(255, 255, 255, .18);
+            color: #fff;
+            font-size: 1.5rem;
+            height: 64px;
+            width: 64px;
+        }
+
+        .ticket-stub-qty {
+            color: #fff !important;
+            font-size: 2rem;
+            margin-top: 1rem;
+        }
+
+        .ticket-stub-type {
+            font-size: .78rem;
+            font-weight: 800;
+            letter-spacing: .06em;
+            margin-top: .45rem;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .ticket-stub-meta {
+            border-top: 1px dashed rgba(255, 255, 255, .52);
+            display: grid;
+            gap: .85rem;
+            padding-top: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .ticket-stub-meta span {
+            display: block;
+            font-size: .62rem;
+            font-weight: 700;
+            margin-bottom: .2rem;
+            opacity: .7;
+            text-transform: uppercase;
+        }
+
+        .ticket-stub-meta strong {
+            display: block;
+            font-size: .76rem;
+            font-weight: 800;
+        }
+
+        .movement-ticket-main {
+            border-left: 1px dashed #d8dde3;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            position: relative;
+        }
+
+        .movement-ticket-main::before,
+        .movement-ticket-main::after {
+            background: #eef0f3;
+            border-radius: 50%;
+            content: '';
+            height: 28px;
+            left: -14px;
+            position: absolute;
+            width: 28px;
+            z-index: 2;
+        }
+
+        .movement-ticket-main::before { top: -14px; }
+        .movement-ticket-main::after { bottom: -14px; }
+
+        .movement-ticket-head {
+            align-items: flex-start;
+            background: linear-gradient(135deg, #fff, #fffafa);
+            border-bottom: 1px solid var(--stock-line);
+            display: flex;
+            justify-content: space-between;
+            padding: 1.35rem 1.5rem;
+        }
+
+        .movement-ticket-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.25rem 1.5rem;
+        }
+
+        .movement-ticket-content .movement-balance {
+            margin-bottom: .85rem;
+        }
+
+        .movement-ticket-footer {
+            align-items: center;
+            border-top: 1px solid var(--stock-line);
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+            padding: .9rem 1.5rem;
+        }
+
         @media (max-width: 767.98px) {
             .stock-card-actions,
             .stock-pagination {
@@ -336,6 +490,29 @@
             .movement-nav-actions,
             .movement-nav-actions .btn {
                 width: 100%;
+            }
+
+            .movement-ticket-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .movement-ticket-stub {
+                min-height: 245px;
+            }
+
+            .movement-ticket-main {
+                border-left: 0;
+                border-top: 1px dashed #d8dde3;
+            }
+
+            .movement-ticket-main::before,
+            .movement-ticket-main::after {
+                display: none;
+            }
+
+            .movement-ticket-footer {
+                align-items: stretch;
+                flex-direction: column;
             }
         }
     </style>
@@ -496,73 +673,83 @@
 <div class="modal fade stock-detail-modal" id="stockMovementDetailModal" tabindex="-1" aria-labelledby="stockMovementDetailTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
-            <div class="modal-header">
-                <div class="d-flex align-items-start gap-3 pe-3">
-                    <span class="movement-type-icon" id="movementTypeIcon"><i class="bi bi-arrow-left-right"></i></span>
+            <div class="movement-ticket-shell">
+                <aside class="movement-ticket-stub">
                     <div>
-                        <div class="movement-modal-kicker" id="movementTypeLabel">Detail Mutasi</div>
-                        <h2 class="movement-modal-title" id="stockMovementDetailTitle">-</h2>
-                        <div class="movement-modal-subtitle" id="movementItemMeta">-</div>
+                        <div class="ticket-stub-label">Stock Movement</div>
+                        <div class="ticket-stub-number" id="movementTicketNumber">#-</div>
                     </div>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
-            </div>
-            <div class="modal-body">
-                <div class="movement-highlight">
-                    <div>
-                        <div class="movement-modal-kicker mb-1">Perubahan Stok</div>
-                        <div class="fw-bold" id="movementWarehouse">-</div>
-                        <div class="movement-modal-subtitle" id="movementDate">-</div>
+                    <div class="ticket-stub-center">
+                        <span class="movement-type-icon" id="movementTypeIcon"><i class="bi bi-arrow-left-right"></i></span>
+                        <div class="movement-qty ticket-stub-qty" id="movementQty">-</div>
+                        <div class="ticket-stub-type" id="movementTypeLabel">Detail Mutasi</div>
                     </div>
-                    <div class="movement-qty" id="movementQty">-</div>
-                </div>
+                    <div class="ticket-stub-meta">
+                        <div><span>Gudang</span><strong id="movementWarehouse">-</strong></div>
+                        <div><span>Waktu Transaksi</span><strong id="movementDate">-</strong></div>
+                    </div>
+                </aside>
 
-                <div class="movement-balance">
-                    <div class="movement-balance-box">
-                        <span>Stok Sebelum</span>
-                        <strong id="movementBalanceBefore">-</strong>
-                    </div>
-                    <span class="movement-balance-arrow"><i class="bi bi-arrow-right"></i></span>
-                    <div class="movement-balance-box">
-                        <span>Stok Sesudah</span>
-                        <strong id="movementBalanceAfter">-</strong>
-                    </div>
-                </div>
+                <section class="movement-ticket-main">
+                    <header class="movement-ticket-head">
+                        <div class="pe-3">
+                            <div class="movement-modal-kicker">Detail Kartu Stok</div>
+                            <h2 class="movement-modal-title" id="stockMovementDetailTitle">-</h2>
+                            <div class="movement-modal-subtitle" id="movementItemMeta">-</div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                    </header>
 
-                <div class="movement-section-label">Informasi Transaksi</div>
-                <div class="movement-info-grid">
-                    <div class="movement-info-item">
-                        <span>Referensi</span>
-                        <strong id="movementReferenceText">-</strong>
-                        <a href="#" id="movementReferenceLink" class="small text-primary text-decoration-none d-none">Buka referensi <i class="bi bi-arrow-up-right"></i></a>
+                    <div class="movement-ticket-content">
+                        <div class="movement-balance">
+                            <div class="movement-balance-box">
+                                <span>Stok Sebelum</span>
+                                <strong id="movementBalanceBefore">-</strong>
+                            </div>
+                            <span class="movement-balance-arrow"><i class="bi bi-arrow-right"></i></span>
+                            <div class="movement-balance-box">
+                                <span>Stok Sesudah</span>
+                                <strong id="movementBalanceAfter">-</strong>
+                            </div>
+                        </div>
+
+                        <div class="movement-section-label">Informasi Transaksi</div>
+                        <div class="movement-info-grid">
+                            <div class="movement-info-item">
+                                <span>Referensi</span>
+                                <strong id="movementReferenceText">-</strong>
+                                <a href="#" id="movementReferenceLink" class="small text-primary text-decoration-none d-none">Buka referensi <i class="bi bi-arrow-up-right"></i></a>
+                            </div>
+                            <div class="movement-info-item"><span>Diproses Oleh</span><strong id="movementCreator">-</strong></div>
+                            <div class="movement-info-item"><span>Bin Location</span><strong id="movementLocation">-</strong></div>
+                        </div>
+
+                        <div class="movement-section-label">Kondisi Barang Saat Ini</div>
+                        <div class="movement-stock-grid">
+                            <div class="movement-stock-item"><span>Gudang Besar</span><strong id="movementBigStock">-</strong></div>
+                            <div class="movement-stock-item"><span>Gudang Kecil</span><strong id="movementSmallStock">-</strong></div>
+                            <div class="movement-stock-item"><span>Status Stok</span><strong id="movementStockStatus">-</strong></div>
+                        </div>
+
+                        <div class="movement-section-label">Catatan</div>
+                        <div class="movement-note" id="movementNotes">-</div>
                     </div>
-                    <div class="movement-info-item"><span>Diproses Oleh</span><strong id="movementCreator">-</strong></div>
-                    <div class="movement-info-item"><span>Bin Location</span><strong id="movementLocation">-</strong></div>
-                </div>
 
-                <div class="movement-section-label">Kondisi Barang Saat Ini</div>
-                <div class="movement-stock-grid">
-                    <div class="movement-stock-item"><span>Gudang Besar</span><strong id="movementBigStock">-</strong></div>
-                    <div class="movement-stock-item"><span>Gudang Kecil</span><strong id="movementSmallStock">-</strong></div>
-                    <div class="movement-stock-item"><span>Status Stok</span><strong id="movementStockStatus">-</strong></div>
-                </div>
-
-                <div class="movement-section-label">Catatan</div>
-                <div class="movement-note" id="movementNotes">-</div>
-            </div>
-            <div class="modal-footer">
-                <div class="d-flex align-items-center gap-3">
-                    <span class="movement-counter" id="movementCounter">-</span>
-                    <a href="#" class="small fw-semibold text-primary text-decoration-none" id="movementItemLink">Detail barang <i class="bi bi-arrow-up-right"></i></a>
-                </div>
-                <div class="movement-nav-actions">
-                    <button type="button" class="btn btn-light border" id="movementPrevious">
-                        <i class="bi bi-arrow-left me-1"></i> Sebelumnya
-                    </button>
-                    <button type="button" class="btn btn-primary" id="movementNext">
-                        Berikutnya <i class="bi bi-arrow-right ms-1"></i>
-                    </button>
-                </div>
+                    <footer class="movement-ticket-footer">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="movement-counter" id="movementCounter">-</span>
+                            <a href="#" class="small fw-semibold text-primary text-decoration-none" id="movementItemLink">Detail barang <i class="bi bi-arrow-up-right"></i></a>
+                        </div>
+                        <div class="movement-nav-actions">
+                            <button type="button" class="btn btn-light border" id="movementPrevious">
+                                <i class="bi bi-arrow-left me-1"></i> Sebelumnya
+                            </button>
+                            <button type="button" class="btn btn-primary" id="movementNext">
+                                Berikutnya <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </footer>
+                </section>
             </div>
         </div>
     </div>
@@ -602,6 +789,7 @@
             const movement = movementDetails[currentIndex];
             const directionSign = movement.is_outgoing ? '-' : '+';
 
+            text('movementTicketNumber', `#SC-${String(movement.id).padStart(6, '0')}`);
             text('movementTypeLabel', movement.movement_type);
             text('stockMovementDetailTitle', movement.item_name);
             text('movementItemMeta', `${movement.item_code} · ${movement.category}`);
