@@ -30,16 +30,17 @@
         .evidence img { max-width: 100%; max-height: 520px; border: 1px solid #ccd2dc; padding: 4px; }
         .evidence-caption { text-align: left; color: #59657a; font-size: 8px; margin-top: 4px; }
         .pdf-note { background: #fff5f5; border: 1px solid #f2c3c5; padding: 8px; margin-bottom: 6px; }
-        .signature { margin-top: 28px; width: 100%; page-break-inside: avoid; }
-        .signature td { width: 50%; text-align: center; vertical-align: bottom; padding: 4px 20px; }
-        .sign-space { height: 112px; vertical-align: middle !important; }
-        .signature-qr-frame { position: relative; display: block; width: 96px; height: 96px; margin: 0 auto; padding: 6px; overflow: visible; line-height: 0; border: 1px solid #e4c693; border-radius: 6px; background: #fff; }
-        .signature-qr { position: absolute; left: 10px; top: 10px; display: block; width: 76px; height: 76px; margin: 0; }
-        .signature-qr-logo { position: absolute; left: 38px; top: 38px; display: block; width: 20px; height: 20px; padding: 3px; border-radius: 50%; background: #fff; line-height: 14px; }
-        .signature-qr-logo img { display: block; max-width: 14px; max-height: 14px; margin: auto; }
-        .signature-placeholder { color: #9a3412; font-size: 8px; }
-        .line { border-top: 1px solid #687286; padding-top: 4px; font-weight: bold; }
-        .signature-verified { margin-top: 3px; color: #16834b; font-size: 7px; font-weight: bold; }
+        .signatures { margin-top: 20px; width: 100%; table-layout: fixed; page-break-inside: avoid; }
+        .signatures th, .signatures td { width: 50%; border: 1px solid #687286; text-align: center; vertical-align: middle; }
+        .signatures th { height: 27px; padding: 4px 8px; border-bottom: 0; color: #25324a; font-size: 10px; font-weight: normal; }
+        .signatures .space td { height: 94px; padding: 5px; border-top: 0; border-bottom: 0; }
+        .signatures .names td { height: 28px; padding: 5px 8px; border-top: 0; border-bottom: 0; color: #172033; font-weight: bold; }
+        .signatures .roles td { padding: 3px 8px 6px; border-top: 0; color: #16834b; font-size: 7px; font-weight: bold; }
+        .signature-qr-frame { position: relative; display: block; width: 84px; height: 84px; margin: 0 auto; overflow: visible; line-height: 0; border: 1px solid #e4c693; border-radius: 6px; background: #fff; }
+        .signature-qr { position: absolute; left: 5px; top: 5px; display: block; width: 74px; height: 74px; margin: 0; }
+        .signature-qr-logo { position: absolute; left: 32px; top: 32px; display: block; width: 19px; height: 19px; padding: 3px; border-radius: 50%; background: #fff; line-height: 13px; }
+        .signature-qr-logo img { display: block; max-width: 13px; max-height: 11px; margin: auto; }
+        .signature-placeholder { color: #777; font-size: 8px; line-height: 1.2; }
     </style>
 </head>
 <body>
@@ -102,36 +103,32 @@
     @endforelse
 </div>
 
-<table class="signature">
-    <tr><td>Pelapor / Requester</td><td>Tim General Affairs</td></tr>
-    <tr>
-        <td class="sign-space">
+<table class="signatures">
+    <tr><th>Pelapor / Requester</th><th>Tim General Affairs</th></tr>
+    <tr class="space">
+        <td>
             @if($requesterSignatureQr)
                 <div class="signature-qr-frame">
                     <img class="signature-qr" src="{{ $requesterSignatureQr }}" alt="QR Portal Pelapor">
                     @if($esignLogoDataUri)<span class="signature-qr-logo"><img src="{{ $esignLogoDataUri }}" alt=""></span>@endif
                 </div>
-                <div class="signature-verified">Terverifikasi melalui LRTJ Portal</div>
             @else
-                <span class="signature-placeholder">QR Portal belum tersedia</span>
+                <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
             @endif
         </td>
-        <td class="sign-space">
+        <td>
             @if($gaOfficerSignatureQr)
                 <div class="signature-qr-frame">
                     <img class="signature-qr" src="{{ $gaOfficerSignatureQr }}" alt="QR Portal Tim GA">
                     @if($esignLogoDataUri)<span class="signature-qr-logo"><img src="{{ $esignLogoDataUri }}" alt=""></span>@endif
                 </div>
-                <div class="signature-verified">Terverifikasi melalui LRTJ Portal</div>
             @else
-                <span class="signature-placeholder">QR Portal belum tersedia</span>
+                <span class="signature-placeholder">QR Portal<br>belum tersedia</span>
             @endif
         </td>
     </tr>
-    <tr>
-        <td><div class="line">{{ $ticket->requester->name ?? '-' }}</div></td>
-        <td><div class="line">{{ data_get($followUps->last(), 'followed_up_by_name', 'Tim General Affairs') }}</div></td>
-    </tr>
+    <tr class="names"><td>{{ $ticket->requester->name ?? '-' }}</td><td>{{ data_get($followUps->last(), 'followed_up_by_name', 'Tim General Affairs') }}</td></tr>
+    <tr class="roles"><td>Terverifikasi melalui LRTJ Portal</td><td>Terverifikasi melalui LRTJ Portal</td></tr>
 </table>
 
 <div class="section" style="page-break-before: {{ $imageEvidence->isNotEmpty() || $pdfEvidence->isNotEmpty() ? 'always' : 'auto' }};">
