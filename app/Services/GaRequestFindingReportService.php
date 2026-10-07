@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Models\Master\Attachment;
 use App\Models\Master\Ticket;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
 use setasign\Fpdi\PdfParser\StreamReader;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Throwable;
 
 class GaRequestFindingReportService
@@ -45,6 +47,9 @@ class GaRequestFindingReportService
             'imageEvidence' => $imageEvidence,
             'pdfEvidence' => $pdfEvidence,
             'logoDataUri' => $this->localFileDataUri(public_path('logo-lrtj.png'), 'image/png'),
+            'esignLogoDataUri' => $this->localFileDataUri(public_path('assets/images/logo-esign.png'), 'image/png'),
+            'requesterSignatureQr' => $this->signatureQrDataUri(data_get($ticket->payload, 'portal_signatures.requester', [])),
+            'gaOfficerSignatureQr' => $this->signatureQrDataUri(data_get($ticket->payload, 'portal_signatures.ga_officer', [])),
         ])->setPaper('a4')->output();
 
         return $pdfEvidence->isEmpty()
@@ -105,5 +110,53 @@ class GaRequestFindingReportService
         }
 
         return 'data:'.$mimeType.';base64,'.base64_encode((string) file_get_contents($path));
+    }
+
+    private function signatureQrDataUri(mixed $signature): ?string
+    {
+        if (! is_array($signature) || $signature === []) {
+            return null;
+        }
+
+        $value = data_get($signature, 'portal_signature_url')
+            ?: data_get($signature, 'portal_qr_payload');
+        if (is_array($value)) {
+            $value = json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+
+        if (is_string($value) && $value !== '') {
+            try {
+                $svg = QrCode::format('svg')
+                    ->size(180)
+                    ->margin(1)
+                    ->errorCorrection('H')
+                    ->generate($value);
+
+                return 'data:image/svg+xml;base64,'.base64_encode($svg);
+            } catch (Throwable $exception) {
+                Log::warning('QR signature Portal gagal dibuat untuk laporan GA.', [
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        $qrUrl = data_get($signature, 'portal_qr_url');
+        if (! is_string($qrUrl) || $qrUrl === '') {
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(10)->get($qrUrl);
+            if ($response->successful()) {
+                return 'data:'.($response->header('Content-Type') ?: 'image/png').';base64,'.base64_encode($response->body());
+            }
+        } catch (Throwable $exception) {
+            Log::warning('Gambar QR Portal gagal diambil untuk laporan GA.', [
+                'url' => $qrUrl,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        return null;
     }
 }

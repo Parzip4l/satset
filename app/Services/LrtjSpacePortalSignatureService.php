@@ -114,6 +114,35 @@ class LrtjSpacePortalSignatureService
         ]);
     }
 
+    public function createGaRequestFindingSignature(
+        Ticket $ticket,
+        User $signer,
+        mixed $signedAt = null,
+        bool $throwOnFailure = true,
+    ): ?array {
+        if (data_get($ticket->payload, 'request_type') !== 'ga_request_finding') {
+            throw new \InvalidArgumentException('QR tindak lanjut GA hanya didukung untuk Permintaan & Temuan GA.');
+        }
+
+        return $this->createSignature([
+            'module' => 'satset',
+            'signature_type' => 'ga_request_finding_follow_up',
+            'role' => 'ga_officer',
+            'ticket' => [
+                'id' => (string) $ticket->id,
+                'ticket_no' => $ticket->ticket_no,
+                'title' => $ticket->title,
+                'request_type' => 'ga_request_finding',
+            ],
+            'signer' => [
+                'id' => (string) $signer->id,
+                'name' => $signer->name,
+                'email' => $signer->email,
+            ],
+            'signed_at' => Carbon::parse($signedAt ?: now())->toIso8601String(),
+        ], $throwOnFailure);
+    }
+
     private function createRequesterSignatureWithSigner(Ticket $ticket, array $signer, bool $throwOnFailure = false): ?array
     {
         return $this->createSignature([

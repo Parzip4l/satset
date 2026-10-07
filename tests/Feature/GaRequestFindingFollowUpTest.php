@@ -9,6 +9,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use setasign\Fpdi\Fpdi;
@@ -75,6 +76,20 @@ class GaRequestFindingFollowUpTest extends TestCase
     public function test_ga_team_can_upload_follow_up_evidence_and_close_ticket(): void
     {
         Storage::fake('public');
+        config([
+            'satset.portal_signatures.shared_secret' => 'test-secret',
+            'satset.portal_signatures.base_url' => 'https://portal.example.test',
+            'satset.portal_signatures.endpoint' => '/api/signatures',
+        ]);
+        Http::fakeSequence()
+            ->push(['data' => [
+                'signature_id' => 'sig-requester',
+                'verify_url' => 'https://portal.example.test/signatures/sig-requester',
+            ]])
+            ->push(['data' => [
+                'signature_id' => 'sig-ga-officer',
+                'verify_url' => 'https://portal.example.test/signatures/sig-ga-officer',
+            ]]);
 
         $requester = $this->user('Requester', 'requester@example.test', 'employee');
         $gaOfficer = $this->user('GA Officer', 'ga@example.test', 'ga');
@@ -109,6 +124,8 @@ class GaRequestFindingFollowUpTest extends TestCase
         $ticket->refresh();
 
         $this->assertSame('CLOSED', data_get($ticket->payload, 'workflow_status'));
+        $this->assertSame('sig-requester', data_get($ticket->payload, 'portal_signatures.requester.portal_signature_id'));
+        $this->assertSame('sig-ga-officer', data_get($ticket->payload, 'portal_signatures.ga_officer.portal_signature_id'));
         $this->assertSame($closedStatus, $ticket->status_id);
         $this->assertNotNull($ticket->closed_at);
         $this->assertDatabaseHas('attachments', [

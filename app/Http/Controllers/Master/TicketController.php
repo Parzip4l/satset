@@ -1905,6 +1905,19 @@ class TicketController extends Controller
             ]);
         }
 
+        $gaOfficerSignature = null;
+        if ($isClosed) {
+            $ticket->loadMissing('requester');
+            if (! filled(data_get($ticket->payload, 'portal_signatures.requester'))) {
+                $this->attachRequesterSignature($ticket, $ticket->requester, true);
+                $ticket->refresh();
+                $ticket->loadMissing('requester');
+            }
+
+            $gaOfficerSignature = app(LrtjSpacePortalSignatureService::class)
+                ->createGaRequestFindingSignature($ticket, $request->user(), now(), true);
+        }
+
         $this->storeRequestAttachment(
             $request,
             $ticket,
@@ -1925,6 +1938,9 @@ class TicketController extends Controller
         ];
         $payload['ga_followed_up_at'] = now()->toDateTimeString();
         $payload['ga_followed_up_by'] = $request->user()->id;
+        if ($gaOfficerSignature) {
+            $payload['portal_signatures']['ga_officer'] = $gaOfficerSignature;
+        }
 
         $ticket->update([
             'payload' => $payload,
@@ -1971,12 +1987,53 @@ class TicketController extends Controller
         }
 
         $ticket->loadMissing(['requester', 'status', 'attachments', 'histories.user']);
+        $this->ensureGaRequestFindingReportSignatures($ticket);
         $filename = Str::slug('laporan-'.$ticket->ticket_no).'.pdf';
 
         return response($reportService->make($ticket), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
+    }
+
+    private function ensureGaRequestFindingReportSignatures(Ticket $ticket): void
+    {
+        if (! filled(data_get($ticket->payload, 'portal_signatures.requester'))) {
+            $this->attachRequesterSignature($ticket, $ticket->requester, true);
+            $ticket->refresh();
+            $ticket->loadMissing(['requester', 'status', 'attachments', 'histories.user']);
+        }
+
+        if (filled(data_get($ticket->payload, 'portal_signatures.ga_officer'))) {
+            return;
+        }
+
+        $gaOfficerId = data_get($ticket->payload, 'ga_followed_up_by');
+        $gaOfficer = $gaOfficerId ? User::find($gaOfficerId) : null;
+        if (! $gaOfficer) {
+            $gaOfficer = $ticket->histories
+                ->sortByDesc('created_at')
+                ->first(fn ($history) => $history->user && GaAccess::allowed($history->user))
+                ?->user;
+        }
+
+        if (! $gaOfficer) {
+            throw ValidationException::withMessages([
+                'portal_signature' => 'Petugas GA yang menutup tiket tidak ditemukan sehingga QR Portal belum dapat dibuat.',
+            ]);
+        }
+
+        $signature = app(LrtjSpacePortalSignatureService::class)->createGaRequestFindingSignature(
+            $ticket,
+            $gaOfficer,
+            $ticket->closed_at ?: data_get($ticket->payload, 'ga_followed_up_at'),
+            true
+        );
+        $payload = $ticket->payload ?? [];
+        $payload['portal_signatures']['ga_officer'] = $signature;
+        $ticket->update(['payload' => $payload]);
+        $ticket->refresh();
+        $ticket->loadMissing(['requester', 'status', 'attachments', 'histories.user']);
     }
 
     private function createManagerApproval(Ticket $ticket): void
