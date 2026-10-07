@@ -93,6 +93,14 @@
         border-radius: 8px;
         margin-left: 0;
     }
+    aside.pe-app-sidebar:not(.horizontal-sidebar) .ga-compact-menu-item > .pe-nav-link {
+        min-height: 36px;
+        padding-bottom: 7px;
+        padding-top: 7px;
+    }
+    aside.pe-app-sidebar:not(.horizontal-sidebar) .ga-compact-menu-item > .pe-nav-link .pe-nav-content {
+        font-size: 0.82rem;
+    }
     .bg-success-subtle { background-color: rgba(25, 135, 84, 0.1) !important; }
     .bg-warning-subtle { background-color: rgba(255, 193, 7, 0.1) !important; }
     .bg-danger-subtle { background-color: rgba(220, 53, 69, 0.1) !important; }

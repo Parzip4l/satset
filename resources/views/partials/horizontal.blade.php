@@ -98,7 +98,7 @@
                 <i class="ri-arrow-down-s-line pe-nav-arrow"></i>
             </a>
             <ul class="pe-slide-menu collapse {{ $bumMenuActive ? 'show' : '' }}" id="collapseBumHorizontal">
-                @include('partials.ga-menu-items', ['menuIdPrefix' => 'horizontalGa'])
+                @include('partials.ga-menu-items')
             </ul>
         </li>
         @endif

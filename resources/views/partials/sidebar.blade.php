@@ -96,26 +96,9 @@
                 @endif
             @endforeach
 
-            @php
-                $bumMenuActive = request()->routeIs('bum.*')
-                    || request()->routeIs('ticket.ga-requests')
-                    || request()->routeIs('ticket.ga-permintaan-temuan.create')
-                    || request()->routeIs('ticket.konsumsi.create')
-                    || request()->routeIs('ticket.atk-rtk.create')
-                    || request()->routeIs('ticket.atk-rtk.warehouse');
-            @endphp
             @if($canAccessGaMenu)
             <li class="pe-menu-title">Operasional GA</li>
-            <li class="pe-slide pe-has-sub">
-                <a href="#collapseSideBum" class="pe-nav-link {{ $bumMenuActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $bumMenuActive ? 'true' : 'false' }}" aria-controls="collapseSideBum">
-                    <i class="bi bi-box-seam pe-nav-icon"></i>
-                    <span class="pe-nav-content">GA & Inventori</span>
-                    <i class="ri-arrow-down-s-line pe-nav-arrow"></i>
-                </a>
-                <ul class="pe-slide-menu collapse {{ $bumMenuActive ? 'show' : '' }}" id="collapseSideBum">
-                    @include('partials.ga-menu-items', ['menuIdPrefix' => 'sidebarGa'])
-                </ul>
-            </li>
+            @include('partials.ga-menu-items', ['topLevel' => true])
             @endif
 
         </ul>
