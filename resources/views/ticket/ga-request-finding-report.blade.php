@@ -38,8 +38,8 @@
         .signatures .roles td { padding: 3px 8px 6px; border-top: 0; color: #16834b; font-size: 7px; font-weight: bold; }
         .signature-qr-frame { position: relative; display: block; width: 84px; height: 84px; margin: 0 auto; overflow: visible; line-height: 0; border: 1px solid #e4c693; border-radius: 6px; background: #fff; }
         .signature-qr { position: absolute; left: 5px; top: 5px; display: block; width: 74px; height: 74px; margin: 0; }
-        .signature-qr-logo { position: absolute; left: 32px; top: 32px; display: block; width: 19px; height: 19px; padding: 3px; border-radius: 50%; background: #fff; line-height: 13px; }
-        .signature-qr-logo img { display: block; max-width: 13px; max-height: 11px; margin: auto; }
+        .signature-qr-logo { position: absolute; left: 50%; top: 50%; display: block; width: 19px; height: 19px; padding: 0; transform: translate(-50%, -50%); border-radius: 50%; background: #fff; line-height: 0; }
+        .signature-qr-logo img { position: absolute; left: 3px; top: 5px; display: block; width: 13px; height: auto; margin: 0; }
         .signature-placeholder { color: #777; font-size: 8px; line-height: 1.2; }
     </style>
 </head>
