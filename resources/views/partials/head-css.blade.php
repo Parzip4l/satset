@@ -25,6 +25,10 @@
         --pe-primary-bg-subtle: rgba(var(--brand-primary-rgb), 0.1);
         --pe-primary-border-subtle: rgba(var(--brand-primary-rgb), 0.45);
     }
+
+    html {
+        font-size: 14px;
+    }
     
     .card {
         border-radius: 12px;

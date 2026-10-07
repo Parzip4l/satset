@@ -113,7 +113,7 @@
                     <i class="ri-arrow-down-s-line pe-nav-arrow"></i>
                 </a>
                 <ul class="pe-slide-menu collapse {{ $bumMenuActive ? 'show' : '' }}" id="collapseSideBum">
-                    @include('partials.ga-menu-items')
+                    @include('partials.ga-menu-items', ['menuIdPrefix' => 'sidebarGa'])
                 </ul>
             </li>
             @endif
