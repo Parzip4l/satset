@@ -19,6 +19,7 @@ use App\Http\Controllers\VCardController;
 use App\Http\Controllers\Master\TicketFormSchemaController;
 use App\Http\Controllers\Master\BumInventoryController;
 use App\Http\Controllers\Master\BumAnalyticsController;
+use App\Http\Controllers\Master\ExecutiveSummaryController;
 use App\Http\Controllers\Setting\TicketDataController;
 /*
 |--------------------------------------------------------------------------
@@ -108,6 +109,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         ->name('ticket.atk-rtk.warehouse');
     Route::prefix('bum')->name('bum.')->middleware('ga.team')->group(function () {
         Route::get('/dashboard', [BumInventoryController::class, 'dashboard'])->name('dashboard');
+        Route::get('/executive-summary', [ExecutiveSummaryController::class, 'index'])->name('executive-summary');
         Route::get('/manual-guide', fn () => view('bum.manual-guide'))->name('guide');
         Route::get('/analytics', [BumAnalyticsController::class, 'index'])->name('analytics');
         Route::prefix('analytics/data')->name('analytics.data.')->group(function () {

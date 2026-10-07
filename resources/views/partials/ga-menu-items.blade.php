@@ -49,6 +49,12 @@
             'icon' => 'bi-graph-up-arrow',
         ],
         [
+            'label' => 'Executive Summary',
+            'route' => 'bum.executive-summary',
+            'patterns' => ['bum.executive-summary'],
+            'icon' => 'bi-bar-chart-line',
+        ],
+        [
             'label' => 'Laporan',
             'route' => 'bum.reports',
             'patterns' => ['bum.reports'],
