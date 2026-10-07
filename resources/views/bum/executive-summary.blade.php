@@ -247,8 +247,78 @@
     .recommendation-grid {
         display: grid;
         gap: 16px;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         padding: 14px;
+    }
+
+    .domain-metric-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        padding: 16px;
+    }
+
+    .domain-metric {
+        background: var(--executive-soft);
+        border: 1px solid var(--executive-line);
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+    .domain-metric span {
+        color: var(--executive-muted);
+        display: block;
+        font-size: .68rem;
+        font-weight: 700;
+        line-height: 1.3;
+        margin-bottom: 6px;
+    }
+
+    .domain-metric strong {
+        color: var(--executive-ink);
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .domain-detail {
+        border-top: 1px solid var(--executive-line);
+        padding: 14px 16px 16px;
+    }
+
+    .domain-detail-title {
+        color: #59636f;
+        font-size: .68rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+
+    .domain-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .domain-list-row {
+        align-items: center;
+        display: flex;
+        font-size: .72rem;
+        gap: 12px;
+        justify-content: space-between;
+    }
+
+    .domain-list-row span {
+        color: var(--executive-muted);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .domain-list-row strong {
+        color: var(--executive-ink);
+        flex: 0 0 auto;
+        font-weight: 800;
     }
 
     .recommendation-item {
@@ -398,6 +468,7 @@
     @media (max-width: 1199.98px) {
         .executive-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .executive-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .domain-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 767.98px) {
@@ -407,7 +478,8 @@
         .executive-filter-grid,
         .executive-metrics,
         .recommendation-grid,
-        .comparison-grid { grid-template-columns: 1fr; }
+        .comparison-grid,
+        .domain-metric-grid { grid-template-columns: 1fr; }
         .executive-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
@@ -442,7 +514,7 @@
     <div class="executive-header">
         <div>
             <h1 class="executive-title">Executive Summary</h1>
-            <p class="executive-subtitle mb-0">Ringkasan performa tiket operasional untuk pengambilan keputusan manajemen.</p>
+            <p class="executive-subtitle mb-0">Ringkasan permintaan, temuan fasilitas, dan inventori untuk pengambilan keputusan manajemen.</p>
         </div>
         <div class="executive-actions">
             <button type="button" class="btn btn-light border" id="copyExecutiveSummary">
@@ -508,6 +580,8 @@
                 <div class="snapshot-row"><span>Tiket selesai</span><strong>{{ number_format($summary['completed']) }}</strong></div>
                 <div class="snapshot-row"><span>Completion rate</span><strong>{{ number_format($summary['completion_rate'], 1) }}%</strong></div>
                 <div class="snapshot-row"><span>Rata-rata resolusi</span><strong>{{ number_format($summary['avg_resolution_hours'], 1) }} jam</strong></div>
+                <div class="snapshot-row"><span>Temuan aktif</span><strong>{{ number_format($findings['open'] + $findings['in_progress']) }}</strong></div>
+                <div class="snapshot-row"><span>Barang low stock</span><strong>{{ number_format($inventory['low_stock']) }}</strong></div>
             </div>
         </div>
     </div>
@@ -528,11 +602,88 @@
         @endforeach
     </div>
 
+    <div class="row g-3 executive-section">
+        <div class="col-xl-7">
+            <section class="executive-card h-100">
+                <div class="executive-section-head">
+                    <div>
+                        <h2 class="executive-card-title">Gudang & Inventori</h2>
+                        <p class="executive-card-subtitle mb-0">Kesehatan stok, arus barang, receiving, dan hasil stock opname.</p>
+                    </div>
+                    <a href="{{ route('bum.items') }}" class="btn btn-sm btn-light border">Lihat Barang</a>
+                </div>
+                <div class="domain-metric-grid">
+                    @foreach([
+                        ['label' => 'Barang Aktif', 'value' => $inventory['active_items']],
+                        ['label' => 'Stok Menipis', 'value' => $inventory['low_stock']],
+                        ['label' => 'Barang Keluar', 'value' => $inventory['outgoing_qty']],
+                        ['label' => 'Barang Diterima', 'value' => $inventory['received_qty']],
+                        ['label' => 'Receiving Tertunda', 'value' => $inventory['pending_receivings']],
+                        ['label' => 'Selisih Stock Opname', 'value' => $inventory['opname_variance']],
+                    ] as $metric)
+                        <div class="domain-metric">
+                            <span>{{ $metric['label'] }}</span>
+                            <strong>{{ number_format($metric['value']) }}</strong>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="domain-detail">
+                    <div class="domain-detail-title">Komposisi kategori barang</div>
+                    <div class="domain-list">
+                        @forelse($inventory['categories'] as $category)
+                            <div class="domain-list-row">
+                                <span>{{ $category['label'] }}</span>
+                                <strong>{{ $category['items'] }} barang · {{ $category['low_stock'] }} low stock</strong>
+                            </div>
+                        @empty
+                            <span class="executive-muted small">Belum ada data inventori.</span>
+                        @endforelse
+                    </div>
+                </div>
+            </section>
+        </div>
+        <div class="col-xl-5">
+            <section class="executive-card h-100">
+                <div class="executive-section-head">
+                    <div>
+                        <h2 class="executive-card-title">Temuan Fasilitas</h2>
+                        <p class="executive-card-subtitle mb-0">Status penyelesaian dan lokasi temuan operasional.</p>
+                    </div>
+                    <a href="{{ route('ticket.ga-requests', ['request_type' => 'ga_request_finding']) }}" class="btn btn-sm btn-light border">Lihat Temuan</a>
+                </div>
+                <div class="domain-metric-grid">
+                    @foreach([
+                        ['label' => 'Total Temuan', 'value' => $findings['total']],
+                        ['label' => 'Open', 'value' => $findings['open']],
+                        ['label' => 'Dalam Proses', 'value' => $findings['in_progress']],
+                        ['label' => 'Selesai', 'value' => $findings['completed']],
+                        ['label' => 'Completion Rate', 'value' => number_format($findings['completion_rate'], 1).'%', 'raw' => true],
+                    ] as $metric)
+                        <div class="domain-metric">
+                            <span>{{ $metric['label'] }}</span>
+                            <strong>{{ ($metric['raw'] ?? false) ? $metric['value'] : number_format($metric['value']) }}</strong>
+                        </div>
+                    @endforeach
+                </div>
+                <div class="domain-detail">
+                    <div class="domain-detail-title">Lokasi temuan terbanyak</div>
+                    <div class="domain-list">
+                        @forelse($findings['locations'] as $location)
+                            <div class="domain-list-row"><span>{{ $location['label'] }}</span><strong>{{ $location['value'] }}</strong></div>
+                        @empty
+                            <span class="executive-muted small">Belum ada temuan pada periode ini.</span>
+                        @endforelse
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
     <section class="executive-card executive-section">
         <div class="executive-section-head">
             <div>
                 <h2 class="executive-card-title">Recommended Action Plan</h2>
-                <p class="executive-card-subtitle mb-0">Prioritas tindak lanjut berdasarkan kondisi tiket pada periode terpilih.</p>
+                <p class="executive-card-subtitle mb-0">Prioritas tindak lanjut berdasarkan kondisi permintaan, temuan, dan inventori.</p>
             </div>
             <span class="executive-badge bg-light text-dark border">{{ count($recommendations) }} aksi</span>
         </div>
@@ -571,6 +722,40 @@
                     </div>
                 </div>
                 <div class="chart-body" id="executiveStatusChart"></div>
+            </section>
+        </div>
+    </div>
+
+    <div class="row g-3 executive-section">
+        <div class="col-xl-8">
+            <section class="executive-card h-100">
+                <div class="executive-section-head">
+                    <div>
+                        <h2 class="executive-card-title">Arus Barang Gudang</h2>
+                        <p class="executive-card-subtitle mb-0">Pergerakan barang masuk dan keluar pada periode terpilih.</p>
+                    </div>
+                </div>
+                <div class="chart-body" id="executiveInventoryChart"></div>
+            </section>
+        </div>
+        <div class="col-xl-4">
+            <section class="executive-card h-100">
+                <div class="executive-section-head">
+                    <div>
+                        <h2 class="executive-card-title">Barang Perlu Perhatian</h2>
+                        <p class="executive-card-subtitle mb-0">Stok pada atau di bawah batas minimum.</p>
+                    </div>
+                </div>
+                <div class="domain-list p-3">
+                    @forelse($inventory['low_stock_items'] as $item)
+                        <div class="domain-list-row">
+                            <span><strong class="d-block">{{ $item['name'] }}</strong>{{ $item['code'] }}</span>
+                            <strong>GK {{ $item['small_stock'] }} / Min {{ $item['minimum_stock'] }}</strong>
+                        </div>
+                    @empty
+                        <span class="executive-muted small">Tidak ada barang low stock.</span>
+                    @endforelse
+                </div>
             </section>
         </div>
     </div>
@@ -681,6 +866,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     const trend = @json($trend);
     const statuses = @json($statusDistribution);
+    const inventoryTrend = @json($inventory['trend']);
     const chartFont = getComputedStyle(document.body).fontFamily;
 
     new ApexCharts(document.querySelector('#executiveTrendChart'), {
@@ -709,6 +895,21 @@ document.addEventListener('DOMContentLoaded', function () {
         plotOptions: { pie: { donut: { size: '68%', labels: { show: true, total: { show: true, label: 'Total', formatter: () => '{{ $summary['total'] }}' } } } } },
         series: statuses.map(row => row.value),
         noData: { text: 'Belum ada data' },
+    }).render();
+
+    new ApexCharts(document.querySelector('#executiveInventoryChart'), {
+        chart: { type: 'bar', height: 280, toolbar: { show: false }, fontFamily: chartFont },
+        colors: ['#2786a6', '#e21a1a'],
+        dataLabels: { enabled: false },
+        grid: { borderColor: '#edf0f2', strokeDashArray: 4 },
+        legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px' },
+        series: [
+            { name: 'Barang Masuk', data: inventoryTrend.map(row => row.incoming) },
+            { name: 'Barang Keluar', data: inventoryTrend.map(row => row.outgoing) },
+        ],
+        xaxis: { categories: inventoryTrend.map(row => row.label), labels: { style: { fontSize: '10px' } } },
+        yaxis: { min: 0, forceNiceScale: true, labels: { formatter: value => Math.round(value) } },
+        noData: { text: 'Belum ada pergerakan barang' },
     }).render();
 
     document.getElementById('copyExecutiveSummary')?.addEventListener('click', async function () {

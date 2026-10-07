@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Master;
 
 use App\Http\Controllers\Controller;
+use App\Models\Master\ConsumableItem;
+use App\Models\Master\ProcurementReceiving;
 use App\Models\Master\Status;
+use App\Models\Master\StockMovement;
 use App\Models\Master\Ticket;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ExecutiveSummaryController extends Controller
 {
@@ -52,8 +57,10 @@ class ExecutiveSummaryController extends Controller
         $priorityDistribution = $this->distribution($tickets, fn (Ticket $ticket) => $ticket->priority?->name ?: 'Tanpa Prioritas');
         $requestTypeDistribution = $this->distribution($tickets, fn (Ticket $ticket) => $this->requestTypeLabel($ticket));
         $topCategories = $this->categorySummary($tickets);
-        $recommendations = $this->recommendations($summary);
-        $narrative = $this->narrative($summary, $previous);
+        $findings = $this->findingsSummary($tickets);
+        $inventory = $this->inventorySummary($dateFrom, $dateTo);
+        $recommendations = $this->recommendations($summary, $inventory, $findings);
+        $narrative = $this->narrative($summary, $previous, $inventory, $findings);
         $statuses = Status::orderBy('name')->get();
         $requestTypes = [
             'consumption' => 'Permintaan Konsumsi',
@@ -75,6 +82,8 @@ class ExecutiveSummaryController extends Controller
             'priorityDistribution',
             'requestTypeDistribution',
             'topCategories',
+            'findings',
+            'inventory',
             'recommendations',
             'narrative',
             'statuses',
@@ -194,9 +203,133 @@ class ExecutiveSummaryController extends Controller
         };
     }
 
-    private function recommendations(array $summary): array
+    private function findingsSummary(Collection $tickets): array
+    {
+        $findings = $tickets->filter(fn (Ticket $ticket) => data_get($ticket->payload, 'request_type') === 'ga_request_finding'
+            && strtolower((string) data_get($ticket->payload, 'report_type')) === 'temuan');
+        $completed = $findings->filter(fn (Ticket $ticket) => in_array(strtolower((string) $ticket->status?->name), self::COMPLETED_STATUSES, true))->count();
+
+        return [
+            'total' => $findings->count(),
+            'open' => $findings->filter(fn (Ticket $ticket) => strtolower((string) $ticket->status?->name) === 'open')->count(),
+            'in_progress' => $findings->filter(fn (Ticket $ticket) => str_contains(strtolower((string) $ticket->status?->name), 'progress'))->count(),
+            'completed' => $completed,
+            'completion_rate' => $findings->count() ? round(($completed / $findings->count()) * 100, 1) : 0,
+            'locations' => $findings
+                ->groupBy(fn (Ticket $ticket) => data_get($ticket->payload, 'location') ?: 'Tanpa lokasi')
+                ->map(fn (Collection $rows, string $label) => ['label' => $label, 'value' => $rows->count()])
+                ->sortByDesc('value')
+                ->take(5)
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function inventorySummary(Carbon $from, Carbon $to): array
+    {
+        $empty = [
+            'available' => false,
+            'active_items' => 0,
+            'low_stock' => 0,
+            'outgoing_qty' => 0,
+            'received_qty' => 0,
+            'pending_receivings' => 0,
+            'opname_variance' => 0,
+            'trend' => [],
+            'low_stock_items' => [],
+            'categories' => [],
+        ];
+
+        if (! collect(['consumable_items', 'stock_movements', 'procurement_receivings', 'procurement_receiving_items', 'stock_opnames', 'stock_opname_items'])
+            ->every(fn (string $table) => Schema::hasTable($table))) {
+            return $empty;
+        }
+
+        $items = ConsumableItem::query()->where('is_active', true)->orderBy('name')->get();
+        $lowStockItems = $items->filter(function (ConsumableItem $item) {
+            $bigMinimum = (int) ceil(((int) $item->minimum_stock) / max(1, (int) $item->conversion_qty));
+
+            return (int) $item->small_stock <= (int) $item->minimum_stock
+                || (int) $item->current_stock <= $bigMinimum;
+        });
+        $movements = StockMovement::query()
+            ->whereBetween('created_at', [$from, $to])
+            ->get(['movement_type', 'qty', 'balance_before', 'balance_after', 'created_at']);
+        $monthly = $from->diffInDays($to) > 62;
+        $dateFormat = $monthly ? 'Y-m' : 'Y-m-d';
+        $cursor = $from->copy()->startOfDay();
+        $movementGroups = $movements->groupBy(fn (StockMovement $movement) => $movement->created_at->format($dateFormat));
+        $trend = [];
+
+        while ($cursor->lte($to)) {
+            $key = $cursor->format($dateFormat);
+            $periodMovements = $movementGroups->get($key, collect());
+            $trend[$key] = [
+                'label' => $monthly ? $cursor->translatedFormat('M Y') : $cursor->format('d M'),
+                'incoming' => (int) $periodMovements->filter(fn (StockMovement $movement) => (int) $movement->balance_after > (int) $movement->balance_before)->sum('qty'),
+                'outgoing' => (int) $periodMovements->filter(fn (StockMovement $movement) => (int) $movement->balance_after < (int) $movement->balance_before)->sum('qty'),
+            ];
+            $monthly ? $cursor->addMonth() : $cursor->addDay();
+        }
+
+        $receivedQty = (int) DB::table('procurement_receiving_items')
+            ->join('procurement_receivings', 'procurement_receiving_items.receiving_id', '=', 'procurement_receivings.id')
+            ->whereBetween('procurement_receivings.created_at', [$from, $to])
+            ->sum('procurement_receiving_items.qty_received');
+        $opnameVariance = (int) DB::table('stock_opname_items')
+            ->join('stock_opnames', 'stock_opname_items.stock_opname_id', '=', 'stock_opnames.id')
+            ->whereBetween('stock_opnames.created_at', [$from, $to])
+            ->get(['stock_opname_items.variance'])
+            ->sum(fn ($row) => abs((int) $row->variance));
+
+        return [
+            'available' => true,
+            'active_items' => $items->count(),
+            'low_stock' => $lowStockItems->count(),
+            'outgoing_qty' => (int) $movements->filter(fn (StockMovement $movement) => (int) $movement->balance_after < (int) $movement->balance_before)->sum('qty'),
+            'received_qty' => $receivedQty,
+            'pending_receivings' => ProcurementReceiving::whereIn('status', ['DRAFT', 'SUBMITTED', 'PO_CREATED', 'PO_SENT_TO_VENDOR', 'DELIVERY_SCHEDULED'])->count(),
+            'opname_variance' => $opnameVariance,
+            'trend' => array_values($trend),
+            'low_stock_items' => $lowStockItems->take(6)->map(fn (ConsumableItem $item) => [
+                'code' => $item->code,
+                'name' => $item->name,
+                'big_stock' => (int) $item->current_stock,
+                'small_stock' => (int) $item->small_stock,
+                'minimum_stock' => (int) $item->minimum_stock,
+            ])->values()->all(),
+            'categories' => $items->groupBy(fn (ConsumableItem $item) => $item->category ?: 'Tanpa kategori')
+                ->map(fn (Collection $rows, string $label) => [
+                    'label' => $label,
+                    'items' => $rows->count(),
+                    'low_stock' => $rows->filter(fn (ConsumableItem $item) => $lowStockItems->contains('id', $item->id))->count(),
+                ])->values()->all(),
+        ];
+    }
+
+    private function recommendations(array $summary, array $inventory, array $findings): array
     {
         $items = [];
+
+        if ($inventory['low_stock'] > 0) {
+            $items[] = [
+                'title' => 'Tindak lanjuti stok menipis',
+                'description' => $inventory['low_stock'].' barang berada pada atau di bawah batas minimum. Verifikasi kebutuhan dan siapkan replenishment.',
+                'level' => 'Inventori',
+                'tone' => 'danger',
+                'icon' => 'bi-box-seam',
+            ];
+        }
+
+        if ($findings['open'] + $findings['in_progress'] > 0) {
+            $items[] = [
+                'title' => 'Selesaikan temuan fasilitas',
+                'description' => ($findings['open'] + $findings['in_progress']).' temuan masih aktif. Fokuskan tindak lanjut pada lokasi dengan laporan terbanyak.',
+                'level' => 'Temuan',
+                'tone' => 'warning',
+                'icon' => 'bi-building-exclamation',
+            ];
+        }
 
         if ($summary['pending_approval'] > 0) {
             $items[] = [
@@ -238,10 +371,10 @@ class ExecutiveSummaryController extends Controller
             ];
         }
 
-        return array_slice($items, 0, 3);
+        return array_slice($items, 0, 4);
     }
 
-    private function narrative(array $current, array $previous): array
+    private function narrative(array $current, array $previous, array $inventory, array $findings): array
     {
         $ticketDelta = $current['total'] - $previous['total'];
         $rateDelta = round($current['completion_rate'] - $previous['completion_rate'], 1);
@@ -249,7 +382,7 @@ class ExecutiveSummaryController extends Controller
 
         return [
             'headline' => 'Performa penyelesaian tiket '.$direction.' dibanding periode sebelumnya.',
-            'detail' => 'Volume tiket '.($ticketDelta >= 0 ? 'bertambah ' : 'berkurang ').number_format(abs($ticketDelta)).' tiket, sementara completion rate berubah '.($rateDelta >= 0 ? '+' : '').number_format($rateDelta, 1).'%.',
+            'detail' => 'Volume tiket '.($ticketDelta >= 0 ? 'bertambah ' : 'berkurang ').number_format(abs($ticketDelta)).' tiket, completion rate berubah '.($rateDelta >= 0 ? '+' : '').number_format($rateDelta, 1).'%. Terdapat '.number_format($findings['open'] + $findings['in_progress']).' temuan aktif dan '.number_format($inventory['low_stock']).' barang dengan stok menipis.',
             'tone' => $rateDelta > 0 ? 'success' : ($rateDelta < 0 ? 'danger' : 'secondary'),
         ];
     }

@@ -17,7 +17,21 @@ class ExecutiveSummaryReportTest extends TestCase
     {
         parent::setUp();
 
-        foreach (['approvals', 'requests', 'departments', 'problem_categories', 'priorities', 'statuses', 'users'] as $table) {
+        foreach ([
+            'stock_opname_items',
+            'stock_opnames',
+            'procurement_receiving_items',
+            'procurement_receivings',
+            'stock_movements',
+            'consumable_items',
+            'approvals',
+            'requests',
+            'departments',
+            'problem_categories',
+            'priorities',
+            'statuses',
+            'users',
+        ] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -134,5 +148,147 @@ class ExecutiveSummaryReportTest extends TestCase
         $this->assertSame(50.0, $data['summary']['completion_rate']);
         $this->assertSame(1, $data['summary']['open']);
         $this->assertSame(1, $data['previous']['total']);
+    }
+
+    public function test_it_includes_inventory_and_facility_findings(): void
+    {
+        $this->createInventoryTables();
+
+        $user = User::create([
+            'name' => 'GA Admin',
+            'email' => 'ga-inventory@example.test',
+            'password' => 'password',
+            'role' => 'ga',
+        ]);
+        Auth::login($user);
+        $openStatus = DB::table('statuses')->insertGetId(['name' => 'Open', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('requests')->insert([
+            'ticket_no' => 'GA-FINDING-1',
+            'requester_id' => $user->id,
+            'title' => 'Lampu mati',
+            'status_id' => $openStatus,
+            'payload' => json_encode(['request_type' => 'ga_request_finding', 'report_type' => 'Temuan', 'location' => 'Stasiun A']),
+            'created_at' => now()->subDay(),
+            'updated_at' => now(),
+        ]);
+        $itemId = DB::table('consumable_items')->insertGetId([
+            'code' => 'ATK-001',
+            'name' => 'Pulpen',
+            'category' => 'ATK',
+            'unit' => 'pcs',
+            'large_uom' => 'box',
+            'small_uom' => 'pcs',
+            'conversion_qty' => 10,
+            'minimum_stock' => 5,
+            'buffer_stock' => 2,
+            'current_stock' => 0,
+            'small_stock' => 3,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('stock_movements')->insert([
+            'item_id' => $itemId,
+            'movement_type' => 'OUT',
+            'stock_location' => 'small_warehouse',
+            'qty' => 3,
+            'balance_before' => 6,
+            'balance_after' => 3,
+            'created_at' => now()->subDay(),
+            'updated_at' => now(),
+        ]);
+        $receivingId = DB::table('procurement_receivings')->insertGetId([
+            'reference_number' => 'RCV-001',
+            'status' => 'SUBMITTED',
+            'created_at' => now()->subDay(),
+            'updated_at' => now(),
+        ]);
+        DB::table('procurement_receiving_items')->insert([
+            'receiving_id' => $receivingId,
+            'item_id' => $itemId,
+            'qty_received' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $opnameId = DB::table('stock_opnames')->insertGetId([
+            'period' => now()->format('Y-m'),
+            'status' => 'COMPLETED',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('stock_opname_items')->insert([
+            'stock_opname_id' => $opnameId,
+            'item_id' => $itemId,
+            'variance' => -2,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $view = app(ExecutiveSummaryController::class)->index(Request::create(route('bum.executive-summary'), 'GET'));
+        $data = $view->getData();
+
+        $this->assertSame(1, $data['findings']['total']);
+        $this->assertSame(1, $data['findings']['open']);
+        $this->assertSame(1, $data['inventory']['active_items']);
+        $this->assertSame(1, $data['inventory']['low_stock']);
+        $this->assertSame(3, $data['inventory']['outgoing_qty']);
+        $this->assertSame(5, $data['inventory']['received_qty']);
+        $this->assertSame(2, $data['inventory']['opname_variance']);
+    }
+
+    private function createInventoryTables(): void
+    {
+        Schema::create('consumable_items', function (Blueprint $table): void {
+            $table->id();
+            $table->string('code');
+            $table->string('name');
+            $table->string('category')->nullable();
+            $table->string('unit')->nullable();
+            $table->string('large_uom')->nullable();
+            $table->string('small_uom')->nullable();
+            $table->integer('conversion_qty')->default(1);
+            $table->integer('minimum_stock')->default(0);
+            $table->integer('buffer_stock')->default(0);
+            $table->integer('current_stock')->default(0);
+            $table->integer('small_stock')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('stock_movements', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('item_id');
+            $table->string('movement_type');
+            $table->string('stock_location');
+            $table->integer('qty');
+            $table->integer('balance_before');
+            $table->integer('balance_after');
+            $table->timestamps();
+        });
+        Schema::create('procurement_receivings', function (Blueprint $table): void {
+            $table->id();
+            $table->string('reference_number');
+            $table->string('status');
+            $table->timestamps();
+        });
+        Schema::create('procurement_receiving_items', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('receiving_id');
+            $table->foreignId('item_id');
+            $table->integer('qty_received')->default(0);
+            $table->timestamps();
+        });
+        Schema::create('stock_opnames', function (Blueprint $table): void {
+            $table->id();
+            $table->string('period');
+            $table->string('status');
+            $table->timestamps();
+        });
+        Schema::create('stock_opname_items', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('stock_opname_id');
+            $table->foreignId('item_id');
+            $table->integer('variance');
+            $table->timestamps();
+        });
     }
 }
