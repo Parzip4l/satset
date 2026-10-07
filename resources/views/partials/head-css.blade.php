@@ -93,7 +93,7 @@
         border-radius: 8px;
         margin-left: 0;
     }
-    aside.pe-app-sidebar:not(.horizontal-sidebar) .ga-compact-menu-item > .pe-nav-link {
+    aside.pe-app-sidebar:not(.horizontal-sidebar) .pe-main-menu > .pe-slide > .pe-nav-link {
         min-height: 36px;
         padding-bottom: 7px;
         padding-top: 7px;
