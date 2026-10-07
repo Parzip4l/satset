@@ -44,10 +44,13 @@
                             $childRoleIds = is_string($child->role_id) ? json_decode($child->role_id, true) : $child->role_id;
                             return is_array($childRoleIds) && in_array($roles, $childRoleIds);
                         });
+                        $isAdminSettingsMenu = strtolower((string) (auth()->user()->role ?? '')) === 'admin'
+                            && (str_contains(strtolower((string) $menu->title), 'setting')
+                                || str_contains(strtolower((string) $menu->title), 'pengaturan'));
                     @endphp
 
                     {{-- MENU TANPA SUB-MENU --}}
-                    @if($visibleChildren->isEmpty())
+                    @if($visibleChildren->isEmpty() && !$isAdminSettingsMenu)
                         @php
                             $menuActive = $menu->url && $menu->url !== '#' && request()->routeIs($menu->url);
                         @endphp
@@ -62,7 +65,7 @@
                         @php
                             $parentActive = $visibleChildren->contains(function ($child) {
                                 return $child->url && $child->url !== '#' && request()->routeIs($child->url);
-                            });
+                            }) || ($isAdminSettingsMenu && request()->routeIs('settings.ticket-data.*'));
                         @endphp
                         <li class="pe-slide pe-has-sub">
                             <a href="#collapseSide{{ $menu->id }}" class="pe-nav-link {{ $parentActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $parentActive ? 'true' : 'false' }}" aria-controls="collapseSide{{ $menu->id }}">
@@ -81,6 +84,11 @@
                                         </a>
                                     </li>
                                 @endforeach
+                                @if($isAdminSettingsMenu)
+                                    <li class="pe-slide-item">
+                                        <a href="{{ route('settings.ticket-data.index') }}" class="pe-nav-link {{ request()->routeIs('settings.ticket-data.*') ? 'active' : '' }}">Backup & Data Tiket</a>
+                                    </li>
+                                @endif
                             </ul>
                         </li>
                     @endif
@@ -144,21 +152,6 @@
             </li>
             @endif
 
-            @if(strtolower((string) (auth()->user()->role ?? '')) === 'admin')
-            <li class="pe-menu-title">Pengaturan Sistem</li>
-            <li class="pe-slide pe-has-sub">
-                <a href="#collapseSystemSettings" class="pe-nav-link {{ request()->routeIs('settings.*') ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ request()->routeIs('settings.*') ? 'true' : 'false' }}" aria-controls="collapseSystemSettings">
-                    <i class="bi bi-gear pe-nav-icon"></i>
-                    <span class="pe-nav-content">Settings</span>
-                    <i class="ri-arrow-down-s-line pe-nav-arrow"></i>
-                </a>
-                <ul class="pe-slide-menu collapse {{ request()->routeIs('settings.*') ? 'show' : '' }}" id="collapseSystemSettings">
-                    <li class="pe-slide-item">
-                        <a href="{{ route('settings.ticket-data.index') }}" class="pe-nav-link {{ request()->routeIs('settings.ticket-data.*') ? 'active' : '' }}">Backup & Data Tiket</a>
-                    </li>
-                </ul>
-            </li>
-            @endif
         </ul>
     </nav>
 </aside>
