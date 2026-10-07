@@ -6,6 +6,7 @@ use App\Models\Master\Approval;
 use App\Models\Master\Status;
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Services\SatsetApprovalDecisionService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -142,6 +143,150 @@ class IntranetSatsetApprovalApiTest extends TestCase
             ->assertJsonPath('data.data.0.module', 'satset')
             ->assertJsonPath('data.data.0.ticket.ticket_no', 'TCK-ATKRTK-0001')
             ->assertJsonPath('data.data.0.approver.email', 'manager@lrtjakarta.co.id');
+    }
+
+    public function test_atk_rtk_can_be_approved_in_satset_and_receives_portal_qr(): void
+    {
+        config([
+            'satset.portal_signatures.base_url' => 'https://portal.test',
+            'satset.portal_signatures.endpoint' => '/api/v1/signatures',
+            'satset.portal_signatures.shared_secret' => 'portal-secret',
+            'satset.portal_signatures.verify_ssl' => true,
+        ]);
+        Http::fake([
+            'https://portal.test/api/v1/signatures' => Http::response([
+                'data' => ['signature' => [
+                    'signature_id' => 'SIG-SATSET-ATK-1',
+                    'verify_url' => 'https://portal.test/verify/SIG-SATSET-ATK-1',
+                    'qr_url' => 'https://portal.test/verify/SIG-SATSET-ATK-1/qr.png',
+                ]],
+            ]),
+        ]);
+
+        $approval = $this->approvalFixture('atk_rtk');
+        $ticket = $approval->request;
+        $actor = $approval->approver;
+
+        app(SatsetApprovalDecisionService::class)->decide(
+            $ticket,
+            $approval,
+            $actor,
+            'approved',
+            'Disetujui dari Satset',
+            'satset_web',
+        );
+
+        $this->assertDatabaseHas('approvals', [
+            'id' => $approval->id,
+            'status' => 'approved',
+            'last_action_source' => 'satset_web',
+            'portal_signature_id' => 'SIG-SATSET-ATK-1',
+            'portal_signature_url' => 'https://portal.test/verify/SIG-SATSET-ATK-1',
+            'portal_qr_url' => 'https://portal.test/verify/SIG-SATSET-ATK-1/qr.png',
+        ]);
+
+        Http::assertSent(function ($request) use ($approval) {
+            $payload = json_decode($request->body(), true);
+
+            return $request->url() === 'https://portal.test/api/v1/signatures'
+                && data_get($payload, 'signature_type') === 'approval_decision'
+                && data_get($payload, 'ticket.request_type') === 'atk_rtk'
+                && data_get($payload, 'approval.id') === (string) $approval->id
+                && data_get($payload, 'signer.email') === 'manager@lrtjakarta.co.id';
+        });
+    }
+
+    public function test_consumption_can_be_approved_in_satset_and_receives_portal_qr(): void
+    {
+        config([
+            'satset.portal_signatures.base_url' => 'https://portal.test',
+            'satset.portal_signatures.endpoint' => '/api/v1/signatures',
+            'satset.portal_signatures.shared_secret' => 'portal-secret',
+            'satset.approval_resolver.base_url' => 'https://portal.test',
+            'satset.approval_resolver.endpoint' => '/api/v1/approval/resolve',
+            'satset.approval_resolver.shared_secret' => 'portal-secret',
+        ]);
+        Http::fake(function ($request) {
+            if ($request->url() === 'https://portal.test/api/v1/signatures') {
+                return Http::response([
+                    'data' => ['signature' => [
+                        'signature_id' => 'SIG-SATSET-CONS-1',
+                        'verify_url' => 'https://portal.test/verify/SIG-SATSET-CONS-1',
+                        'qr_url' => 'https://portal.test/verify/SIG-SATSET-CONS-1/qr.png',
+                    ]],
+                ]);
+            }
+
+            if ($request->url() === 'https://portal.test/api/v1/approval/resolve') {
+                return Http::response([
+                    'data' => ['user_group_members' => [[
+                        'user_id' => 'bum-1',
+                        'email' => 'bum.head@lrtjakarta.co.id',
+                        'full_name' => 'BUM Head',
+                    ]]],
+                ]);
+            }
+
+            return Http::response([], 404);
+        });
+
+        $approval = $this->approvalFixture('consumption');
+
+        app(SatsetApprovalDecisionService::class)->decide(
+            $approval->request,
+            $approval,
+            $approval->approver,
+            'approved',
+            'Konsumsi disetujui dari Satset',
+            'satset_mobile',
+        );
+
+        $this->assertDatabaseHas('approvals', [
+            'id' => $approval->id,
+            'status' => 'approved',
+            'last_action_source' => 'satset_mobile',
+            'portal_signature_id' => 'SIG-SATSET-CONS-1',
+            'portal_qr_url' => 'https://portal.test/verify/SIG-SATSET-CONS-1/qr.png',
+        ]);
+        $this->assertDatabaseHas('approvals', [
+            'request_id' => $approval->request_id,
+            'level' => 2,
+            'status' => 'Pending',
+        ]);
+    }
+
+    public function test_satset_approval_is_not_committed_when_portal_qr_creation_fails(): void
+    {
+        config([
+            'satset.portal_signatures.base_url' => 'https://portal.test',
+            'satset.portal_signatures.endpoint' => '/api/v1/signatures',
+            'satset.portal_signatures.shared_secret' => 'portal-secret',
+        ]);
+        Http::fake([
+            'https://portal.test/api/v1/signatures' => Http::response(['message' => 'Signature service unavailable'], 503),
+        ]);
+
+        $approval = $this->approvalFixture('atk_rtk');
+
+        try {
+            app(SatsetApprovalDecisionService::class)->decide(
+                $approval->request,
+                $approval,
+                $approval->approver,
+                'approved',
+                null,
+                'satset_web',
+            );
+            $this->fail('Approval seharusnya gagal ketika QR Portal tidak dapat dibuat.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('portal_signature', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('approvals', [
+            'id' => $approval->id,
+            'status' => 'Pending',
+            'portal_signature_id' => null,
+        ]);
     }
 
     public function test_portal_can_fetch_request_types_from_satset_master(): void

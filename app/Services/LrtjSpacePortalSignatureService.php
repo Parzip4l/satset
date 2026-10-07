@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use Carbon\Carbon;
@@ -12,6 +13,49 @@ use Illuminate\Validation\ValidationException;
 
 class LrtjSpacePortalSignatureService
 {
+    public function createApprovalSignature(
+        Ticket $ticket,
+        Approval $approval,
+        User $signer,
+        string $status,
+        ?string $comment = null,
+    ): array {
+        $requestType = (string) data_get($ticket->payload, 'request_type');
+        if (! in_array($requestType, ['atk_rtk', 'consumption'], true)) {
+            throw new \InvalidArgumentException('QR approval Portal hanya didukung untuk ATK/RTK dan konsumsi.');
+        }
+
+        $signature = $this->createSignature([
+            'module' => 'satset',
+            'signature_type' => 'approval_decision',
+            'role' => (int) $approval->level === 2 ? 'bum_approver' : 'manager_approver',
+            'ticket' => [
+                'id' => (string) $ticket->id,
+                'ticket_no' => $ticket->ticket_no,
+                'title' => $ticket->title,
+                'request_type' => $requestType,
+            ],
+            'approval' => [
+                'id' => (string) $approval->id,
+                'level' => (int) $approval->level,
+                'status' => strtolower($status),
+                'comment' => $comment,
+            ],
+            'signer' => [
+                'id' => (string) $signer->id,
+                'name' => $signer->name,
+                'email' => $signer->email,
+            ],
+            'signed_at' => now()->toIso8601String(),
+        ], true);
+
+        if (! $signature) {
+            $this->fail('Portal tidak mengembalikan signature atau QR approval yang valid.');
+        }
+
+        return $signature;
+    }
+
     public function createRequesterSignature(Ticket $ticket, User $requester): ?array
     {
         $signature = $this->createRequesterSignatureWithSigner($ticket, [

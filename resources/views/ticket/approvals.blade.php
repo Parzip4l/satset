@@ -103,6 +103,9 @@
                                             <span class="badge bg-{{ $approvalColor }}-subtle text-{{ $approvalColor }} px-3 py-2 rounded-pill">
                                                 {{ strtoupper($approval->status) }}
                                             </span>
+                                            @if($approval->portal_signature_url || $approval->portal_qr_url)
+                                                <div class="mt-2"><a href="{{ $approval->portal_signature_url ?: $approval->portal_qr_url }}" target="_blank" rel="noopener" class="small text-success text-decoration-none"><i class="bi bi-qr-code me-1"></i>QR Portal</a></div>
+                                            @endif
                                         </td>
                                         <td>
                                             <div class="text-muted fs-12">

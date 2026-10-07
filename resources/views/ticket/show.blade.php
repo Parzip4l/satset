@@ -538,6 +538,13 @@
                                         @if($approvalStep->decided_at)
                                             <div class="text-muted small mt-2">Diproses {{ $approvalStep->decided_at->format('d M Y H:i') }}</div>
                                         @endif
+                                        @if($approvalStep->portal_signature_url || $approvalStep->portal_qr_url)
+                                            <a href="{{ $approvalStep->portal_signature_url ?: $approvalStep->portal_qr_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success mt-2">
+                                                <i class="bi bi-qr-code me-1"></i> Verifikasi QR Portal
+                                            </a>
+                                        @elseif($approvalStatus === 'approved')
+                                            <div class="text-warning small mt-2"><i class="bi bi-exclamation-triangle me-1"></i>QR Portal belum tersedia</div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>

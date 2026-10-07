@@ -15,6 +15,7 @@ class SatsetApprovalDecisionService
     public function __construct(
         private readonly LrtjSpaceMobileNotificationService $notifications,
         private readonly LrtjSpaceApprovalResolverService $approvalResolver,
+        private readonly LrtjSpacePortalSignatureService $portalSignatures,
     ) {}
 
     public function decide(
@@ -30,6 +31,10 @@ class SatsetApprovalDecisionService
         $normalizedStatus = strtolower($status);
         $bumApprover = null;
 
+        if (strtolower((string) $approval->status) !== 'pending') {
+            throw new ConflictHttpException('Approval sudah diproses. Status terbaru: '.$approval->status.'.');
+        }
+
         if (
             $normalizedStatus === 'approved'
             && (int) $approval->level === 1
@@ -42,6 +47,21 @@ class SatsetApprovalDecisionService
             ) {
                 abort(422, 'Approver Bagian Umum dari Portal masih sama dengan Kadiv Pemohon. Periksa user group BUM atau jabatan General Affair Department Head di Portal.');
             }
+        }
+
+        if (
+            $normalizedStatus === 'approved'
+            && $source !== 'portal_intranet'
+            && ! $portalSignature
+            && in_array(data_get($ticket->payload, 'request_type'), ['atk_rtk', 'consumption'], true)
+        ) {
+            $portalSignature = $this->portalSignatures->createApprovalSignature(
+                $ticket,
+                $approval,
+                $actor,
+                $normalizedStatus,
+                $comment,
+            );
         }
 
         $bumApproverReassigned = false;
@@ -70,7 +90,7 @@ class SatsetApprovalDecisionService
                 'portal_reference_id' => $source === 'portal_intranet' ? $externalReferenceId : $lockedApproval->portal_reference_id,
             ];
 
-            if ($source === 'portal_intranet' && $portalSignature) {
+            if ($portalSignature) {
                 $approvalUpdates = array_merge($approvalUpdates, array_intersect_key($portalSignature, array_flip([
                     'portal_signature_id',
                     'portal_signature_url',
