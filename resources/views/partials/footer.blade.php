@@ -1,6 +1,6 @@
 
 <!-- Begin Footer -->
-<footer class="footer">
+<footer class="footer" style="margin-top: 30px;">
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center gap-2">
             <script>document.write(new Date().getFullYear())</script> © SatSet.
@@ -11,4 +11,3 @@
     </div>
 </footer>
 <!-- END Footer -->
- 

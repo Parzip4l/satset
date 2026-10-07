@@ -12,33 +12,43 @@
         --request-muted: #69727e;
         --request-soft: #f6f7f9;
         --request-red: #e21a1a;
+        background:
+            radial-gradient(circle at 8% 2%, rgba(226, 26, 26, .08), transparent 27%),
+            radial-gradient(circle at 92% 12%, rgba(70, 118, 169, .12), transparent 30%),
+            linear-gradient(145deg, rgba(255, 255, 255, .68), rgba(244, 247, 250, .45));
+        border: 1px solid rgba(255, 255, 255, .82);
+        border-radius: 22px;
+        box-shadow: 0 20px 55px rgba(32, 37, 44, .06);
         color: var(--request-ink);
         max-width: 1480px;
+        padding: 16px;
     }
 
     .requests-intro {
         align-items: center;
-        background: #202328;
-        border: 1px solid #2c3036;
+        -webkit-backdrop-filter: blur(18px) saturate(125%);
+        backdrop-filter: blur(18px) saturate(125%);
+        background: linear-gradient(115deg, rgba(31, 35, 41, .96), rgba(48, 54, 63, .88));
+        border: 1px solid rgba(255, 255, 255, .13);
         border-radius: 16px;
         display: flex;
         gap: 32px;
         justify-content: space-between;
         margin-bottom: 16px;
         overflow: hidden;
-        padding: 30px 32px;
+        padding: 20px 24px;
         position: relative;
     }
 
     .requests-intro::after {
-        border: 34px solid rgba(255, 255, 255, .035);
+        border: 28px solid rgba(255, 255, 255, .04);
         border-radius: 50%;
         content: "";
-        height: 190px;
+        height: 160px;
         position: absolute;
         right: 18%;
-        top: -105px;
-        width: 190px;
+        top: -92px;
+        width: 160px;
     }
 
     .requests-eyebrow {
@@ -46,22 +56,23 @@
         font-size: .72rem;
         font-weight: 800;
         letter-spacing: .1em;
-        margin-bottom: 8px;
+        margin-bottom: 5px;
         text-transform: uppercase;
     }
 
     .requests-title {
         color: #fff;
-        font-size: clamp(1.8rem, 3vw, 2.5rem);
+        font-size: clamp(1.55rem, 2.5vw, 2.1rem);
         font-weight: 750;
         letter-spacing: -.04em;
         line-height: 1.08;
-        margin: 0 0 10px;
+        margin: 0 0 6px;
     }
 
     .requests-description {
         color: #b9bec6;
-        line-height: 1.65;
+        font-size: .83rem;
+        line-height: 1.5;
         margin: 0;
         max-width: 720px;
     }
@@ -89,24 +100,29 @@
     }
 
     .request-metrics {
+        -webkit-backdrop-filter: blur(14px) saturate(120%);
+        backdrop-filter: blur(14px) saturate(120%);
         display: grid;
-        gap: 1px;
+        gap: 8px;
         grid-template-columns: repeat(5, minmax(0, 1fr));
-        background: var(--request-border);
-        border: 1px solid var(--request-border);
+        background: rgba(255, 255, 255, .28);
+        border: 1px solid rgba(255, 255, 255, .72);
         border-radius: 14px;
-        margin-bottom: 34px;
+        margin-bottom: 18px;
         overflow: hidden;
+        padding: 8px;
     }
 
     .request-metric {
         align-items: center;
-        background: #fff;
+        background: rgba(255, 255, 255, .67);
+        border: 1px solid rgba(255, 255, 255, .86);
+        border-radius: 11px;
         display: grid;
         gap: 14px;
         grid-template-columns: 38px minmax(0, 1fr);
-        min-height: 98px;
-        padding: 18px;
+        min-height: 70px;
+        padding: 11px 13px;
     }
 
     .request-metric-icon {
@@ -125,12 +141,12 @@
         color: var(--request-muted);
         font-size: .76rem;
         font-weight: 650;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
     }
 
     .request-metric-value {
         color: var(--request-ink);
-        font-size: 1.75rem;
+        font-size: 1.45rem;
         font-weight: 750;
         letter-spacing: -.04em;
         line-height: 1;
@@ -149,7 +165,7 @@
         align-items: end;
         display: flex;
         justify-content: space-between;
-        margin-bottom: 16px;
+        margin-bottom: 10px;
     }
 
     .request-section-heading h2 {
@@ -168,20 +184,22 @@
 
     .request-services {
         display: grid;
-        gap: 16px;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 
     .request-service {
-        background: #fff;
-        border: 1px solid var(--request-border);
+        -webkit-backdrop-filter: blur(16px) saturate(125%);
+        backdrop-filter: blur(16px) saturate(125%);
+        background: linear-gradient(145deg, rgba(255, 255, 255, .82), rgba(255, 255, 255, .54));
+        border: 1px solid rgba(255, 255, 255, .94);
         border-radius: 14px;
         color: inherit;
         display: flex;
         flex-direction: column;
-        min-height: 224px;
+        min-height: 190px;
         overflow: hidden;
-        padding: 24px;
+        padding: 18px;
         position: relative;
         text-decoration: none;
         transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
@@ -189,7 +207,7 @@
 
     .request-service:hover {
         border-color: #cfd4da;
-        box-shadow: 0 10px 28px rgba(21, 27, 35, .06);
+        box-shadow: 0 14px 32px rgba(21, 27, 35, .1), inset 0 1px 0 rgba(255, 255, 255, .7);
         color: inherit;
         transform: translateY(-2px);
     }
@@ -217,9 +235,9 @@
         color: var(--service-accent, #4d5865);
         display: inline-flex;
         font-size: 1.25rem;
-        height: 48px;
+        height: 42px;
         justify-content: center;
-        width: 48px;
+        width: 42px;
     }
 
     .request-service:hover .request-service-icon,
@@ -233,13 +251,13 @@
         font-weight: 750;
         letter-spacing: .07em;
         margin-bottom: 6px;
-        margin-top: 20px;
+        margin-top: 13px;
         text-transform: uppercase;
     }
 
     .request-service h3 {
         color: var(--request-ink);
-        font-size: 1.05rem;
+        font-size: .98rem;
         font-weight: 750;
         letter-spacing: -.02em;
         margin: 0 0 7px;
@@ -247,10 +265,14 @@
 
     .request-service p {
         color: var(--request-muted);
-        font-size: .82rem;
-        line-height: 1.55;
+        display: -webkit-box;
+        font-size: .76rem;
+        line-height: 1.45;
         margin: 0;
         max-width: 580px;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
     }
 
     .request-service-arrow {
@@ -261,11 +283,11 @@
         color: #a0a7b0;
         display: inline-flex;
         font-size: 1.05rem;
-        height: 34px;
+        height: 30px;
         justify-content: center;
         margin-top: auto;
         transition: color .18s ease, transform .18s ease;
-        width: 34px;
+        width: 30px;
     }
 
     .request-service:hover .request-service-arrow {
@@ -275,7 +297,6 @@
 
     .request-service.featured {
         border-color: rgba(226, 26, 26, .24);
-        grid-column: span 2;
     }
 
     .request-service.featured p {
@@ -294,6 +315,10 @@
         .request-services {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
+
+        .requests-page {
+            padding: 12px;
+        }
     }
 
     @media (max-width: 767.98px) {
@@ -307,9 +332,6 @@
             grid-template-columns: 1fr;
         }
 
-        .request-service.featured {
-            grid-column: auto;
-        }
     }
 
     @media (max-width: 479.98px) {
@@ -322,7 +344,7 @@
         }
 
         .request-service {
-            min-height: 208px;
+            min-height: 184px;
             padding: 18px;
         }
 
@@ -388,7 +410,7 @@
     ];
 @endphp
 
-<div class="container-fluid requests-page mt-7">
+<div class="container-fluid requests-page mt-2">
     @if(session('success'))
         <div class="alert alert-success border-0 mb-4">{{ session('success') }}</div>
     @endif
