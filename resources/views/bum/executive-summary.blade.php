@@ -12,6 +12,7 @@
         --executive-line: #e7eaee;
         --executive-soft: #f6f7f9;
         --executive-red: #e21a1a;
+        --executive-gap: 24px;
         color: var(--executive-ink);
         max-width: 1480px;
     }
@@ -21,7 +22,7 @@
         display: flex;
         gap: 24px;
         justify-content: space-between;
-        margin-bottom: 24px;
+        margin-bottom: var(--executive-gap);
     }
 
     .executive-title {
@@ -59,7 +60,7 @@
     }
 
     .executive-filter {
-        margin-bottom: 24px;
+        margin-bottom: var(--executive-gap);
         padding: 16px;
     }
 
@@ -181,9 +182,9 @@
 
     .executive-metrics {
         display: grid;
-        gap: 24px;
+        gap: var(--executive-gap);
         grid-template-columns: repeat(6, minmax(0, 1fr));
-        margin: 24px 0;
+        margin: var(--executive-gap) 0;
     }
 
     .executive-metric {
@@ -232,7 +233,7 @@
     }
 
     .executive-section {
-        margin-top: 24px !important;
+        margin-top: var(--executive-gap) !important;
     }
 
     .executive-section-head {
@@ -386,8 +387,12 @@
     }
 
     .executive-page .row.g-3 {
-        --bs-gutter-x: 1.5rem;
-        --bs-gutter-y: 1.5rem;
+        --bs-gutter-x: var(--executive-gap);
+        --bs-gutter-y: var(--executive-gap);
+    }
+
+    .executive-page > .row.executive-section {
+        margin-top: 0 !important;
     }
 
     @media (max-width: 1199.98px) {
