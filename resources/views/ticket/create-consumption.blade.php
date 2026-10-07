@@ -142,7 +142,7 @@
             @unless($isPublic ?? false)
                 <div class="d-flex gap-2">
                     <a href="{{ route('ticket.index') }}" class="btn btn-light border rounded-pill px-4">Menu Requests</a>
-                    <a href="{{ route('ticket.general') }}" class="btn btn-outline-secondary rounded-pill px-4">Lihat General</a>
+                    <a href="{{ route('ticket.mine') }}" class="btn btn-outline-secondary rounded-pill px-4">Lihat Tiket Saya</a>
                 </div>
             @endunless
         </div>

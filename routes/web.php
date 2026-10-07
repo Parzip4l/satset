@@ -90,7 +90,9 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::get('dashboard', [dashboardController::class, 'index'])->name('dashboard.index');
 
     // Ticket
-    Route::get('/ticket/general', [App\Http\Controllers\Master\TicketController::class, 'generalIndex'])
+    Route::get('/ticket/tiket-saya', [App\Http\Controllers\Master\TicketController::class, 'ticketsIndex'])
+        ->name('ticket.mine');
+    Route::redirect('/ticket/general', '/ticket/tiket-saya')
         ->name('ticket.general');
     Route::get('/ticket/ga-requests', [App\Http\Controllers\Master\TicketController::class, 'gaRequestsIndex'])
         ->middleware('ga.team')

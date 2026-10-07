@@ -358,6 +358,8 @@
 
 @section('content')
 @php
+    $isAdmin = strtolower((string) (auth()->user()->role ?? '')) === 'admin';
+
     $metrics = [
         ['label' => 'Total request', 'value' => $stats['total'] ?? 0, 'icon' => 'bi-layers'],
         ['label' => 'Open', 'value' => $stats['open'] ?? 0, 'icon' => 'bi-inbox'],
@@ -368,11 +370,13 @@
 
     $services = [
         [
-            'title' => 'General Request',
-            'kicker' => 'Tiket umum',
-            'description' => 'Laporkan kebutuhan umum dan pantau status tiket yang pernah Anda buat.',
+            'title' => $isAdmin ? 'Semua Tiket' : 'Tiket Saya',
+            'kicker' => $isAdmin ? 'Seluruh requester' : 'Riwayat permintaan',
+            'description' => $isAdmin
+                ? 'Lihat seluruh tiket dari semua requester dan semua jenis permintaan.'
+                : 'Lihat seluruh tiket dan semua jenis permintaan yang pernah Anda ajukan.',
             'icon' => 'bi-ticket-perforated',
-            'route' => 'ticket.general',
+            'route' => 'ticket.mine',
             'class' => 'tone-blue',
         ],
         [
@@ -425,9 +429,9 @@
             <h1 class="requests-title">Apa yang Anda butuhkan?</h1>
             <p class="requests-description">Pilih layanan untuk membuat permintaan baru. Seluruh status, approval, dan progres tindak lanjut tersimpan dalam satu tempat.</p>
         </div>
-        <a href="{{ route('ticket.general') }}" class="requests-history-link">
+        <a href="{{ route('ticket.mine') }}" class="requests-history-link">
             <i class="bi bi-clock-history"></i>
-            Lihat tiket saya
+            {{ $isAdmin ? 'Lihat semua tiket' : 'Lihat tiket saya' }}
         </a>
     </header>
 

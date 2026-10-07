@@ -294,7 +294,7 @@
                             </div>
                             
                             <div class="d-flex gap-2 w-100 w-md-auto">
-                                <a href="{{ route('ticket.general') }}" class="btn btn-light border w-50 w-md-auto py-2 fw-semibold text-muted">Batal</a>
+                                <a href="{{ route('ticket.mine') }}" class="btn btn-light border w-50 w-md-auto py-2 fw-semibold text-muted">Batal</a>
                                 <button type="submit" id="btnSubmit" class="btn btn-primary btn-submit w-50 w-md-auto text-white">
                                     <i class="bi bi-send-fill me-2"></i> Kirim Tiket
                                 </button>

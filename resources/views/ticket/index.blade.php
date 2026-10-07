@@ -1,17 +1,18 @@
 @extends('partials.layouts.master')
 
 @section('title', 'Data Ticket | SatSet System')
-@section('title-sub', 'General Request')
-@section('pagetitle', 'General Request')
+@section('title-sub', $pageTitle ?? 'Tiket Saya')
+@section('pagetitle', $pageTitle ?? 'Tiket Saya')
 
 @section('content')
 @php
-    $indexRoute = $indexRoute ?? 'ticket.general';
-    $pageTitle = $pageTitle ?? 'Ticket Management';
-    $pageSubtitle = $pageSubtitle ?? 'Pantau dan kelola request general yang sudah ada di sini.';
+    $indexRoute = $indexRoute ?? 'ticket.mine';
+    $pageTitle = $pageTitle ?? 'Tiket Saya';
+    $pageSubtitle = $pageSubtitle ?? 'Pantau seluruh tiket dan semua jenis permintaan yang pernah Anda ajukan.';
     $resetRoute = $resetRoute ?? route($indexRoute);
     $requestTypeOptions = $requestTypeOptions ?? [];
     $createActions = $createActions ?? [];
+    $createButtonLabel = $createButtonLabel ?? 'Buat Permintaan';
 @endphp
 
 <div class="container-fluid">
@@ -33,7 +34,7 @@
                             @if(!empty($createActions))
                                 <div class="dropdown">
                                     <button class="btn btn-primary shadow-sm px-4 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="bi bi-plus-lg me-1"></i> Buat Permintaan GA
+                                        <i class="bi bi-plus-lg me-1"></i> {{ $createButtonLabel }}
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-2" style="min-width: 310px; border-radius: 12px;">
                                         @foreach($createActions as $action)

@@ -47,9 +47,10 @@ class TicketController extends Controller
     public function index()
     {
         $user = auth()->user();
+        $isAdmin = strtolower((string) ($user->role ?? '')) === 'admin';
 
         $baseQuery = Ticket::query()
-            ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('requester_id', $user->id));
+            ->when(! $isAdmin, fn ($query) => $query->where('requester_id', $user->id));
 
         $stats = [
             'total' => (clone $baseQuery)->count(),
@@ -57,7 +58,7 @@ class TicketController extends Controller
             'in_progress' => (clone $baseQuery)->whereHas('status', fn ($query) => $query->where('name', 'In Progress'))->count(),
             'completed' => (clone $baseQuery)->whereHas('status', fn ($query) => $query->whereIn('name', ['Resolved', 'Closed']))->count(),
             'pending_approvals' => Approval::query()
-                ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
+                ->when(! $isAdmin, fn ($query) => $query->where('approver_id', $user->id))
                 ->where('status', 'Pending')
                 ->count(),
         ];
@@ -87,11 +88,12 @@ class TicketController extends Controller
     }
 
     /**
-     * Display general ticket listing.
+     * Display every ticket visible to the current user.
      */
-    public function generalIndex(Request $request)
+    public function ticketsIndex(Request $request)
     {
         $user = auth()->user();
+        $isAdmin = strtolower((string) ($user->role ?? '')) === 'admin';
         $search = $request->get('search');
         $statusId = $request->get('status_id');
         $priorityId = $request->get('priority_id');
@@ -99,7 +101,7 @@ class TicketController extends Controller
         $departmentId = $request->get('department_id');
 
         $tickets = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency'])
-            ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('requester_id', $user->id))
+            ->when(! $isAdmin, fn ($query) => $query->where('requester_id', $user->id))
             ->when($search, function ($query, $searchValue) {
                 $query->where(function ($builder) use ($searchValue) {
                     $builder->where('title', 'like', '%'.$searchValue.'%')
@@ -121,12 +123,45 @@ class TicketController extends Controller
         $status = Status::all();
         $categories = ProblemCategory::all();
         $departments = Department::all();
+        $indexRoute = 'ticket.mine';
+        $pageTitle = $isAdmin ? 'Semua Tiket' : 'Tiket Saya';
+        $pageSubtitle = $isAdmin
+            ? 'Pantau seluruh tiket dari semua requester dan semua jenis permintaan.'
+            : 'Pantau seluruh tiket dan semua jenis permintaan yang pernah Anda ajukan.';
+        $resetRoute = route($indexRoute);
+        $createButtonLabel = 'Buat Permintaan';
+        $createActions = [
+            [
+                'label' => 'Tiket Umum',
+                'description' => 'Permintaan dukungan umum di luar layanan khusus',
+                'icon' => 'bi-ticket-perforated',
+                'route' => 'ticket.create',
+            ],
+            [
+                'label' => 'Permintaan Konsumsi',
+                'description' => 'Konsumsi rapat atau kegiatan',
+                'icon' => 'bi-cup-hot',
+                'route' => 'ticket.konsumsi.create',
+            ],
+            [
+                'label' => 'Permintaan ATK / RTK',
+                'description' => 'Barang alat tulis dan rumah tangga kantor',
+                'icon' => 'bi-box-seam',
+                'route' => 'ticket.atk-rtk.create',
+            ],
+            [
+                'label' => 'GA Permintaan & Temuan',
+                'description' => 'Laporan fasilitas dan kebutuhan operasional GA',
+                'icon' => 'bi-building-gear',
+                'route' => 'ticket.ga-permintaan-temuan.create',
+            ],
+        ];
 
         if ($request->ajax()) {
-            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments'))->render();
+            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'createButtonLabel', 'createActions'))->render();
         }
 
-        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments'));
+        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'createButtonLabel', 'createActions'));
     }
 
     public function gaRequestsIndex(Request $request)
@@ -194,12 +229,13 @@ class TicketController extends Controller
                 'route' => 'ticket.atk-rtk.create',
             ],
         ];
+        $createButtonLabel = 'Buat Permintaan GA';
 
         if ($request->ajax()) {
-            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions', 'createActions'))->render();
+            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions', 'createActions', 'createButtonLabel'))->render();
         }
 
-        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions', 'createActions'));
+        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'requestTypeOptions', 'createActions', 'createButtonLabel'));
     }
 
     public function create()
@@ -1189,7 +1225,7 @@ class TicketController extends Controller
                 ->with('success', 'Laporan GA Permintaan & Temuan berhasil dibuat.');
         }
 
-        return redirect()->route('ticket.general')->with('success', 'Ticket berhasil dibuat dan email dikirim.');
+        return redirect()->route('ticket.mine')->with('success', 'Ticket berhasil dibuat dan email dikirim.');
     }
 
     // schema

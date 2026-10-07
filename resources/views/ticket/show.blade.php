@@ -241,7 +241,7 @@
             </div>
             <h1 class="page-title mb-0">{{ $ticket->title }}</h1>
         </div>
-        <a href="{{ route('ticket.general') }}" class="btn-back text-decoration-none shadow-sm">
+        <a href="{{ route('ticket.mine') }}" class="btn-back text-decoration-none shadow-sm">
             <i class="bi bi-arrow-left me-1"></i> Kembali
         </a>
     </div>
