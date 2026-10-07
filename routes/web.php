@@ -157,6 +157,9 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::get('/tickets/{ticket}/consumption/form', [App\Http\Controllers\Master\TicketController::class, 'consumptionForm'])->name('ticket.consumption.form');
     Route::post('/tickets/{ticket}/consumption/flow', [App\Http\Controllers\Master\TicketController::class, 'updateConsumptionFlow'])->middleware('ga.team')->name('ticket.consumption.flow');
     Route::post('/tickets/{ticket}/consumption/evidence', [App\Http\Controllers\Master\TicketController::class, 'uploadConsumptionEvidence'])->name('ticket.consumption.evidence');
+    Route::post('/tickets/{ticket}/ga-request-finding/follow-up', [App\Http\Controllers\Master\TicketController::class, 'followUpGaRequestFinding'])
+        ->middleware('ga.team')
+        ->name('ticket.ga-request-finding.follow-up');
 
     Route::get('/ticket-form-schema/{category}', function ($category) {
         return TicketFormSchema::where('ticket_category_id', $category)

@@ -185,6 +185,8 @@
         $atkRtkManagerApproved = $ticket->approvals->where('status', 'approved')->isNotEmpty();
         $atkRtkManagerRejected = $ticket->approvals->where('status', 'rejected')->isNotEmpty() || $workflowStatus === 'REJECTED_BY_MANAGER';
         $canProcessAtkRtk = $canManageGaOperations && (!$atkRtkRequiresManagerApproval || $atkRtkManagerApproved);
+        $isGaRequestFindingClosed = $requestType === 'ga_request_finding'
+            && ($workflowStatus === 'CLOSED' || ($ticket->status->name ?? null) === 'Closed');
         $canGenerateConsumptionForm = $requestType === 'consumption'
             && ($workflowStatus === 'CLOSED' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true));
         $canGenerateAtkRtkGoodsIssue = $requestType === 'atk_rtk'
@@ -398,6 +400,8 @@
                             @php
                                 $attachmentTypeLabels = [
                                     'accountability_bundle' => 'Bundle Pertanggungjawaban',
+                                    'ga_report_evidence' => 'Evidence Pelapor',
+                                    'ga_follow_up_evidence' => 'Evidence Tindak Lanjut GA',
                                 ];
                                 $attachmentTypeLabel = $attachmentTypeLabels[$attachment->attachment_type] ?? str_replace('_', ' ', $attachment->attachment_type ?? 'file');
                             @endphp
@@ -893,6 +897,53 @@
                         </div>
                         <div class="col-12"><button class="btn btn-primary w-100">Upload Pertanggungjawaban</button></div>
                     </form>
+                    @endif
+                </div>
+            </div>
+            @endif
+
+            @if($requestType === 'ga_request_finding' && $canManageGaOperations)
+            <div class="card-clean">
+                <div class="card-header-clean">
+                    <span class="header-title"><i class="bi bi-check2-circle text-danger"></i> Tindak Lanjut Tim GA</span>
+                    <span class="badge {{ $isGaRequestFindingClosed ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning' }}">
+                        {{ $isGaRequestFindingClosed ? 'Closed' : 'Perlu Tindak Lanjut' }}
+                    </span>
+                </div>
+                <div class="card-body p-4">
+                    @if($isGaRequestFindingClosed)
+                        <div class="alert alert-success border-0 mb-0">
+                            <i class="bi bi-check-circle-fill me-1"></i>
+                            Tiket sudah ditutup. Evidence penyelesaian tersimpan pada bagian Lampiran dan aktivitas tercatat di Riwayat.
+                        </div>
+                    @else
+                        <form action="{{ route('ticket.ga-request-finding.follow-up', $ticket) }}" method="POST" enctype="multipart/form-data" class="row g-3">
+                            @csrf
+                            <div class="col-12">
+                                <label class="meta-label mb-2">Hasil Tindak Lanjut <span class="text-danger">*</span></label>
+                                <textarea name="follow_up_notes" class="form-control" rows="3" maxlength="2000" placeholder="Jelaskan pekerjaan atau penyelesaian yang sudah dilakukan..." required>{{ old('follow_up_notes') }}</textarea>
+                                @error('follow_up_notes') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-12">
+                                <label class="meta-label mb-2">Evidence Tindak Lanjut <span class="text-danger">*</span></label>
+                                <input type="file" name="follow_up_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf" required>
+                                <div class="text-muted small mt-1">Foto atau PDF bukti tindak lanjut. Maksimal 10 MB.</div>
+                                @error('follow_up_evidence_file') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-12">
+                                <label class="meta-label mb-2">Status Setelah Tindak Lanjut <span class="text-danger">*</span></label>
+                                <select name="workflow_status" class="form-select" required>
+                                    <option value="IN_PROGRESS" @selected(old('workflow_status', $workflowStatus) === 'IN_PROGRESS')>Dalam Proses</option>
+                                    <option value="CLOSED" @selected(old('workflow_status') === 'CLOSED')>Closed / Selesai</option>
+                                </select>
+                                @error('workflow_status') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-12">
+                                <button class="btn btn-primary w-100">
+                                    <i class="bi bi-cloud-arrow-up me-1"></i> Simpan Tindak Lanjut
+                                </button>
+                            </div>
+                        </form>
                     @endif
                 </div>
             </div>

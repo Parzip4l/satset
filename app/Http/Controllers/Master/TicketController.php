@@ -1873,6 +1873,87 @@ class TicketController extends Controller
         return back()->with('success', 'Evidence pertanggungjawaban berhasil diupload.');
     }
 
+    public function followUpGaRequestFinding(Request $request, Ticket $ticket)
+    {
+        $this->ensureGaOperationAccess();
+
+        if (data_get($ticket->payload, 'request_type') !== 'ga_request_finding') {
+            abort(404);
+        }
+
+        if (data_get($ticket->payload, 'workflow_status') === 'CLOSED' || $ticket->status?->name === 'Closed') {
+            return back()->with('error', 'Tiket yang sudah ditutup tidak dapat ditindaklanjuti kembali.');
+        }
+
+        $data = $request->validate([
+            'workflow_status' => 'required|in:IN_PROGRESS,CLOSED',
+            'follow_up_notes' => 'required|string|max:2000',
+            'follow_up_evidence_file' => 'required|file|mimes:jpg,jpeg,png,webp,pdf|max:10240',
+        ]);
+
+        $previousStatus = data_get($ticket->payload, 'workflow_status') ?: ($ticket->status?->name ?? null);
+        $isClosed = $data['workflow_status'] === 'CLOSED';
+        $statusName = $isClosed ? 'Closed' : 'In Progress';
+        $statusId = Status::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($statusName)])
+            ->value('id');
+
+        if (! $statusId) {
+            throw ValidationException::withMessages([
+                'workflow_status' => "Master status {$statusName} belum tersedia.",
+            ]);
+        }
+
+        $this->storeRequestAttachment(
+            $request,
+            $ticket,
+            'follow_up_evidence_file',
+            'ga_follow_up_evidence',
+            $request->user()
+        );
+
+        $payload = $ticket->payload ?? [];
+        $payload['workflow_status'] = $data['workflow_status'];
+        $payload['ga_follow_ups'][] = [
+            'status' => $data['workflow_status'],
+            'notes' => $data['follow_up_notes'],
+            'evidence_file_name' => $request->file('follow_up_evidence_file')->getClientOriginalName(),
+            'followed_up_at' => now()->toDateTimeString(),
+            'followed_up_by' => $request->user()->id,
+            'followed_up_by_name' => $request->user()->name,
+        ];
+        $payload['ga_followed_up_at'] = now()->toDateTimeString();
+        $payload['ga_followed_up_by'] = $request->user()->id;
+
+        $ticket->update([
+            'payload' => $payload,
+            'status_id' => $statusId,
+            'resolved_at' => $isClosed ? now() : null,
+            'closed_at' => $isClosed ? now() : null,
+        ]);
+        $ticket->histories()->create([
+            'user_id' => $request->user()->id,
+            'status_id' => $statusId,
+            'action' => Str::limit(
+                ($isClosed ? 'Tiket ditutup oleh tim GA. ' : 'Tindak lanjut tim GA dicatat. ').$data['follow_up_notes'],
+                250
+            ),
+        ]);
+
+        $this->mobileNotifications()->notifyTicketStatusChanged(
+            $ticket->fresh(['requester', 'status']),
+            $request->user(),
+            $previousStatus
+        );
+
+        return back()->with(
+            'success',
+            $isClosed
+                ? 'Tindak lanjut dan evidence berhasil disimpan. Tiket telah ditutup.'
+                : 'Tindak lanjut dan evidence berhasil disimpan.'
+        );
+    }
+
     private function createManagerApproval(Ticket $ticket): void
     {
         $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($ticket);
