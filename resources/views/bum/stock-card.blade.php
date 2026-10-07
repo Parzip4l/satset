@@ -36,8 +36,8 @@
 
         .stock-card-btn {
             border-radius: 8px;
-            font-size: .84rem;
-            font-weight: 800;
+            font-size: .76rem;
+            font-weight: 600;
             min-height: 36px;
             padding: .45rem .85rem;
         }
@@ -54,12 +54,24 @@
             padding: 1rem;
         }
 
+        .filter-panel .form-label {
+            font-size: .7rem !important;
+            font-weight: 600 !important;
+        }
+
+        .filter-panel .form-control,
+        .filter-panel .form-select,
+        .filter-panel .select2-selection__rendered {
+            font-size: .76rem !important;
+            font-weight: 400 !important;
+        }
+
         .stock-table thead th {
             background: var(--stock-soft);
             border-bottom: 1px solid var(--stock-line);
             color: #394150;
-            font-size: .78rem;
-            font-weight: 800;
+            font-size: .7rem;
+            font-weight: 600;
             padding: .85rem 1rem;
             white-space: nowrap;
         }
@@ -67,9 +79,20 @@
         .stock-table tbody td {
             border-color: var(--stock-line);
             color: #364152;
-            font-size: .84rem;
+            font-size: .72rem;
+            font-weight: 400;
             padding: .82rem 1rem;
             vertical-align: middle;
+        }
+
+        .stock-table thead a {
+            font-weight: 600 !important;
+        }
+
+        .stock-table tbody .fw-semibold,
+        .stock-table tbody .fw-bold,
+        .stock-table tbody a.fw-semibold {
+            font-weight: 500 !important;
         }
 
         .stock-movement-row {
@@ -119,8 +142,8 @@
 
         .soft-badge {
             border-radius: 6px;
-            font-size: .72rem;
-            font-weight: 800;
+            font-size: .66rem;
+            font-weight: 600;
             padding: .32rem .55rem;
         }
 
@@ -131,14 +154,23 @@
         }
 
         .stock-detail-modal .modal-dialog {
+            filter: drop-shadow(0 28px 40px rgba(24, 31, 41, .24));
             max-width: min(980px, calc(100vw - 2rem));
         }
 
         .stock-detail-modal .modal-content {
             border: 0;
             border-radius: 16px;
-            box-shadow: 0 28px 80px rgba(24, 31, 41, .22);
+            box-shadow: none;
             overflow: hidden;
+            -webkit-mask:
+                radial-gradient(circle at left center, transparent 0 16px, #000 17px),
+                radial-gradient(circle at right center, transparent 0 16px, #000 17px);
+            -webkit-mask-composite: source-in;
+            mask:
+                radial-gradient(circle at left center, transparent 0 16px, #000 17px),
+                radial-gradient(circle at right center, transparent 0 16px, #000 17px);
+            mask-composite: intersect;
         }
 
         .stock-detail-modal .modal-header {
@@ -333,6 +365,19 @@
             overflow: hidden;
             padding: 1.6rem;
             position: relative;
+            transition: background .2s ease;
+        }
+
+        .movement-ticket-stub.is-incoming {
+            background:
+                radial-gradient(circle at 10% 5%, rgba(255, 255, 255, .16), transparent 28%),
+                linear-gradient(150deg, #087b4b, #16a36a 62%, #07683f);
+        }
+
+        .movement-ticket-stub.is-outgoing {
+            background:
+                radial-gradient(circle at 10% 5%, rgba(255, 255, 255, .16), transparent 28%),
+                linear-gradient(150deg, #a80f18, #d71924 62%, #8f0b13);
         }
 
         .movement-ticket-stub::after {
@@ -384,6 +429,14 @@
             color: #fff !important;
             font-size: 2rem;
             margin-top: 1rem;
+            text-shadow: 0 2px 10px rgba(75, 0, 5, .18);
+        }
+
+        .movement-ticket-stub .movement-qty.ticket-stub-qty,
+        .movement-ticket-stub.is-incoming .movement-qty.ticket-stub-qty,
+        .movement-ticket-stub.is-outgoing .movement-qty.ticket-stub-qty {
+            color: #fff !important;
+            opacity: 1 !important;
         }
 
         .ticket-stub-type {
@@ -429,18 +482,8 @@
 
         .movement-ticket-main::before,
         .movement-ticket-main::after {
-            background: #eef0f3;
-            border-radius: 50%;
-            content: '';
-            height: 28px;
-            left: -14px;
-            position: absolute;
-            width: 28px;
-            z-index: 2;
+            display: none;
         }
-
-        .movement-ticket-main::before { top: -14px; }
-        .movement-ticket-main::after { bottom: -14px; }
 
         .movement-ticket-head {
             align-items: flex-start;
@@ -807,9 +850,13 @@
             text('movementNotes', movement.notes);
             text('movementCounter', `${currentIndex + 1} dari ${movementDetails.length} mutasi di halaman ini`);
 
+            const stub = document.querySelector('.movement-ticket-stub');
+            stub.classList.toggle('is-outgoing', movement.is_outgoing);
+            stub.classList.toggle('is-incoming', !movement.is_outgoing);
+
             const qty = document.getElementById('movementQty');
-            qty.classList.toggle('text-danger', movement.is_outgoing);
-            qty.classList.toggle('text-success', !movement.is_outgoing);
+            qty.classList.remove('text-danger', 'text-success', 'text-warning', 'text-primary');
+            qty.style.color = '#fff';
 
             const icon = document.querySelector('#movementTypeIcon i');
             icon.className = `bi ${movement.is_outgoing ? 'bi-box-arrow-up-right' : 'bi-box-arrow-in-down-left'}`;
