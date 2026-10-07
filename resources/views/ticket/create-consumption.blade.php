@@ -278,7 +278,7 @@
                         </div>
 
                         <div class="alert border-0" style="background:#fff8ec; color:#8a5a10;">
-                            Setelah kegiatan selesai, lengkapi seluruh dokumen pertanggungjawaban dalam satu bundle. Dokumen dapat digabung menjadi satu PDF atau dikompresi dalam arsip ZIP/RAR.
+                            Setelah kegiatan selesai, lengkapi seluruh dokumen pertanggungjawaban dalam satu bundle. Dokumen dapat digabung menjadi satu PDF.
                         </div>
 
                         <div class="row g-4">
