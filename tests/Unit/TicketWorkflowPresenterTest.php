@@ -32,12 +32,16 @@ class TicketWorkflowPresenterTest extends TestCase
                 'Menunggu pertanggungjawaban', 6, 7,
             ],
             'atk procurement' => [
-                ['request_type' => 'atk_rtk', 'workflow_status' => 'WAITING_PROCUREMENT'],
+                ['request_type' => 'atk_rtk', 'workflow_status' => 'WAITING_PROCUREMENT', 'total_estimated_amount' => 150000, 'approval_threshold' => 100000],
                 'Dalam proses pengadaan', 3, 5,
             ],
             'atk ready' => [
-                ['request_type' => 'atk_rtk', 'workflow_status' => 'READY_TO_HANDOVER'],
+                ['request_type' => 'atk_rtk', 'workflow_status' => 'READY_TO_HANDOVER', 'total_estimated_amount' => 150000, 'approval_threshold' => 100000],
                 'Siap diserahkan', 4, 5,
+            ],
+            'atk without manager approval' => [
+                ['request_type' => 'atk_rtk', 'workflow_status' => 'READY_TO_HANDOVER', 'total_estimated_amount' => 50000, 'approval_threshold' => 100000],
+                'Siap diserahkan', 3, 4,
             ],
             'ga in progress' => [
                 ['request_type' => 'ga_request_finding', 'workflow_status' => 'IN_PROGRESS'],

@@ -22,7 +22,7 @@ class TicketWorkflowPresenter
 
         return match ($requestType) {
             'consumption' => self::consumption($workflowStatus),
-            'atk_rtk' => self::atkRtk($workflowStatus),
+            'atk_rtk' => self::atkRtk($workflowStatus, $payload),
             'ga_request_finding' => self::gaRequestFinding($workflowStatus),
             default => self::general($ticketStatus, $workflowStatus),
         };
@@ -45,19 +45,34 @@ class TicketWorkflowPresenter
         return self::result($label, $description, $step, 7, $color, $icon);
     }
 
-    private static function atkRtk(string $status): array
+    private static function atkRtk(string $status, array $payload): array
     {
+        $estimatedAmount = (float) data_get($payload, 'total_estimated_amount', 0);
+        $approvalThreshold = data_get($payload, 'approval_threshold');
+        if ($approvalThreshold === null) {
+            $approvalThreshold = app()->bound('config')
+                ? config('bum.atk_rtk_manager_approval_threshold', 100000)
+                : 100000;
+        }
+        $approvalThreshold = (float) $approvalThreshold;
+        $requiresManagerApproval = $status === 'WAITING_MANAGER_APPROVAL'
+            || ($approvalThreshold > 0 && $estimatedAmount >= $approvalThreshold);
+        $total = $requiresManagerApproval ? 5 : 4;
+        $reviewStep = $requiresManagerApproval ? 2 : 1;
+        $stockStep = $requiresManagerApproval ? 3 : 2;
+        $handoverReadyStep = $requiresManagerApproval ? 4 : 3;
+
         [$label, $description, $step, $color, $icon] = match ($status) {
             'SUBMITTED', 'WAITING_MANAGER_APPROVAL' => ['Menunggu approval atasan', 'Pengajuan ATK/RTK sedang diperiksa oleh atasan.', 1, 'warning', 'bi-person-check'],
-            'WAITING_BUM_REVIEW', 'WAITING_BUM_VERIFICATION' => ['Review Bagian Umum', 'Tim GA sedang memeriksa kebutuhan dan ketersediaan.', 2, 'info', 'bi-clipboard-check'],
-            'STOCK_CHECKED' => ['Stok sudah diperiksa', 'Ketersediaan barang sudah dikonfirmasi oleh gudang.', 3, 'info', 'bi-boxes'],
-            'WAITING_PROCUREMENT' => ['Dalam proses pengadaan', 'Barang belum tersedia dan sedang diproses pengadaannya.', 3, 'warning', 'bi-cart-check'],
-            'READY_TO_HANDOVER' => ['Siap diserahkan', 'Barang sudah siap diambil atau diserahkan kepada pemohon.', 4, 'primary', 'bi-box-arrow-up-right'],
-            'HANDED_OVER', 'CLOSED' => ['Barang telah diserahkan', 'Proses ATK/RTK telah selesai.', 5, 'success', 'bi-check-circle-fill'],
+            'WAITING_BUM_REVIEW', 'WAITING_BUM_VERIFICATION' => ['Review Bagian Umum', 'Tim GA sedang memeriksa kebutuhan dan ketersediaan.', $reviewStep, 'info', 'bi-clipboard-check'],
+            'STOCK_CHECKED' => ['Stok sudah diperiksa', 'Ketersediaan barang sudah dikonfirmasi oleh gudang.', $stockStep, 'info', 'bi-boxes'],
+            'WAITING_PROCUREMENT' => ['Dalam proses pengadaan', 'Barang belum tersedia dan sedang diproses pengadaannya.', $stockStep, 'warning', 'bi-cart-check'],
+            'READY_TO_HANDOVER' => ['Siap diserahkan', 'Barang sudah siap diambil atau diserahkan kepada pemohon.', $handoverReadyStep, 'primary', 'bi-box-arrow-up-right'],
+            'HANDED_OVER', 'CLOSED' => ['Barang telah diserahkan', 'Proses ATK/RTK telah selesai.', $total, 'success', 'bi-check-circle-fill'],
             default => [self::humanize($status), 'Proses permintaan ATK/RTK sedang berjalan.', 1, 'secondary', 'bi-hourglass-split'],
         };
 
-        return self::result($label, $description, $step, 5, $color, $icon);
+        return self::result($label, $description, $step, $total, $color, $icon);
     }
 
     private static function gaRequestFinding(string $status): array
