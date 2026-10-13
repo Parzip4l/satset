@@ -225,10 +225,6 @@
                                 <label class="form-label">Unit / Penyelenggara</label>
                                 <input type="text" name="payload[organizer_unit]" class="form-control" value="{{ old('payload.organizer_unit') }}" placeholder="Unit penyelenggara kegiatan">
                             </div>
-                            <div class="col-12">
-                                <label class="form-label">Alasan / Tujuan Permintaan</label>
-                                <textarea name="payload[request_reason]" class="form-control" placeholder="Jelaskan kenapa konsumsi dibutuhkan untuk kegiatan ini." required>{{ old('payload.request_reason') }}</textarea>
-                            </div>
                         </div>
                     </div>
 

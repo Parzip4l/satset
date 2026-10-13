@@ -113,7 +113,7 @@ class MobileSatsetTicketController extends Controller
             'payload.location' => 'required|string|max:150',
             'payload.participant_count' => 'required|integer|min:1',
             'payload.consumption_type' => 'required|string|max:100',
-            'payload.request_reason' => 'required|string',
+            'payload.request_reason' => 'nullable|string|max:2000',
             'payload.supervisor_id' => 'nullable|exists:users,id',
             'payload.organizer_unit' => 'nullable|string|max:150',
             'payload.pic_contact' => 'nullable|string|max:150',
