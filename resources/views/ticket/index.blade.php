@@ -4,6 +4,26 @@
 @section('title-sub', $pageTitle ?? 'Tiket Saya')
 @section('pagetitle', $pageTitle ?? 'Tiket Saya')
 
+@section('css')
+<style>
+    .workflow-cell { min-width: 250px; }
+    .workflow-icon {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .workflow-label { font-size: .82rem; line-height: 1.2; }
+    .workflow-step { font-size: .64rem; letter-spacing: .02em; white-space: nowrap; }
+    .workflow-description { max-width: 235px; font-size: .7rem; line-height: 1.25; }
+    .workflow-progress { width: 100%; max-width: 235px; height: 4px; background: #edf0f4; }
+    .workflow-progress .progress-bar { border-radius: 999px; }
+</style>
+@endsection
+
 @section('content')
 @php
     $indexRoute = $indexRoute ?? 'ticket.mine';
@@ -133,7 +153,7 @@
                                     <th class="ps-4 py-3">Informasi Ticket</th>
                                     <th class="py-3">Requester</th>
                                     <th class="py-3">Prioritas</th>
-                                    <th class="py-3">Status</th>
+                                    <th class="py-3">Proses Saat Ini</th>
                                     <th class="py-3">Tgl Dibuat</th>
                                     <th class="text-end pe-4 py-3">Aksi</th>
                                 </tr>
@@ -158,6 +178,11 @@
                                             'Medium' => 'warning',
                                             default => 'info'
                                         };
+
+                                        $workflow = \App\Support\TicketWorkflowPresenter::make(
+                                            $ticket->payload ?? [],
+                                            $statusName
+                                        );
                                     @endphp
                                     <tr>
                                         {{-- Ticket Info --}}
@@ -195,11 +220,23 @@
                                             </div>
                                         </td>
 
-                                        {{-- Status --}}
-                                        <td>
-                                            <span class="badge bg-{{ $statusColor }}-subtle text-{{ $statusColor }} px-3 py-2 rounded-pill fw-bold" style="font-size: 10px;">
-                                                {{ strtoupper($statusName) }}
-                                            </span>
+                                        {{-- Current workflow stage --}}
+                                        <td class="workflow-cell">
+                                            <div class="d-flex align-items-start gap-2">
+                                                <span class="workflow-icon bg-{{ $workflow['color'] }}-subtle text-{{ $workflow['color'] }}">
+                                                    <i class="bi {{ $workflow['icon'] }}"></i>
+                                                </span>
+                                                <div class="flex-grow-1 overflow-hidden">
+                                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                                        <span class="workflow-label fw-bold text-dark">{{ $workflow['label'] }}</span>
+                                                        <span class="workflow-step text-{{ $workflow['color'] }} fw-bold">Tahap {{ $workflow['step'] }}/{{ $workflow['total'] }}</span>
+                                                    </div>
+                                                    <div class="workflow-description text-muted mb-2">{{ $workflow['description'] }}</div>
+                                                    <div class="progress workflow-progress rounded-pill" role="progressbar" aria-label="Progress {{ $workflow['label'] }}" aria-valuenow="{{ $workflow['percentage'] }}" aria-valuemin="0" aria-valuemax="100">
+                                                        <div class="progress-bar bg-{{ $workflow['color'] }}" style="width: {{ $workflow['percentage'] }}%"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </td>
 
                                         {{-- Timeline --}}
