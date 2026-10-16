@@ -155,8 +155,9 @@
             @endunless
         </div>
 
-        <form action="{{ ($isPublic ?? false) ? route('public.ticket.atk-rtk.store') : route('ticket.store') }}" method="POST" id="atkRtkForm">
+        <form action="{{ ($isPublic ?? false) ? route('public.ticket.atk-rtk.store') : route('ticket.store') }}" method="POST" id="atkRtkForm" data-ticket-submit-guard>
             @csrf
+            <input type="hidden" name="submission_token" value="{{ old('submission_token', (string) \Illuminate\Support\Str::uuid()) }}">
             <input type="hidden" name="request_type" value="atk_rtk">
             <input type="hidden" name="ticket_category_id" value="{{ $serviceRequestId ?? '' }}">
             <input type="hidden" name="priority_id" value="{{ $mediumPriorityId ?? '' }}">
@@ -177,7 +178,9 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Email Pemohon</label>
-                                        <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
+                                        <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@lrtjakarta.co.id" pattern="[^@\s]+@[lL][rR][tT][jJ][aA][kK][aA][rR][tT][aA]\.[cC][oO]\.[iI][dD]" title="Gunakan email @lrtjakarta.co.id" autocomplete="email" required>
+                                        <div class="text-muted small mt-1">Gunakan email korporat @lrtjakarta.co.id.</div>
+                                        @error('reporter_email') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
                             </div>
@@ -308,6 +311,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('assets/js/ticket-submit-guard.js') }}"></script>
 <script>
     let atkItemIndex = {{ count($oldItems) }};
 

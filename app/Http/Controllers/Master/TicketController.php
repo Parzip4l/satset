@@ -30,6 +30,8 @@ use App\Services\SatsetApprovalDecisionService;
 use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
 use Carbon\Carbon;
+use Closure;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -42,6 +44,50 @@ use InvalidArgumentException;
 
 class TicketController extends Controller
 {
+    private const PUBLIC_REPORTER_EMAIL_RULES = [
+        'required',
+        'email',
+        'max:255',
+        'regex:/^[^@\s]+@lrtjakarta\.co\.id$/i',
+    ];
+
+    /**
+     * @return array{0: Ticket, 1: bool}
+     */
+    private function createTicketOnce(string $submissionToken, Closure $create): array
+    {
+        $existing = Ticket::where('submission_token', $submissionToken)->first();
+
+        if ($existing) {
+            return [$existing, true];
+        }
+
+        try {
+            return [$create(), false];
+        } catch (QueryException $exception) {
+            $existing = Ticket::where('submission_token', $submissionToken)->first();
+
+            if ($existing) {
+                return [$existing, true];
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function submissionToken(Request $request): string
+    {
+        $token = (string) ($request->input('submission_token') ?: $request->header('Idempotency-Key'));
+
+        if (! Str::isUuid($token)) {
+            $token = (string) Str::uuid();
+        }
+
+        $request->merge(['submission_token' => $token]);
+
+        return $token;
+    }
+
     /**
      * Display requests landing menu.
      */
@@ -773,6 +819,7 @@ class TicketController extends Controller
 
     public function storePublicGaRequestFinding(Request $request)
     {
+        $submissionToken = $this->submissionToken($request);
         $request->merge([
             'request_type' => 'ga_request_finding',
             'ticket_category_id' => $this->getBumTicketCategoryId(),
@@ -783,8 +830,9 @@ class TicketController extends Controller
         ]);
 
         $validated = $request->validate([
+            'submission_token' => 'required|uuid',
             'reporter_name' => 'required|string|max:150',
-            'reporter_email' => 'required|email|max:255',
+            'reporter_email' => self::PUBLIC_REPORTER_EMAIL_RULES,
             'request_type' => 'required|in:ga_request_finding',
             'category_id' => 'required|exists:problem_categories,id',
             'priority_id' => 'nullable|exists:priorities,id',
@@ -799,6 +847,8 @@ class TicketController extends Controller
             'payload.expected_action' => 'nullable|string|max:255',
             'payload.reporter_phone' => 'nullable|string|max:30',
             'evidence_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ], [
+            'reporter_email.regex' => 'Email harus menggunakan domain @lrtjakarta.co.id.',
         ]);
 
         $requester = $this->findOrCreatePublicReporter($validated);
@@ -817,28 +867,40 @@ class TicketController extends Controller
         $assignedDepartment = $departments->first()
             ?: $this->findDepartmentByKeywords(['umum', 'general affairs', 'ga', 'procurement']);
 
-        $ticket = Ticket::create([
-            'ticket_no' => $this->generateTicketNo($validated['category_id']),
-            'requester_id' => $requester->id,
-            'department_id' => $assignedDepartment->id ?? null,
-            'assigned_department_id' => $assignedDepartment->id ?? null,
-            'category_id' => $validated['category_id'],
-            'title' => $this->resolveTitle('ga_request_finding', $validated, $payload),
-            'description' => $this->resolveDescription('ga_request_finding', $validated, $payload),
-            'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
-            'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
-            'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
-            'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getBumTicketCategoryId(),
-            'payload' => $payload,
-            'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
-        ]);
+        [$ticket, $duplicate] = $this->createTicketOnce($submissionToken, function () use ($validated, $payload, $requester, $assignedDepartment, $submissionToken) {
+            return DB::transaction(function () use ($validated, $payload, $requester, $assignedDepartment, $submissionToken) {
+                $ticket = Ticket::create([
+                    'ticket_no' => $this->generateTicketNo($validated['category_id']),
+                    'submission_token' => $submissionToken,
+                    'requester_id' => $requester->id,
+                    'department_id' => $assignedDepartment->id ?? null,
+                    'assigned_department_id' => $assignedDepartment->id ?? null,
+                    'category_id' => $validated['category_id'],
+                    'title' => $this->resolveTitle('ga_request_finding', $validated, $payload),
+                    'description' => $this->resolveDescription('ga_request_finding', $validated, $payload),
+                    'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+                    'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+                    'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+                    'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getBumTicketCategoryId(),
+                    'payload' => $payload,
+                    'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
+                ]);
 
-        TicketHistory::create([
-            'ticket_id' => $ticket->id,
-            'user_id' => $requester->id,
-            'status_id' => $ticket->status_id,
-            'action' => 'Ticket dibuat (GA Permintaan & Temuan - Public)',
-        ]);
+                TicketHistory::create([
+                    'ticket_id' => $ticket->id,
+                    'user_id' => $requester->id,
+                    'status_id' => $ticket->status_id,
+                    'action' => 'Ticket dibuat (GA Permintaan & Temuan - Public)',
+                ]);
+
+                return $ticket;
+            });
+        });
+
+        if ($duplicate) {
+            return redirect()->route('public.ticket.ga-permintaan-temuan.create')
+                ->with('success', 'Laporan sudah tercatat sebelumnya. Nomor ticket Anda: '.$ticket->ticket_no);
+        }
 
         $this->storeRequestAttachment($request, $ticket, 'evidence_file', 'ga_report_evidence', $requester);
 
@@ -866,7 +928,10 @@ class TicketController extends Controller
             ->with('success', 'Laporan berhasil dikirim. Nomor ticket Anda: '.$ticket->ticket_no);
     }
 
-    private function createPublicTicketFromPayload(array $validated, array $payload, User $requester, string $requestType): Ticket
+    /**
+     * @return array{0: Ticket, 1: bool}
+     */
+    private function createPublicTicketFromPayload(array $validated, array $payload, User $requester, string $requestType, string $submissionToken): array
     {
         $departments = DepartmentCategory::with('department')
             ->where('category_id', $validated['category_id'])
@@ -877,37 +942,40 @@ class TicketController extends Controller
         $assignedDepartment = $departments->first()
             ?: $this->findDepartmentByKeywords(['umum', 'general affairs', 'ga', 'procurement']);
 
-        return DB::transaction(function () use ($validated, $payload, $requester, $requestType, $assignedDepartment) {
-            $ticket = Ticket::create([
-                'ticket_no' => $this->generateTicketNo($validated['category_id']),
-                'requester_id' => $requester->id,
-                'department_id' => $assignedDepartment->id ?? null,
-                'assigned_department_id' => $assignedDepartment->id ?? null,
-                'category_id' => $validated['category_id'],
-                'title' => $this->resolveTitle($requestType, $validated, $payload),
-                'description' => $this->resolveDescription($requestType, $validated, $payload),
-                'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
-                'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
-                'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
-                'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getBumTicketCategoryId(),
-                'payload' => $payload,
-                'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
-            ]);
+        return $this->createTicketOnce($submissionToken, function () use ($validated, $payload, $requester, $requestType, $assignedDepartment, $submissionToken) {
+            return DB::transaction(function () use ($validated, $payload, $requester, $requestType, $assignedDepartment, $submissionToken) {
+                $ticket = Ticket::create([
+                    'ticket_no' => $this->generateTicketNo($validated['category_id']),
+                    'submission_token' => $submissionToken,
+                    'requester_id' => $requester->id,
+                    'department_id' => $assignedDepartment->id ?? null,
+                    'assigned_department_id' => $assignedDepartment->id ?? null,
+                    'category_id' => $validated['category_id'],
+                    'title' => $this->resolveTitle($requestType, $validated, $payload),
+                    'description' => $this->resolveDescription($requestType, $validated, $payload),
+                    'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+                    'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+                    'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+                    'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getBumTicketCategoryId(),
+                    'payload' => $payload,
+                    'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
+                ]);
 
-            TicketHistory::create([
-                'ticket_id' => $ticket->id,
-                'user_id' => $requester->id,
-                'status_id' => $ticket->status_id,
-                'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).' - Public)',
-            ]);
+                TicketHistory::create([
+                    'ticket_id' => $ticket->id,
+                    'user_id' => $requester->id,
+                    'status_id' => $ticket->status_id,
+                    'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).' - Public)',
+                ]);
 
-            $this->attachRequesterSignature($ticket, $requester, $requestType === 'consumption');
+                $this->attachRequesterSignature($ticket, $requester, $requestType === 'consumption');
 
-            if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
-                $this->createManagerApproval($ticket);
-            }
+                if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
+                    $this->createManagerApproval($ticket);
+                }
 
-            return $ticket;
+                return $ticket;
+            });
         });
     }
 
@@ -942,6 +1010,7 @@ class TicketController extends Controller
 
     public function storePublicConsumption(Request $request)
     {
+        $submissionToken = $this->submissionToken($request);
         $request->merge([
             'request_type' => 'consumption',
             'ticket_category_id' => $this->getBumTicketCategoryId(),
@@ -952,8 +1021,9 @@ class TicketController extends Controller
         ]);
 
         $validated = $request->validate([
+            'submission_token' => 'required|uuid',
             'reporter_name' => 'required|string|max:150',
-            'reporter_email' => 'required|email|max:255',
+            'reporter_email' => self::PUBLIC_REPORTER_EMAIL_RULES,
             'request_type' => 'required|in:consumption',
             'category_id' => 'required|exists:problem_categories,id',
             'priority_id' => 'nullable|exists:priorities,id',
@@ -974,6 +1044,8 @@ class TicketController extends Controller
             'payload.pic_contact' => 'nullable|string|max:150',
             'payload.consumption_notes' => 'nullable|string',
             'accountability_bundle_file' => 'nullable|file|mimes:pdf,zip,rar|max:20480',
+        ], [
+            'reporter_email.regex' => 'Email harus menggunakan domain @lrtjakarta.co.id.',
         ]);
 
         $requester = $this->findOrCreatePublicReporter($validated);
@@ -983,7 +1055,12 @@ class TicketController extends Controller
             'submitted_from' => 'public',
         ]));
 
-        $ticket = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'consumption');
+        [$ticket, $duplicate] = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'consumption', $submissionToken);
+
+        if ($duplicate) {
+            return redirect()->route('public.ticket.konsumsi.create')
+                ->with('success', 'Permintaan konsumsi sudah tercatat sebelumnya. Nomor ticket Anda: '.$ticket->ticket_no);
+        }
 
         $this->storeRequestAttachment($request, $ticket, 'accountability_bundle_file', 'accountability_bundle', $requester);
         $this->sendPublicTicketEmails($ticket, $validated['category_id']);
@@ -994,6 +1071,7 @@ class TicketController extends Controller
 
     public function storePublicAtkRtk(Request $request)
     {
+        $submissionToken = $this->submissionToken($request);
         $request->merge([
             'request_type' => 'atk_rtk',
             'ticket_category_id' => $this->getBumTicketCategoryId(),
@@ -1004,8 +1082,9 @@ class TicketController extends Controller
         ]);
 
         $validated = $request->validate([
+            'submission_token' => 'required|uuid',
             'reporter_name' => 'required|string|max:150',
-            'reporter_email' => 'required|email|max:255',
+            'reporter_email' => self::PUBLIC_REPORTER_EMAIL_RULES,
             'request_type' => 'required|in:atk_rtk',
             'category_id' => 'required|exists:problem_categories,id',
             'priority_id' => 'nullable|exists:priorities,id',
@@ -1023,6 +1102,8 @@ class TicketController extends Controller
             'payload.delivery_location' => 'required|string|max:150',
             'payload.recipient_pic' => 'nullable|string|max:150',
             'payload.reporter_phone' => 'nullable|string|max:30',
+        ], [
+            'reporter_email.regex' => 'Email harus menggunakan domain @lrtjakarta.co.id.',
         ]);
 
         $requester = $this->findOrCreatePublicReporter($validated);
@@ -1036,7 +1117,12 @@ class TicketController extends Controller
             $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
         }
 
-        $ticket = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'atk_rtk');
+        [$ticket, $duplicate] = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'atk_rtk', $submissionToken);
+
+        if ($duplicate) {
+            return redirect()->route('public.ticket.atk-rtk.create')
+                ->with('success', 'Permintaan ATK/RTK sudah tercatat sebelumnya. Nomor ticket Anda: '.$ticket->ticket_no);
+        }
         $this->sendPublicTicketEmails($ticket, $validated['category_id']);
 
         return redirect()->route('public.ticket.atk-rtk.create')
@@ -1048,9 +1134,11 @@ class TicketController extends Controller
      */
     public function store(Request $request)
     {
+        $submissionToken = $this->submissionToken($request);
         $requestType = $request->input('request_type', 'general');
 
         $rules = [
+            'submission_token' => 'required|uuid',
             'request_type' => 'required|in:general,consumption,atk_rtk,ga_request_finding',
             'category_id' => 'required|exists:problem_categories,id',
             'priority_id' => 'nullable|exists:priorities,id',
@@ -1142,85 +1230,99 @@ class TicketController extends Controller
             $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
         }
 
-        $ticket = DB::transaction(function () use ($validated, $payload, $requestType, $assignedDepartment) {
-            $ticketNo = $this->generateTicketNo($validated['category_id']);
+        [$ticket, $duplicate] = $this->createTicketOnce($submissionToken, function () use ($validated, $payload, $requestType, $assignedDepartment, $submissionToken) {
+            return DB::transaction(function () use ($validated, $payload, $requestType, $assignedDepartment, $submissionToken) {
+                $ticketNo = $this->generateTicketNo($validated['category_id']);
 
-            $ticket = Ticket::create([
-                'ticket_no' => $ticketNo,
-                'requester_id' => auth()->id(),
-                'department_id' => $assignedDepartment->id ?? null,
-                'assigned_department_id' => $assignedDepartment->id ?? null,
-                'category_id' => $validated['category_id'],
-                'title' => $this->resolveTitle($requestType, $validated, $payload),
-                'description' => $this->resolveDescription($requestType, $validated, $payload),
-                'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
-                'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
-                'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
-                'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getDefaultTicketCategoryId(),
-                'payload' => $payload,
-                'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
-            ]);
+                $ticket = Ticket::create([
+                    'ticket_no' => $ticketNo,
+                    'submission_token' => $submissionToken,
+                    'requester_id' => auth()->id(),
+                    'department_id' => $assignedDepartment->id ?? null,
+                    'assigned_department_id' => $assignedDepartment->id ?? null,
+                    'category_id' => $validated['category_id'],
+                    'title' => $this->resolveTitle($requestType, $validated, $payload),
+                    'description' => $this->resolveDescription($requestType, $validated, $payload),
+                    'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+                    'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+                    'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+                    'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getDefaultTicketCategoryId(),
+                    'payload' => $payload,
+                    'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
+                ]);
 
-            TicketHistory::create([
-                'ticket_id' => $ticket->id,
-                'user_id' => auth()->id(),
-                'status_id' => $ticket->status_id,
-                'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).')',
-            ]);
+                TicketHistory::create([
+                    'ticket_id' => $ticket->id,
+                    'user_id' => auth()->id(),
+                    'status_id' => $ticket->status_id,
+                    'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).')',
+                ]);
 
-            $this->attachRequesterSignature($ticket, auth()->user(), $requestType === 'consumption');
+                $this->attachRequesterSignature($ticket, auth()->user(), $requestType === 'consumption');
 
-            if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
-                $this->createManagerApproval($ticket);
-            }
+                if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
+                    $this->createManagerApproval($ticket);
+                }
 
-            return $ticket;
+                return $ticket;
+            });
         });
 
-        if ($requestType === 'consumption') {
+        if (! $duplicate && $requestType === 'consumption') {
             $this->storeRequestAttachment($request, $ticket, 'accountability_bundle_file', 'accountability_bundle');
-        } elseif ($requestType === 'ga_request_finding') {
+        } elseif (! $duplicate && $requestType === 'ga_request_finding') {
             $this->storeRequestAttachment($request, $ticket, 'evidence_file', 'ga_report_evidence');
         }
 
-        // Kirim email ke pengaju
-        try {
-            Mail::to($ticket->requester->email)
-                ->send(new TicketCreated($ticket, 'requester'));
-            Log::info("Email ticket terkirim ke pengaju: {$ticket->requester->email}");
-        } catch (\Exception $e) {
-            Log::error("Gagal kirim email ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
+        if (! $duplicate) {
+            try {
+                Mail::to($ticket->requester->email)
+                    ->send(new TicketCreated($ticket, 'requester'));
+                Log::info("Email ticket terkirim ke pengaju: {$ticket->requester->email}");
+            } catch (\Exception $e) {
+                Log::error("Gagal kirim email ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
+            }
         }
 
-        // Kirim email ke semua department terkait kategori
-        foreach ($departments as $dep) {
-            if ($dep && $dep->email) {
-                try {
-                    Mail::to($dep->email)
-                        ->send(new TicketCreated($ticket, 'department'));
-                    Log::info("Email ticket terkirim ke departemen: {$dep->email}");
-                } catch (\Exception $e) {
-                    Log::error("Gagal kirim email ke departemen: {$dep->email}. Error: ".$e->getMessage());
+        if (! $duplicate) {
+            foreach ($departments as $dep) {
+                if ($dep && $dep->email) {
+                    try {
+                        Mail::to($dep->email)
+                            ->send(new TicketCreated($ticket, 'department'));
+                        Log::info("Email ticket terkirim ke departemen: {$dep->email}");
+                    } catch (\Exception $e) {
+                        Log::error("Gagal kirim email ke departemen: {$dep->email}. Error: ".$e->getMessage());
+                    }
                 }
             }
         }
 
         if ($requestType === 'consumption') {
             return redirect()->route('ticket.konsumsi.create')
-                ->with('success', 'Permintaan konsumsi berhasil dibuat dan flow pengajuannya sudah tercatat.');
+                ->with('success', $duplicate
+                    ? 'Permintaan konsumsi sudah tercatat sebelumnya. Nomor ticket: '.$ticket->ticket_no
+                    : 'Permintaan konsumsi berhasil dibuat dan flow pengajuannya sudah tercatat.');
         }
 
         if ($requestType === 'atk_rtk') {
             return redirect()->route('ticket.atk-rtk.create')
-                ->with('success', 'Permintaan ATK/RTK berhasil dibuat.');
+                ->with('success', $duplicate
+                    ? 'Permintaan ATK/RTK sudah tercatat sebelumnya. Nomor ticket: '.$ticket->ticket_no
+                    : 'Permintaan ATK/RTK berhasil dibuat.');
         }
 
         if ($requestType === 'ga_request_finding') {
             return redirect()->route('ticket.ga-permintaan-temuan.create')
-                ->with('success', 'Laporan GA Permintaan & Temuan berhasil dibuat.');
+                ->with('success', $duplicate
+                    ? 'Laporan sudah tercatat sebelumnya. Nomor ticket: '.$ticket->ticket_no
+                    : 'Laporan GA Permintaan & Temuan berhasil dibuat.');
         }
 
-        return redirect()->route('ticket.mine')->with('success', 'Ticket berhasil dibuat dan email dikirim.');
+        return redirect()->route('ticket.mine')->with(
+            'success',
+            $duplicate ? 'Ticket sudah tercatat sebelumnya. Nomor ticket: '.$ticket->ticket_no : 'Ticket berhasil dibuat dan email dikirim.'
+        );
     }
 
     // schema

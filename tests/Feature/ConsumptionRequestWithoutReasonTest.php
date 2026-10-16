@@ -10,6 +10,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -75,6 +76,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         Schema::create('requests', function (Blueprint $table): void {
             $table->id();
             $table->string('ticket_no')->unique();
+            $table->uuid('submission_token')->nullable()->unique();
             $table->foreignId('requester_id');
             $table->foreignId('department_id')->nullable();
             $table->foreignId('assigned_department_id')->nullable();
@@ -155,9 +157,11 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             $mock->shouldReceive('notifyApprovalRequested')->once();
         });
 
-        $response = $this->post(route('public.ticket.konsumsi.store'), [
+        $submissionToken = (string) Str::uuid();
+        $requestData = [
+            'submission_token' => $submissionToken,
             'reporter_name' => 'Pemohon Konsumsi',
-            'reporter_email' => 'pemohon@example.test',
+            'reporter_email' => 'pemohon@lrtjakarta.co.id',
             'payload' => [
                 'activity_name' => 'Meeting Evaluasi',
                 'event_type' => 'Meeting',
@@ -168,7 +172,22 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
                 'participant_count' => 12,
                 'consumption_type' => 'Snack',
             ],
-        ]);
+        ];
+
+        $invalidDomainResponse = $this->from(route('public.ticket.konsumsi.create'))
+            ->post(route('public.ticket.konsumsi.store'), [
+                ...$requestData,
+                'submission_token' => (string) Str::uuid(),
+                'reporter_email' => 'pemohon@gmail.com',
+            ]);
+
+        $invalidDomainResponse->assertRedirect(route('public.ticket.konsumsi.create'))
+            ->assertSessionHasErrors([
+                'reporter_email' => 'Email harus menggunakan domain @lrtjakarta.co.id.',
+            ]);
+        $this->assertSame(0, DB::table('requests')->count());
+
+        $response = $this->post(route('public.ticket.konsumsi.store'), $requestData);
 
         $response->assertRedirect(route('public.ticket.konsumsi.create'))
             ->assertSessionHasNoErrors()
@@ -180,5 +199,13 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertSame('Meeting Evaluasi', $payload['activity_name']);
         $this->assertArrayNotHasKey('request_reason', $payload);
         $this->assertDatabaseHas('approvals', ['request_id' => $ticket->id, 'approver_id' => $approver->id]);
+
+        $duplicateResponse = $this->post(route('public.ticket.konsumsi.store'), $requestData);
+
+        $duplicateResponse->assertRedirect(route('public.ticket.konsumsi.create'))
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'sudah tercatat'));
+        $this->assertSame(1, DB::table('requests')->where('submission_token', $submissionToken)->count());
+        $this->assertSame(1, DB::table('ticket_histories')->where('ticket_id', $ticket->id)->count());
+        $this->assertSame(1, DB::table('approvals')->where('request_id', $ticket->id)->count());
     }
 }

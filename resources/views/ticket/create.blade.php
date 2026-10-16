@@ -152,8 +152,9 @@
     <div class="row justify-content-center mb-8">
         <div class="col-xl-9 col-lg-10">
             
-            <form id="ticketForm" action="{{ route('ticket.store') }}" method="POST" enctype="multipart/form-data">
+            <form id="ticketForm" action="{{ route('ticket.store') }}" method="POST" enctype="multipart/form-data" data-ticket-submit-guard>
                 @csrf
+                <input type="hidden" name="submission_token" value="{{ old('submission_token', (string) \Illuminate\Support\Str::uuid()) }}">
                 <input type="hidden" name="request_type" value="general">
                 
                 {{-- HEADER SECTION --}}
@@ -314,6 +315,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('assets/js/ticket-submit-guard.js') }}"></script>
 
 <script>
     $(document).ready(function() {
@@ -477,7 +479,7 @@
                         allowOutsideClick: false,
                         didOpen: () => { Swal.showLoading() }
                     });
-                    form.submit();
+                    form[0].requestSubmit();
                 }
             });
         });

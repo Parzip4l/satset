@@ -176,8 +176,9 @@
                 </div>
             @endif
 
-            <form action="{{ ($isPublic ?? false) ? route('public.ticket.ga-permintaan-temuan.store') : route('ticket.store') }}" method="POST" enctype="multipart/form-data" class="ga-panel {{ ($isPublic ?? false) && !old('payload.report_type') && !$errors->any() ? 'd-none' : '' }}" id="gaReportForm">
+            <form action="{{ ($isPublic ?? false) ? route('public.ticket.ga-permintaan-temuan.store') : route('ticket.store') }}" method="POST" enctype="multipart/form-data" class="ga-panel {{ ($isPublic ?? false) && !old('payload.report_type') && !$errors->any() ? 'd-none' : '' }}" id="gaReportForm" data-ticket-submit-guard>
                 @csrf
+                <input type="hidden" name="submission_token" value="{{ old('submission_token', (string) \Illuminate\Support\Str::uuid()) }}">
                 <input type="hidden" name="request_type" value="ga_request_finding">
                 <input type="hidden" name="ticket_category_id" value="{{ old('ticket_category_id', $serviceRequestId) }}">
                 <input type="hidden" name="category_id" value="{{ old('category_id', $gaRequestFindingCategoryId) }}">
@@ -197,7 +198,8 @@
 
                             <div class="col-md-6">
                                 <label class="form-label"><span id="gaEmailLabel">Email Pemohon</span> <span class="text-danger">*</span></label>
-                                <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
+                                <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@lrtjakarta.co.id" pattern="[^@\s]+@[lL][rR][tT][jJ][aA][kK][aA][rR][tT][aA]\.[cC][oO]\.[iI][dD]" title="Gunakan email @lrtjakarta.co.id" autocomplete="email" required>
+                                <div class="text-muted small mt-1">Gunakan email korporat @lrtjakarta.co.id.</div>
                                 @error('reporter_email') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
                         </div>
@@ -275,8 +277,9 @@
 </div>
 @endsection
 
-@if($isPublic ?? false)
 @section('js')
+<script src="{{ asset('assets/js/ticket-submit-guard.js') }}"></script>
+@if($isPublic ?? false)
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('gaReportForm');
@@ -342,5 +345,5 @@
         }
     });
 </script>
-@endsection
 @endif
+@endsection

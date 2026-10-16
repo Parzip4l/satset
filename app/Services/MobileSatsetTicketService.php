@@ -19,12 +19,14 @@ use App\Models\Master\TicketHistory;
 use App\Models\Master\Urgency;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class MobileSatsetTicketService
@@ -76,66 +78,85 @@ class MobileSatsetTicketService
 
     public function create(User $user, string $requestType, array $validated, Request $request): Ticket
     {
-        return DB::transaction(function () use ($user, $requestType, $validated, $request) {
-            $validated['payload'] = $validated['payload'] ?? [];
+        $submissionToken = (string) ($request->header('Idempotency-Key') ?: $request->input('submission_token'));
+        $submissionToken = Str::isUuid($submissionToken) ? $submissionToken : (string) Str::uuid();
 
-            if ($requestType === 'consumption') {
-                $validated['category_id'] = $this->getConsumptionCategoryId();
-                $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
-            } elseif ($requestType === 'atk_rtk') {
-                $validated['category_id'] = $this->getAtkRtkCategoryId();
-                $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
-                $validated['payload'] = $this->enrichAtkRtkPayload($validated['payload']);
-            } elseif ($requestType === 'ga_request_finding') {
-                $validated['category_id'] = $this->getGaRequestFindingCategoryId();
-                $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
+        $existing = Ticket::where('submission_token', $submissionToken)->first();
+        if ($existing) {
+            return $existing->fresh(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department', 'attachments']);
+        }
+
+        try {
+            return DB::transaction(function () use ($user, $requestType, $validated, $request, $submissionToken) {
+                $validated['payload'] = $validated['payload'] ?? [];
+
+                if ($requestType === 'consumption') {
+                    $validated['category_id'] = $this->getConsumptionCategoryId();
+                    $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
+                } elseif ($requestType === 'atk_rtk') {
+                    $validated['category_id'] = $this->getAtkRtkCategoryId();
+                    $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
+                    $validated['payload'] = $this->enrichAtkRtkPayload($validated['payload']);
+                } elseif ($requestType === 'ga_request_finding') {
+                    $validated['category_id'] = $this->getGaRequestFindingCategoryId();
+                    $validated['ticket_category_id'] = $this->getBumTicketCategoryId();
+                }
+
+                $payload = $this->buildPayload($requestType, array_merge($validated['payload'], [
+                    'submitted_from' => 'lrtj_space_mobile',
+                    'reporter_name' => $user->name,
+                    'reporter_email' => $user->email,
+                ]));
+
+                if (in_array($requestType, ['consumption', 'atk_rtk'], true) && ! empty($payload['supervisor_id'])) {
+                    $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
+                }
+
+                $assignedDepartment = $this->assignedDepartment((int) $validated['category_id'], $requestType);
+                $ticket = Ticket::create([
+                    'ticket_no' => $this->generateTicketNo((int) $validated['category_id']),
+                    'submission_token' => $submissionToken,
+                    'requester_id' => $user->id,
+                    'department_id' => $assignedDepartment->id ?? null,
+                    'assigned_department_id' => $assignedDepartment->id ?? null,
+                    'category_id' => $validated['category_id'],
+                    'title' => $this->resolveTitle($requestType, $validated, $payload),
+                    'description' => $this->resolveDescription($requestType, $validated, $payload),
+                    'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
+                    'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
+                    'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
+                    'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getDefaultTicketCategoryId(),
+                    'payload' => $payload,
+                    'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
+                ]);
+
+                TicketHistory::create([
+                    'ticket_id' => $ticket->id,
+                    'user_id' => $user->id,
+                    'status_id' => $ticket->status_id,
+                    'action' => 'Ticket dibuat dari LRTJ Space Mobile ('.$this->getRequestTypeLabel($requestType).')',
+                ]);
+
+                $this->attachRequesterSignature($ticket, $user, $requestType === 'consumption');
+
+                if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
+                    $this->createManagerApproval($ticket);
+                }
+
+                $this->storeRequestFiles($request, $ticket, $user, $requestType);
+                $this->sendTicketEmails($ticket, (int) $validated['category_id']);
+
+                return $ticket->fresh(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department', 'attachments']);
+            });
+        } catch (QueryException $exception) {
+            $existing = Ticket::where('submission_token', $submissionToken)->first();
+
+            if ($existing) {
+                return $existing->fresh(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department', 'attachments']);
             }
 
-            $payload = $this->buildPayload($requestType, array_merge($validated['payload'], [
-                'submitted_from' => 'lrtj_space_mobile',
-                'reporter_name' => $user->name,
-                'reporter_email' => $user->email,
-            ]));
-
-            if (in_array($requestType, ['consumption', 'atk_rtk'], true) && ! empty($payload['supervisor_id'])) {
-                $payload['supervisor_name'] = User::whereKey($payload['supervisor_id'])->value('name');
-            }
-
-            $assignedDepartment = $this->assignedDepartment((int) $validated['category_id'], $requestType);
-            $ticket = Ticket::create([
-                'ticket_no' => $this->generateTicketNo((int) $validated['category_id']),
-                'requester_id' => $user->id,
-                'department_id' => $assignedDepartment->id ?? null,
-                'assigned_department_id' => $assignedDepartment->id ?? null,
-                'category_id' => $validated['category_id'],
-                'title' => $this->resolveTitle($requestType, $validated, $payload),
-                'description' => $this->resolveDescription($requestType, $validated, $payload),
-                'priority_id' => $validated['priority_id'] ?? $this->getDefaultPriorityId(),
-                'impact_id' => $validated['impact_id'] ?? $this->getDefaultImpactId(),
-                'urgency_id' => $validated['urgency_id'] ?? $this->getDefaultUrgencyId(),
-                'ticket_category_id' => $validated['ticket_category_id'] ?? $this->getDefaultTicketCategoryId(),
-                'payload' => $payload,
-                'status_id' => Status::where('name', 'Open')->value('id') ?? 1,
-            ]);
-
-            TicketHistory::create([
-                'ticket_id' => $ticket->id,
-                'user_id' => $user->id,
-                'status_id' => $ticket->status_id,
-                'action' => 'Ticket dibuat dari LRTJ Space Mobile ('.$this->getRequestTypeLabel($requestType).')',
-            ]);
-
-            $this->attachRequesterSignature($ticket, $user, $requestType === 'consumption');
-
-            if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
-                $this->createManagerApproval($ticket);
-            }
-
-            $this->storeRequestFiles($request, $ticket, $user, $requestType);
-            $this->sendTicketEmails($ticket, (int) $validated['category_id']);
-
-            return $ticket->fresh(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department', 'attachments']);
-        });
+            throw $exception;
+        }
     }
 
     public function addComment(User $user, Ticket $ticket, string $message): Comment

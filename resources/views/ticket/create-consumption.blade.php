@@ -147,8 +147,9 @@
             @endunless
         </div>
 
-        <form id="consumptionForm" action="{{ ($isPublic ?? false) ? route('public.ticket.konsumsi.store') : route('ticket.store') }}" method="POST" enctype="multipart/form-data">
+        <form id="consumptionForm" action="{{ ($isPublic ?? false) ? route('public.ticket.konsumsi.store') : route('ticket.store') }}" method="POST" enctype="multipart/form-data" data-ticket-submit-guard>
             @csrf
+            <input type="hidden" name="submission_token" value="{{ old('submission_token', (string) \Illuminate\Support\Str::uuid()) }}">
             <input type="hidden" name="request_type" value="consumption">
             <input type="hidden" name="category_id" value="{{ old('category_id', $consumptionCategoryId ?? '') }}">
             <input type="hidden" name="ticket_category_id" value="{{ $serviceRequestId ?? '' }}">
@@ -172,7 +173,9 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Email Pemohon</label>
-                                    <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@email.com" required>
+                                    <input type="email" name="reporter_email" class="form-control" value="{{ old('reporter_email') }}" placeholder="nama@lrtjakarta.co.id" pattern="[^@\s]+@[lL][rR][tT][jJ][aA][kK][aA][rR][tT][aA]\.[cC][oO]\.[iI][dD]" title="Gunakan email @lrtjakarta.co.id" autocomplete="email" required>
+                                    <div class="text-muted small mt-1">Gunakan email korporat @lrtjakarta.co.id.</div>
+                                    @error('reporter_email') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                                 </div>
                             </div>
                         </div>
@@ -366,6 +369,7 @@
 
 @section('js')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('assets/js/ticket-submit-guard.js') }}"></script>
 <script>
     @if ($errors->any())
         Swal.fire({
