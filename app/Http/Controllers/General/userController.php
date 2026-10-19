@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\General;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
 use App\Models\Setting\Role;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Collection;
 
 class userController extends Controller
 {
@@ -19,8 +19,8 @@ class userController extends Controller
         $search = $request->get('search');  // Get the search term from the request
 
         $user = User::when($search, function ($query, $search) {
-            return $query->where('name', 'like', '%' . $search . '%')
-                        ->orWhere('email', 'like', '%' . $search . '%');
+            return $query->where('name', 'like', '%'.$search.'%')
+                ->orWhere('email', 'like', '%'.$search.'%');
         })->paginate(10);
 
         $role = $this->availableRolesFor(Auth::user());
@@ -36,7 +36,7 @@ class userController extends Controller
     {
         $role = $this->availableRolesFor(Auth::user());
 
-        return view('general.user.create',compact('role')); 
+        return view('general.user.create', compact('role'));
     }
 
     public function store(Request $request)
@@ -51,7 +51,7 @@ class userController extends Controller
         // Jika validasi gagal, kembalikan response error
         if ($validator->fails()) {
             return response()->json([
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -68,36 +68,43 @@ class userController extends Controller
 
             // Mengembalikan response sukses
             return redirect()->back()->with('success', 'User created successfully!');
-            
+
         } catch (\Exception $e) {
             // Menangani error jika terjadi masalah saat membuat user
-            return redirect()->back()->with('success', 'Failed to create user:' . $e->getMessage());
+            return redirect()->back()->with('success', 'Failed to create user:'.$e->getMessage());
         }
     }
 
-    public function show($id)
-    {
-
-    }
+    public function show($id) {}
 
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
+        $isAdmin = strtolower((string) Auth::user()?->role) === 'admin';
+
+        if ($request->has('name')) {
+            abort_unless($isAdmin, 403, 'Hanya admin yang dapat mengubah nama user.');
+        }
 
         $validator = Validator::make($request->all(), [
-            'username' => 'nullable|string|max:255|unique:users,username,' . $user->id,
-            'email' => 'nullable|email|unique:users,email,' . $user->id,
+            'name' => 'sometimes|required|string|max:255',
+            'username' => 'nullable|string|max:255|unique:users,username,'.$user->id,
+            'email' => 'nullable|email|unique:users,email,'.$user->id,
             'role' => 'nullable|string|max:50',
             'password' => 'nullable|string|min:8|confirmed',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
+            if ($isAdmin && $request->has('name')) {
+                $user->name = trim((string) $request->input('name'));
+            }
+
             if ($request->has('username')) {
                 $user->username = $request->input('username');
             }
@@ -110,18 +117,17 @@ class userController extends Controller
                 $user->password = Hash::make($request->input('password'));
             }
 
-            if (strtolower(Auth::user()->role ?? '') === 'admin' && $request->filled('role')) {
+            if ($isAdmin && $request->filled('role')) {
                 $user->role = $request->input('role');
             }
 
             $user->save();
 
-            return redirect()->back()->with('success', 'User updated successfully!');
+            return redirect()->back()->with('success', 'Data user berhasil diperbarui.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to update user: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to update user: '.$e->getMessage());
         }
     }
-
 
     public function destroy($id)
     {
@@ -142,7 +148,7 @@ class userController extends Controller
 
             return redirect()->back()->with('success', 'User berhasil dihapus.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal menghapus user: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menghapus user: '.$e->getMessage());
         }
     }
 
@@ -167,5 +173,4 @@ class userController extends Controller
             ->values()
             ->map(fn ($name) => (object) ['name' => $name]);
     }
-
 }

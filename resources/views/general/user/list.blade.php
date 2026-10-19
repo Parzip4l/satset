@@ -92,7 +92,7 @@
                                                 <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 10px;">
                                                     <li>
                                                         <button type="button" class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#ModalUserUpdate{{ $data->id }}">
-                                                            <i class="bi bi-pencil me-2 text-primary"></i> Edit & Password
+                                                            <i class="bi bi-pencil me-2 text-primary"></i> Edit Data User
                                                         </button>
                                                     </li>
                                                     <li>
@@ -182,6 +182,14 @@
                 <form action="{{ route('user.update', $data->id)}}" method="POST" id="formUpdate{{$data->id}}">
                     @csrf
                     @method('PUT')
+
+                    @if(strtolower(auth()->user()->role ?? '') === 'admin')
+                    <div class="mb-3">
+                        <label class="form-label small text-uppercase fw-bold text-muted">Nama Lengkap</label>
+                        <input type="text" name="name" class="form-control" value="{{ $data->name }}" maxlength="255" autocomplete="name" required>
+                        <div class="form-text">Nama ini akan tampil pada daftar user, tiket, dan dokumen terkait.</div>
+                    </div>
+                    @endif
                     
                     <div class="mb-3">
                         <label class="form-label small text-uppercase fw-bold text-muted">Username</label>
