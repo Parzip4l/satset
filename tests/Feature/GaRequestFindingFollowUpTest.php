@@ -134,6 +134,17 @@ class GaRequestFindingFollowUpTest extends TestCase
             'attachment_type' => 'ga_follow_up_evidence',
             'file_name' => 'bukti.png',
         ]);
+
+        $attachment = Attachment::where('request_id', $ticket->id)
+            ->where('file_name', 'bukti.png')
+            ->firstOrFail();
+        $attachmentResponse = $this->actingAs($requester)
+            ->get(route('ticket.attachments.show', [$ticket, $attachment]));
+
+        $attachmentResponse->assertOk()
+            ->assertHeader('content-disposition', 'inline; filename=bukti.png');
+        $this->assertNotSame('', $attachmentResponse->streamedContent());
+
         $this->assertDatabaseHas('ticket_histories', [
             'ticket_id' => $ticket->id,
             'user_id' => $gaOfficer->id,

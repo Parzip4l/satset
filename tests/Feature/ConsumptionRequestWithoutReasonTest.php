@@ -7,9 +7,11 @@ use App\Services\LrtjSpaceApprovalResolverService;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\LrtjSpacePortalSignatureService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -207,5 +209,57 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertSame(1, DB::table('requests')->where('submission_token', $submissionToken)->count());
         $this->assertSame(1, DB::table('ticket_histories')->where('ticket_id', $ticket->id)->count());
         $this->assertSame(1, DB::table('approvals')->where('request_id', $ticket->id)->count());
+    }
+
+    public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void
+    {
+        Mail::fake();
+        Storage::fake('public');
+
+        $now = ['created_at' => now(), 'updated_at' => now()];
+        DB::table('priorities')->insert(['name' => 'Medium', ...$now]);
+        DB::table('impacts')->insert(['name' => 'Medium', ...$now]);
+        DB::table('urgencies')->insert(['name' => 'Medium', ...$now]);
+        DB::table('statuses')->insert(['name' => 'Open', ...$now]);
+        DB::table('problem_categories')->insert(['code' => 'GAQR', 'name' => 'GA Permintaan dan Temuan', 'description' => null, ...$now]);
+        DB::table('ticket_categories')->insert(['code' => 'BUM', 'name' => 'Layanan BUM', 'description' => null, ...$now]);
+
+        $file = UploadedFile::fake()->createWithContent(
+            'kondisi-dinding.png',
+            base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
+        );
+
+        $response = $this->post(route('public.ticket.ga-permintaan-temuan.store'), [
+            'submission_token' => (string) Str::uuid(),
+            'reporter_name' => 'Pelapor GA',
+            'reporter_email' => 'pelapor.ga@lrtjakarta.co.id',
+            'payload' => [
+                'report_type' => 'Temuan',
+                'location' => 'Lantai 5',
+                'detail_location' => 'Ruang Audit Internal',
+                'description' => 'Dinding perlu dicat ulang.',
+                'expected_action' => 'Pengecatan ulang',
+                'reporter_phone' => '08123456789',
+            ],
+            'evidence_file' => $file,
+        ]);
+
+        $response->assertRedirect(route('public.ticket.ga-permintaan-temuan.create'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $ticket = \App\Models\Master\Ticket::query()->firstOrFail();
+        $attachment = \App\Models\Master\Attachment::query()->firstOrFail();
+
+        $this->assertSame($ticket->id, $attachment->request_id);
+        $this->assertSame('ga_report_evidence', $attachment->attachment_type);
+        $this->assertSame('kondisi-dinding.png', $attachment->file_name);
+        Storage::disk('public')->assertExists($attachment->file_path);
+
+        $reporter = User::where('email', 'pelapor.ga@lrtjakarta.co.id')->firstOrFail();
+        $this->actingAs($reporter)
+            ->get(route('ticket.attachments.show', [$ticket, $attachment]))
+            ->assertOk()
+            ->assertHeader('content-disposition', 'inline; filename=kondisi-dinding.png');
     }
 }

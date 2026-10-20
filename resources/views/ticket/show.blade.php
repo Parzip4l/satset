@@ -192,6 +192,8 @@
         $canGenerateAtkRtkGoodsIssue = $requestType === 'atk_rtk'
             && ($workflowStatus === 'HANDED_OVER' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true))
             && \App\Support\AtkRtkGoodsIssue::isBulk($ticket->payload ?? []);
+        $reporterAttachments = $ticket->attachments->where('attachment_type', 'ga_report_evidence');
+        $otherAttachments = $ticket->attachments->where('attachment_type', '!=', 'ga_report_evidence');
         $requesterApproverLabel = $requestType === 'atk_rtk' ? 'Kadep Pemohon' : 'Kadiv Pemohon';
         $displayStatusName = $isBumRequest
             ? match ($workflowStatus) {
@@ -340,6 +342,43 @@
                         </div>
                     @endif
 
+                    @if($requestType === 'ga_request_finding')
+                        <div class="mt-4 pt-4 border-top">
+                            <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+                                <div class="text-muted text-uppercase small fw-bold">
+                                    <i class="bi bi-paperclip me-1 text-danger"></i> Lampiran Pelapor
+                                </div>
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20 rounded-pill">
+                                    {{ $reporterAttachments->count() }} file
+                                </span>
+                            </div>
+
+                            @forelse($reporterAttachments as $attachment)
+                                <a href="{{ route('ticket.attachments.show', [$ticket, $attachment]) }}"
+                                   target="_blank"
+                                   rel="noopener"
+                                   class="d-flex align-items-center justify-content-between gap-3 border rounded-3 p-3 text-decoration-none bg-light bg-opacity-50">
+                                    <span class="d-flex align-items-center gap-3 min-w-0">
+                                        <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-danger bg-opacity-10 text-danger flex-shrink-0" style="width: 42px; height: 42px;">
+                                            <i class="bi {{ str_contains(strtolower((string) $attachment->mime_type), 'pdf') ? 'bi-file-earmark-pdf' : 'bi-image' }} fs-5"></i>
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="d-block fw-semibold text-dark text-truncate">{{ $attachment->file_name }}</span>
+                                            <span class="d-block text-muted small">{{ strtoupper($attachment->mime_type ?? 'FILE') }} &bull; {{ number_format(($attachment->size ?? 0) / 1024, 1) }} KB</span>
+                                        </span>
+                                    </span>
+                                    <span class="btn btn-sm btn-outline-danger flex-shrink-0">
+                                        <i class="bi bi-box-arrow-up-right me-1"></i> Lihat
+                                    </span>
+                                </a>
+                            @empty
+                                <div class="border border-dashed rounded-3 p-3 text-muted small bg-light bg-opacity-50">
+                                    <i class="bi bi-info-circle me-1"></i> Pelapor tidak menyertakan lampiran saat mengirim laporan ini.
+                                </div>
+                            @endforelse
+                        </div>
+                    @endif
+
                     @if($requestType === 'atk_rtk' && !empty(data_get($ticket->payload, 'items')))
                         <div class="mt-4">
                             <div class="text-muted text-uppercase small fw-bold mb-2">Daftar Barang</div>
@@ -388,15 +427,15 @@
             </div>
             @endif
 
-            @if($ticket->attachments->isNotEmpty())
+            @if($otherAttachments->isNotEmpty())
             <div class="card-clean">
                 <div class="card-header-clean">
                     <span class="header-title"><i class="bi bi-paperclip text-danger"></i> Lampiran</span>
-                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20 rounded-pill px-2">{{ $ticket->attachments->count() }}</span>
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-20 rounded-pill px-2">{{ $otherAttachments->count() }}</span>
                 </div>
                 <div class="card-body p-4">
                     <div class="row g-3">
-                        @foreach($ticket->attachments as $attachment)
+                        @foreach($otherAttachments as $attachment)
                             @php
                                 $attachmentTypeLabels = [
                                     'accountability_bundle' => 'Bundle Pertanggungjawaban',
@@ -406,7 +445,7 @@
                                 $attachmentTypeLabel = $attachmentTypeLabels[$attachment->attachment_type] ?? str_replace('_', ' ', $attachment->attachment_type ?? 'file');
                             @endphp
                             <div class="col-md-6">
-                                <a href="{{ asset('storage/' . $attachment->file_path) }}" target="_blank" class="text-decoration-none">
+                                <a href="{{ route('ticket.attachments.show', [$ticket, $attachment]) }}" target="_blank" rel="noopener" class="text-decoration-none">
                                     <div class="border rounded-3 p-3 h-100 bg-light bg-opacity-50">
                                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                             <div class="fw-semibold text-dark">{{ $attachment->file_name }}</div>

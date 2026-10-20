@@ -144,6 +144,8 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         ->name('mail.test.send');
     Route::get('/ticket/approvals', [App\Http\Controllers\Master\TicketController::class, 'approvalsIndex'])
         ->name('ticket.approvals');
+    Route::get('/tickets/{ticket}/attachments/{attachment}', [App\Http\Controllers\Master\TicketController::class, 'viewAttachment'])
+        ->name('ticket.attachments.show');
     Route::resource('ticket', App\Http\Controllers\Master\TicketController::class);
     Route::put('/tickets/{ticket}/status', [App\Http\Controllers\Master\TicketController::class, 'updateStatus'])
         ->name('ticket.updateStatus');

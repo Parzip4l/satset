@@ -38,6 +38,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -1350,6 +1351,35 @@ class TicketController extends Controller
         $consumableItems = ConsumableItem::where('is_active', true)->orderBy('name')->get();
 
         return view('ticket.show', compact('ticket', 'users', 'departments', 'statuses', 'consumableItems'));
+    }
+
+    /**
+     * Stream a ticket attachment inline without relying on the public/storage symlink.
+     */
+    public function viewAttachment(Request $request, Ticket $ticket, Attachment $attachment)
+    {
+        abort_unless((int) $attachment->request_id === (int) $ticket->id, 404);
+
+        $user = $request->user();
+        $canView = (int) $ticket->requester_id === (int) $user?->id
+            || (int) $ticket->assigned_user_id === (int) $user?->id
+            || GaAccess::allowed($user)
+            || $ticket->approvals()->where('approver_id', $user?->id)->exists();
+
+        abort_unless($canView, 403);
+
+        $disk = Storage::disk('public');
+        abort_unless($disk->exists($attachment->file_path), 404, 'File lampiran tidak ditemukan di penyimpanan.');
+
+        return $disk->response(
+            $attachment->file_path,
+            $attachment->file_name,
+            [
+                'Content-Type' => $attachment->mime_type ?: $disk->mimeType($attachment->file_path),
+                'X-Content-Type-Options' => 'nosniff',
+            ],
+            'inline'
+        );
     }
 
     /**
