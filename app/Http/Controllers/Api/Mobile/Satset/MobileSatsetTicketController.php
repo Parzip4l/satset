@@ -160,7 +160,7 @@ class MobileSatsetTicketController extends Controller
             'payload.description' => 'required|string',
             'payload.expected_action' => 'nullable|string|max:255',
             'payload.reporter_phone' => 'nullable|string|max:30',
-            'evidence_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'evidence_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         return $this->created($request, 'ga_request_finding', $validated);

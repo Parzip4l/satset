@@ -229,6 +229,25 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
         );
 
+        $requestWithoutAttachment = [
+            'submission_token' => (string) Str::uuid(),
+            'reporter_name' => 'Pelapor Tanpa Bukti',
+            'reporter_email' => 'tanpa.bukti@lrtjakarta.co.id',
+            'payload' => [
+                'report_type' => 'Temuan',
+                'location' => 'Lantai 5',
+                'description' => 'Dinding perlu dicat ulang.',
+            ],
+        ];
+
+        $this->from(route('public.ticket.ga-permintaan-temuan.create'))
+            ->post(route('public.ticket.ga-permintaan-temuan.store'), $requestWithoutAttachment)
+            ->assertRedirect(route('public.ticket.ga-permintaan-temuan.create'))
+            ->assertSessionHasErrors([
+                'evidence_file' => 'Bukti foto atau dokumen wajib dilampirkan.',
+            ]);
+        $this->assertSame(0, DB::table('requests')->count());
+
         $response = $this->post(route('public.ticket.ga-permintaan-temuan.store'), [
             'submission_token' => (string) Str::uuid(),
             'reporter_name' => 'Pelapor GA',
@@ -261,5 +280,23 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             ->get(route('ticket.attachments.show', [$ticket, $attachment]))
             ->assertOk()
             ->assertHeader('content-disposition', 'inline; filename=kondisi-dinding.png');
+
+        $this->actingAs($reporter)
+            ->from(route('ticket.ga-permintaan-temuan.create'))
+            ->post(route('ticket.store'), [
+                ...$requestWithoutAttachment,
+                'submission_token' => (string) Str::uuid(),
+                'request_type' => 'ga_request_finding',
+                'category_id' => $ticket->category_id,
+                'ticket_category_id' => $ticket->ticket_category_id,
+                'priority_id' => $ticket->priority_id,
+                'impact_id' => $ticket->impact_id,
+                'urgency_id' => $ticket->urgency_id,
+            ])
+            ->assertRedirect(route('ticket.ga-permintaan-temuan.create'))
+            ->assertSessionHasErrors([
+                'evidence_file' => 'Bukti foto atau dokumen wajib dilampirkan.',
+            ]);
+        $this->assertSame(1, DB::table('requests')->count());
     }
 }

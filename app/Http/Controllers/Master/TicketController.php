@@ -847,9 +847,10 @@ class TicketController extends Controller
             'payload.description' => 'required|string',
             'payload.expected_action' => 'nullable|string|max:255',
             'payload.reporter_phone' => 'nullable|string|max:30',
-            'evidence_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'evidence_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ], [
             'reporter_email.regex' => 'Email harus menggunakan domain @lrtjakarta.co.id.',
+            'evidence_file.required' => 'Bukti foto atau dokumen wajib dilampirkan.',
         ]);
 
         $requester = $this->findOrCreatePublicReporter($validated);
@@ -1182,7 +1183,7 @@ class TicketController extends Controller
                 'payload.description' => 'required|string',
                 'payload.expected_action' => 'nullable|string|max:255',
                 'payload.reporter_phone' => 'nullable|string|max:30',
-                'evidence_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+                'evidence_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             ]);
         } else {
             $rules = array_merge($rules, [
@@ -1191,7 +1192,9 @@ class TicketController extends Controller
             ]);
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'evidence_file.required' => 'Bukti foto atau dokumen wajib dilampirkan.',
+        ]);
 
         if ($requestType === 'atk_rtk') {
             $validated['payload'] = $this->enrichAtkRtkPayload($validated['payload'] ?? []);
