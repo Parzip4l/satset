@@ -289,7 +289,8 @@
                             $detailPayload = collect([
                                 'Nama Kegiatan' => data_get($ticket->payload, 'activity_name'),
                                 'Jenis Kegiatan' => data_get($ticket->payload, 'event_type'),
-                                'Tanggal' => data_get($ticket->payload, 'event_date'),
+                                'Tanggal Mulai' => data_get($ticket->payload, 'event_date'),
+                                'Tanggal Selesai' => data_get($ticket->payload, 'event_end_date', data_get($ticket->payload, 'event_date')),
                                 'Jam' => trim((data_get($ticket->payload, 'start_time') ?: '-') . ' - ' . (data_get($ticket->payload, 'end_time') ?: '-')),
                                 'Ruang/Lokasi' => data_get($ticket->payload, 'location'),
                                 'Jumlah Peserta' => data_get($ticket->payload, 'participant_count'),

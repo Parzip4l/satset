@@ -454,7 +454,12 @@
             </tr>
             <tr>
                 <td class="label-col">Hari / Tanggal</td>
-                <td class="value-col">{{ $fmtDate(data_get($payload, 'event_date')) }}</td>
+                <td class="value-col">
+                    {{ $fmtDate(data_get($payload, 'event_date')) }}
+                    @if(filled(data_get($payload, 'event_end_date')) && data_get($payload, 'event_end_date') !== data_get($payload, 'event_date'))
+                        - {{ $fmtDate(data_get($payload, 'event_end_date')) }}
+                    @endif
+                </td>
             </tr>
             <tr>
                 <td class="label-col">Waktu</td>

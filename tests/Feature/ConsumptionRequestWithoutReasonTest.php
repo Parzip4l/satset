@@ -147,16 +147,16 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         ]);
 
         $this->mock(LrtjSpacePortalSignatureService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('createRequesterSignature')->once()->andReturn([
+            $mock->shouldReceive('createRequesterSignature')->twice()->andReturn([
                 'portal_signature_id' => 'signature-requester',
                 'portal_signature_url' => 'https://portal.example.test/signatures/requester',
             ]);
         });
         $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($approver): void {
-            $mock->shouldReceive('resolveFirstApprover')->once()->andReturn($approver);
+            $mock->shouldReceive('resolveFirstApprover')->twice()->andReturn($approver);
         });
         $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('notifyApprovalRequested')->once();
+            $mock->shouldReceive('notifyApprovalRequested')->twice();
         });
 
         $submissionToken = (string) Str::uuid();
@@ -168,6 +168,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
                 'activity_name' => 'Meeting Evaluasi',
                 'event_type' => 'Meeting',
                 'event_date' => now()->addDay()->format('Y-m-d'),
+                'event_end_date' => now()->addDays(7)->format('Y-m-d'),
                 'start_time' => '09:00',
                 'end_time' => '11:00',
                 'location' => 'Ruang Rapat Utama',
@@ -189,6 +190,22 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             ]);
         $this->assertSame(0, DB::table('requests')->count());
 
+        $tooLongResponse = $this->from(route('public.ticket.konsumsi.create'))
+            ->post(route('public.ticket.konsumsi.store'), [
+                ...$requestData,
+                'submission_token' => (string) Str::uuid(),
+                'payload' => [
+                    ...$requestData['payload'],
+                    'event_end_date' => now()->addDays(8)->format('Y-m-d'),
+                ],
+            ]);
+
+        $tooLongResponse->assertRedirect(route('public.ticket.konsumsi.create'))
+            ->assertSessionHasErrors([
+                'payload.event_end_date' => 'Rentang tanggal kegiatan maksimal 7 hari kalender.',
+            ]);
+        $this->assertSame(0, DB::table('requests')->count());
+
         $response = $this->post(route('public.ticket.konsumsi.store'), $requestData);
 
         $response->assertRedirect(route('public.ticket.konsumsi.create'))
@@ -199,6 +216,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertNotNull($ticket);
         $payload = json_decode($ticket->payload, true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame('Meeting Evaluasi', $payload['activity_name']);
+        $this->assertSame($requestData['payload']['event_end_date'], $payload['event_end_date']);
         $this->assertArrayNotHasKey('request_reason', $payload);
         $this->assertDatabaseHas('approvals', ['request_id' => $ticket->id, 'approver_id' => $approver->id]);
 
@@ -209,6 +227,29 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertSame(1, DB::table('requests')->where('submission_token', $submissionToken)->count());
         $this->assertSame(1, DB::table('ticket_histories')->where('ticket_id', $ticket->id)->count());
         $this->assertSame(1, DB::table('approvals')->where('request_id', $ticket->id)->count());
+
+        $reporter = User::where('email', $requestData['reporter_email'])->firstOrFail();
+        $loggedInResponse = $this->actingAs($reporter)->post(route('ticket.store'), [
+            'submission_token' => (string) Str::uuid(),
+            'request_type' => 'consumption',
+            'category_id' => $ticket->category_id,
+            'ticket_category_id' => $ticket->ticket_category_id,
+            'priority_id' => $ticket->priority_id,
+            'impact_id' => $ticket->impact_id,
+            'urgency_id' => $ticket->urgency_id,
+            'payload' => [
+                ...$requestData['payload'],
+                'activity_name' => 'Pelatihan Tujuh Hari',
+            ],
+        ]);
+
+        $loggedInResponse->assertRedirect(route('ticket.konsumsi.create'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+        $this->assertSame(2, DB::table('requests')->count());
+        $loggedInPayload = json_decode(DB::table('requests')->latest('id')->value('payload'), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame($requestData['payload']['event_date'], $loggedInPayload['event_date']);
+        $this->assertSame($requestData['payload']['event_end_date'], $loggedInPayload['event_end_date']);
     }
 
     public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void

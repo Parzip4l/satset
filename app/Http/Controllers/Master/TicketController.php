@@ -89,6 +89,47 @@ class TicketController extends Controller
         return $token;
     }
 
+    private function consumptionEndDateRules(Request $request): array
+    {
+        return [
+            'required',
+            'date',
+            'after_or_equal:payload.event_date',
+            function (string $attribute, mixed $value, Closure $fail) use ($request): void {
+                try {
+                    $startDate = Carbon::parse($request->input('payload.event_date'))->startOfDay();
+                    $endDate = Carbon::parse($value)->startOfDay();
+                } catch (\Throwable) {
+                    return;
+                }
+
+                if ($endDate->greaterThan($startDate->copy()->addDays(6))) {
+                    $fail('Rentang tanggal kegiatan maksimal 7 hari kalender.');
+                }
+            },
+        ];
+    }
+
+    private function consumptionEndTimeRules(Request $request): array
+    {
+        return [
+            'required',
+            'date_format:H:i',
+            function (string $attribute, mixed $value, Closure $fail) use ($request): void {
+                try {
+                    $startsAt = Carbon::parse($request->input('payload.event_date').' '.$request->input('payload.start_time'));
+                    $endsAt = Carbon::parse($request->input('payload.event_end_date').' '.$value);
+                } catch (\Throwable) {
+                    return;
+                }
+
+                if ($endsAt->lessThanOrEqualTo($startsAt)) {
+                    $fail('Tanggal dan waktu selesai harus setelah tanggal dan waktu mulai.');
+                }
+            },
+        ];
+    }
+
     /**
      * Display requests landing menu.
      */
@@ -661,7 +702,12 @@ class TicketController extends Controller
             return sprintf(
                 'Permintaan konsumsi untuk %s pada %s di %s. Kebutuhan: %s.',
                 $payload['activity_name'] ?? 'kegiatan',
-                isset($payload['event_date']) ? Carbon::parse($payload['event_date'])->format('d M Y') : '-',
+                isset($payload['event_date'])
+                    ? Carbon::parse($payload['event_date'])->format('d M Y')
+                        .(isset($payload['event_end_date']) && $payload['event_end_date'] !== $payload['event_date']
+                            ? ' - '.Carbon::parse($payload['event_end_date'])->format('d M Y')
+                            : '')
+                    : '-',
                 $payload['location'] ?? '-',
                 $payload['consumption_notes'] ?? ($payload['consumption_type'] ?? '-')
             );
@@ -1036,8 +1082,9 @@ class TicketController extends Controller
             'payload.activity_name' => 'required|string|max:150',
             'payload.event_type' => 'required|string|max:100',
             'payload.event_date' => 'required|date',
+            'payload.event_end_date' => $this->consumptionEndDateRules($request),
             'payload.start_time' => 'required|date_format:H:i',
-            'payload.end_time' => 'required|date_format:H:i',
+            'payload.end_time' => $this->consumptionEndTimeRules($request),
             'payload.location' => 'required|string|max:150',
             'payload.participant_count' => 'required|integer|min:1',
             'payload.consumption_type' => 'required|string|max:100',
@@ -1155,8 +1202,9 @@ class TicketController extends Controller
                 'payload.activity_name' => 'required|string|max:150',
                 'payload.event_type' => 'required|string|max:100',
                 'payload.event_date' => 'required|date',
+                'payload.event_end_date' => $this->consumptionEndDateRules($request),
                 'payload.start_time' => 'required|date_format:H:i',
-                'payload.end_time' => 'required|date_format:H:i',
+                'payload.end_time' => $this->consumptionEndTimeRules($request),
                 'payload.location' => 'required|string|max:150',
                 'payload.participant_count' => 'required|integer|min:1',
                 'payload.consumption_type' => 'required|string|max:100',
