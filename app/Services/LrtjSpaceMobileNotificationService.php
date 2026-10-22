@@ -7,6 +7,7 @@ use App\Models\Master\Notification as WebNotification;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -23,6 +24,10 @@ class LrtjSpaceMobileNotificationService
 
         $status = $this->ticketStatusLabel($ticket);
         if ($previousStatus !== null && $previousStatus === $status) {
+            return;
+        }
+
+        if (! $this->acquireDedupe('ticket_status_changed', $requester->email, $ticket->id, $status)) {
             return;
         }
 
@@ -55,6 +60,10 @@ class LrtjSpaceMobileNotificationService
             return;
         }
 
+        if (! $this->acquireDedupe('ticket_approval_requested', $approver->email, $ticket->id, $approval->id)) {
+            return;
+        }
+
         $title = 'Approval SatSet menunggu Anda';
         $body = "{$ticket->ticket_no} membutuhkan approval Anda.";
 
@@ -64,6 +73,7 @@ class LrtjSpaceMobileNotificationService
             'event_type' => 'ticket_approval_requested',
             'recipient_email' => $approver->email,
             'ticket_id' => (string) $ticket->id,
+            'approval_id' => (string) $approval->id,
             'ticket_no' => $ticket->ticket_no,
             'ticket_title' => $ticket->title,
             'request_type' => data_get($ticket->payload, 'request_type'),
@@ -83,6 +93,9 @@ class LrtjSpaceMobileNotificationService
         }
 
         $normalizedStatus = strtolower($status);
+        if (! $this->acquireDedupe('ticket_approval_decided', $requester->email, $ticket->id, $approval->id, $normalizedStatus)) {
+            return;
+        }
         $decisionLabel = $normalizedStatus === 'approved' ? 'disetujui' : 'ditolak';
         $title = 'Approval SatSet '.$decisionLabel;
         $body = "{$ticket->ticket_no} telah {$decisionLabel} oleh {$actor->name}.";
@@ -110,6 +123,10 @@ class LrtjSpaceMobileNotificationService
     public function notifyTicketAssigned(Ticket $ticket, ?User $assignedUser): void
     {
         if (! $assignedUser?->email) {
+            return;
+        }
+
+        if (! $this->acquireDedupe('ticket_assigned', $assignedUser->email, $ticket->id, $assignedUser->id)) {
             return;
         }
 
@@ -162,9 +179,9 @@ class LrtjSpaceMobileNotificationService
 
         $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $timestamp = (string) now()->timestamp;
-        $signature = hash_hmac('sha256', $timestamp . '.' . $body, $secret);
-        $endpoint = rtrim((string) config('satset.lrtj_space_notifications.base_url'), '/') .
-            '/' . ltrim((string) config('satset.lrtj_space_notifications.endpoint'), '/');
+        $signature = hash_hmac('sha256', $timestamp.'.'.$body, $secret);
+        $endpoint = rtrim((string) config('satset.lrtj_space_notifications.base_url'), '/').
+            '/'.ltrim((string) config('satset.lrtj_space_notifications.endpoint'), '/');
 
         try {
             $client = Http::withHeaders([
@@ -192,6 +209,13 @@ class LrtjSpaceMobileNotificationService
                 'ticket_id' => $payload['ticket_id'] ?? null,
             ]);
         }
+    }
+
+    private function acquireDedupe(string ...$parts): bool
+    {
+        $key = 'satset:mobile-notification:'.hash('sha256', implode('|', $parts));
+
+        return Cache::add($key, true, now()->addSeconds(30));
     }
 
     private function ticketStatusLabel(Ticket $ticket): string
