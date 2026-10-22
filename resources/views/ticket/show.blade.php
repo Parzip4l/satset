@@ -821,7 +821,7 @@
                             <div class="col-12"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
                             <div class="col-12">
                                 <label class="form-label small text-muted mb-1">Foto bukti barang diterima requester <span class="text-danger">*</span></label>
-                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" required>
+                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" data-max-file-size-mb="5" data-max-file-size-label="5 MB" required>
                             </div>
                             <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
                             <div class="col-12"><button class="btn btn-primary w-100">Handover Semua & Kurangi Gudang Kecil</button></div>
@@ -842,7 +842,7 @@
                             <div class="col-6"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
                             <div class="col-12">
                                 <label class="form-label small text-muted mb-1">Foto bukti barang diterima requester <span class="text-danger">*</span></label>
-                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" required>
+                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" data-max-file-size-mb="5" data-max-file-size-label="5 MB" required>
                             </div>
                             <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
                             <div class="col-12"><button class="btn btn-primary w-100">Handover & Kurangi Gudang Kecil</button></div>
@@ -932,7 +932,7 @@
                         <div class="col-12"><label class="meta-label">Upload Pertanggungjawaban</label></div>
                         <div class="col-12">
                             <label class="form-label small text-muted mb-1">Bundle dokumen lengkap</label>
-                            <input type="file" name="accountability_bundle_file" class="form-control" accept=".pdf,.zip,.rar,application/pdf,application/zip,application/x-rar-compressed">
+                            <input type="file" name="accountability_bundle_file" class="form-control" accept=".pdf,.zip,.rar,application/pdf,application/zip,application/x-rar-compressed" data-max-file-size-mb="20" data-max-file-size-label="20 MB">
                             <div class="text-muted small mt-1">Gabungkan daftar hadir, dokumentasi, laporan kegiatan, dan materi pendukung bila ada dalam satu PDF atau ZIP/RAR. Maksimal 20 MB.</div>
                         </div>
                         <div class="col-12"><button class="btn btn-primary w-100">Upload Pertanggungjawaban</button></div>
@@ -969,7 +969,7 @@
                             </div>
                             <div class="col-12">
                                 <label class="meta-label mb-2">Evidence Tindak Lanjut <span class="text-danger">*</span></label>
-                                <input type="file" name="follow_up_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf" required>
+                                <input type="file" name="follow_up_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf,image/*,application/pdf" data-max-file-size-mb="10" data-max-file-size-label="10 MB" required>
                                 <div class="text-muted small mt-1">Foto atau PDF bukti tindak lanjut. Maksimal 10 MB.</div>
                                 @error('follow_up_evidence_file') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>

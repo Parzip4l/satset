@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Services\MobileSatsetTicketService;
+use Carbon\Carbon;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -99,7 +101,7 @@ class MobileSatsetTicketController extends Controller
 
     public function storeConsumption(Request $request): JsonResponse
     {
-        $this->normalizePayload($request, ['activity_name', 'event_type', 'event_date', 'start_time', 'end_time', 'location', 'participant_count', 'consumption_type', 'request_reason', 'supervisor_id', 'organizer_unit', 'pic_contact', 'consumption_notes']);
+        $this->normalizePayload($request, ['activity_name', 'event_type', 'event_date', 'event_end_date', 'start_time', 'end_time', 'location', 'participant_count', 'consumption_type', 'request_reason', 'supervisor_id', 'organizer_unit', 'pic_contact', 'consumption_notes']);
         $validated = $request->validate([
             'priority_id' => 'nullable|exists:priorities,id',
             'impact_id' => 'nullable|exists:impacts,id',
@@ -108,8 +110,9 @@ class MobileSatsetTicketController extends Controller
             'payload.activity_name' => 'required|string|max:150',
             'payload.event_type' => 'required|string|max:100',
             'payload.event_date' => 'required|date',
+            'payload.event_end_date' => $this->consumptionEndDateRules($request),
             'payload.start_time' => 'required|date_format:H:i',
-            'payload.end_time' => 'required|date_format:H:i',
+            'payload.end_time' => $this->consumptionEndTimeRules($request),
             'payload.location' => 'required|string|max:150',
             'payload.participant_count' => 'required|integer|min:1',
             'payload.consumption_type' => 'required|string|max:100',
@@ -226,5 +229,46 @@ class MobileSatsetTicketController extends Controller
         }
 
         $request->merge(['payload' => $payload]);
+    }
+
+    private function consumptionEndDateRules(Request $request): array
+    {
+        return [
+            'required',
+            'date',
+            'after_or_equal:payload.event_date',
+            function (string $attribute, mixed $value, Closure $fail) use ($request): void {
+                try {
+                    $startDate = Carbon::parse($request->input('payload.event_date'))->startOfDay();
+                    $endDate = Carbon::parse($value)->startOfDay();
+                } catch (\Throwable) {
+                    return;
+                }
+
+                if ($endDate->greaterThan($startDate->copy()->addDays(6))) {
+                    $fail('Rentang tanggal kegiatan maksimal 7 hari kalender.');
+                }
+            },
+        ];
+    }
+
+    private function consumptionEndTimeRules(Request $request): array
+    {
+        return [
+            'required',
+            'date_format:H:i',
+            function (string $attribute, mixed $value, Closure $fail) use ($request): void {
+                try {
+                    $startsAt = Carbon::parse($request->input('payload.event_date').' '.$request->input('payload.start_time'));
+                    $endsAt = Carbon::parse($request->input('payload.event_end_date').' '.$value);
+                } catch (\Throwable) {
+                    return;
+                }
+
+                if ($endsAt->lessThanOrEqualTo($startsAt)) {
+                    $fail('Tanggal dan waktu selesai harus setelah tanggal dan waktu mulai.');
+                }
+            },
+        ];
     }
 }

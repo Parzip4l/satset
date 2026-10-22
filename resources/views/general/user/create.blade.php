@@ -133,7 +133,7 @@
                             {{-- Photo Profile --}}
                             <div class="col-12 mb-2">
                                 <label class="form-label">Photo Profile</label>
-                                <input class="form-control" name="images[]" type="file" accept="image/*">
+                                <input class="form-control" name="images[]" type="file" accept="image/*" data-max-file-size-mb="2" data-max-file-size-label="2 MB">
                                 <div class="form-text small">Format: JPG, PNG, JPEG. Maksimal 2MB.</div>
                             </div>
 

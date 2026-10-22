@@ -37,6 +37,7 @@
     @include('partials.footer')
 
     @include('partials.vendor-scripts')
+    <script src="{{ asset('assets/js/file-upload-guard.js') }}?v={{ filemtime(public_path('assets/js/file-upload-guard.js')) }}"></script>
 
     @yield('js')
     @yield('script') {{-- Tambahan jika ada halaman yang memakai section 'script' --}}

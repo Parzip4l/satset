@@ -288,7 +288,7 @@
                         <div class="row g-4">
                             <div class="col-12">
                                 <label class="form-label">Upload Bundle Pertanggungjawaban</label>
-                                <input type="file" name="accountability_bundle_file" class="form-control" accept=".pdf,.zip,.rar,application/pdf,application/zip,application/x-rar-compressed">
+                                <input type="file" name="accountability_bundle_file" class="form-control" accept=".pdf,.zip,.rar,application/pdf,application/zip,application/x-rar-compressed" data-max-file-size-mb="20" data-max-file-size-label="20 MB">
                                 <div class="text-muted small mt-2">Isi bundle: daftar hadir, dokumentasi kegiatan, laporan kegiatan, dan materi pendukung bila ada. Format: PDF atau ZIP/RAR. Maksimal 20 MB.</div>
                             </div>
                         </div>

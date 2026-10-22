@@ -50,6 +50,7 @@
 
     {{-- Global Scripts (jQuery, Bootstrap JS, dll) --}}
     @include('partials.vendor-scripts')
+    <script src="{{ asset('assets/js/file-upload-guard.js') }}?v={{ filemtime(public_path('assets/js/file-upload-guard.js')) }}"></script>
 
     {{-- JS tambahan dari masing-masing page --}}
     @yield('js')

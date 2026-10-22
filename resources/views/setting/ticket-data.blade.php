@@ -60,7 +60,7 @@
         <div class="card-body p-4">
             <form method="POST" action="{{ route('settings.ticket-data.restore') }}" enctype="multipart/form-data" class="row g-3 align-items-end">
                 @csrf
-                <div class="col-lg-4"><label class="form-label">File backup ZIP</label><input type="file" name="backup_file" class="form-control" accept=".zip,application/zip" required></div>
+                <div class="col-lg-4"><label class="form-label">File backup ZIP</label><input type="file" name="backup_file" class="form-control" accept=".zip,application/zip" data-max-file-size-mb="512" data-max-file-size-label="512 MB" required></div>
                 <div class="col-lg-3"><label class="form-label">Password Anda</label><input type="password" name="password" class="form-control" autocomplete="current-password" required></div>
                 <div class="col-lg-3"><label class="form-label">Ketik RESTORE TIKET</label><input type="text" name="confirmation" class="form-control" autocomplete="off" required></div>
                 <div class="col-lg-2"><button class="btn btn-warning w-100" onclick="return confirm('Restore akan mengganti seluruh data tiket saat ini. Lanjutkan?')"><i class="bi bi-arrow-counterclockwise me-1"></i> Restore</button></div>

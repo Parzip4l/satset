@@ -74,6 +74,36 @@ class MobileSatsetAuthTest extends TestCase
             ->assertJsonPath('data.email', 'user@lrtjakarta.co.id');
     }
 
+    public function test_mobile_consumption_rejects_an_event_longer_than_seven_days(): void
+    {
+        $token = $this->exchangeToken();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/mobile/v1/satset/tickets/consumption', [
+                'payload' => $this->consumptionPayload([
+                    'event_date' => '2026-10-22',
+                    'event_end_date' => '2026-10-29',
+                ]),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['payload.event_end_date']);
+    }
+
+    public function test_mobile_consumption_rejects_an_end_time_before_start(): void
+    {
+        $token = $this->exchangeToken();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/mobile/v1/satset/tickets/consumption', [
+                'payload' => $this->consumptionPayload([
+                    'start_time' => '10:00',
+                    'end_time' => '09:00',
+                ]),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['payload.end_time']);
+    }
+
     private function exchangeToken(): string
     {
         config(['satset.mobile_sso.shared_secret' => 'test-shared-secret']);
@@ -87,5 +117,20 @@ class MobileSatsetAuthTest extends TestCase
             'HTTP_X_SATSET_TIMESTAMP' => $timestamp,
             'HTTP_X_SATSET_SIGNATURE' => $signature,
         ], $body)->json('data.access_token');
+    }
+
+    private function consumptionPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'activity_name' => 'Meeting Operasional',
+            'event_type' => 'Meeting',
+            'event_date' => '2026-10-22',
+            'event_end_date' => '2026-10-22',
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'location' => 'Ruang Rapat',
+            'participant_count' => 10,
+            'consumption_type' => 'Snack',
+        ], $overrides);
     }
 }

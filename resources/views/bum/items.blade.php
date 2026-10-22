@@ -343,7 +343,7 @@
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label">File master</label>
-                            <input type="file" name="file" class="form-control" accept=".xlsx" required>
+                            <input type="file" name="file" class="form-control" accept=".xlsx" data-max-file-size-mb="10" data-max-file-size-label="10 MB" required>
                             <div class="text-muted small mt-1">Gunakan template XLSX jika membuat file baru. Sistem membaca sheet <strong>Catalog Master</strong>.</div>
                         </div>
                         <div class="col-12">

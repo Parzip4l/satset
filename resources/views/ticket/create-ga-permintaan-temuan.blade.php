@@ -249,7 +249,7 @@
 
                         <div class="col-12">
                             <label class="form-label">Bukti Foto / Dokumen <span class="text-danger">*</span></label>
-                            <input type="file" name="evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required>
+                            <input type="file" name="evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.pdf" data-max-file-size-mb="5" data-max-file-size-label="5 MB" required>
                             <div class="text-muted small mt-2">Format JPG, PNG, atau PDF. Maksimal 5 MB.</div>
                             @error('evidence_file') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
