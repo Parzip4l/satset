@@ -6,6 +6,8 @@ use App\Models\Master\Approval;
 use App\Models\Master\Status;
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Services\LrtjSpaceMobileNotificationService;
+use App\Services\MobileSatsetTicketService;
 use App\Services\SatsetApprovalDecisionService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Http;
@@ -143,6 +145,68 @@ class IntranetSatsetApprovalApiTest extends TestCase
             ->assertJsonPath('data.data.0.module', 'satset')
             ->assertJsonPath('data.data.0.ticket.ticket_no', 'TCK-ATKRTK-0001')
             ->assertJsonPath('data.data.0.approver.email', 'manager@lrtjakarta.co.id');
+    }
+
+    public function test_ga_can_access_every_ticket_while_regular_user_cannot(): void
+    {
+        $ticket = $this->approvalFixture()->request;
+        $gaUser = User::forceCreate([
+            'name' => 'GA Officer',
+            'email' => 'ga@lrtjakarta.co.id',
+            'password' => 'secret',
+            'role' => 'ga',
+        ]);
+        $regularUser = User::forceCreate([
+            'name' => 'Regular User',
+            'email' => 'regular@lrtjakarta.co.id',
+            'password' => 'secret',
+            'role' => 'pelapor',
+        ]);
+
+        $tickets = app(MobileSatsetTicketService::class);
+
+        $this->assertTrue($tickets->canAccess($gaUser, $ticket));
+        $this->assertFalse($tickets->canAccess($regularUser, $ticket));
+    }
+
+    public function test_ticket_notification_is_sent_to_requester_and_all_ga_users_only(): void
+    {
+        $ticket = $this->approvalFixture()->request;
+        $gaUser = User::forceCreate([
+            'name' => 'GA Officer',
+            'email' => 'ga@lrtjakarta.co.id',
+            'password' => 'secret',
+            'role' => 'ga',
+        ]);
+        User::forceCreate([
+            'name' => 'Regular User',
+            'email' => 'regular@lrtjakarta.co.id',
+            'password' => 'secret',
+            'role' => 'pelapor',
+        ]);
+
+        Http::fake([
+            'https://portal.test/api/mobile/v1/satset/notifications' => Http::response(['success' => true]),
+        ]);
+        config(['satset.lrtj_space_notifications.enabled' => true]);
+
+        app(LrtjSpaceMobileNotificationService::class)
+            ->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), null, 'Open');
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => data_get(json_decode($request->body(), true), 'recipient_email') === 'requester@lrtjakarta.co.id');
+        Http::assertSent(function ($request) {
+            $payload = json_decode($request->body(), true);
+
+            return data_get($payload, 'recipient_email') === 'ga@lrtjakarta.co.id'
+                && data_get($payload, 'recipient_scope') === 'ga_all_requests';
+        });
+        Http::assertNotSent(fn ($request) => data_get(json_decode($request->body(), true), 'recipient_email') === 'regular@lrtjakarta.co.id');
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $gaUser->id,
+            'title' => 'Status SatSet berubah',
+        ]);
     }
 
     public function test_atk_rtk_can_be_approved_in_satset_and_receives_portal_qr(): void

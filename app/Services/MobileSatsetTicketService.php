@@ -18,6 +18,7 @@ use App\Models\Master\TicketCategory;
 use App\Models\Master\TicketHistory;
 use App\Models\Master\Urgency;
 use App\Models\User;
+use App\Support\GaAccess;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -218,6 +219,10 @@ class MobileSatsetTicketService
 
     public function canAccess(User $user, Ticket $ticket): bool
     {
+        if (GaAccess::allowed($user)) {
+            return true;
+        }
+
         if ((int) $ticket->requester_id === (int) $user->id || (int) $ticket->assigned_user_id === (int) $user->id) {
             return true;
         }

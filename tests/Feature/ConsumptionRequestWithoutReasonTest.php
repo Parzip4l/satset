@@ -156,6 +156,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             $mock->shouldReceive('resolveFirstApprover')->twice()->andReturn($approver);
         });
         $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
             $mock->shouldReceive('notifyApprovalRequested')->twice();
             $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
         });

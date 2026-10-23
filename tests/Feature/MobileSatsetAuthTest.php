@@ -21,6 +21,7 @@ class MobileSatsetAuthTest extends TestCase
             $table->string('email')->unique();
             $table->string('username')->nullable();
             $table->string('phone')->nullable();
+            $table->string('role')->default('pelapor');
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
@@ -48,9 +49,10 @@ class MobileSatsetAuthTest extends TestCase
             'name' => 'User LRTJ',
             'device_id' => 'device-1',
             'platform' => 'ios',
+            'role' => 'GA',
         ]);
         $timestamp = now()->timestamp;
-        $signature = hash_hmac('sha256', $timestamp . '.' . $body, 'test-shared-secret');
+        $signature = hash_hmac('sha256', $timestamp.'.'.$body, 'test-shared-secret');
 
         $response = $this->call('POST', '/api/mobile/v1/satset/auth/sso-exchange', [], [], [], [
             'CONTENT_TYPE' => 'application/json',
@@ -61,14 +63,20 @@ class MobileSatsetAuthTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonPath('data.user.role', 'ga')
             ->assertJsonStructure(['data' => ['access_token', 'expires_at', 'user' => ['email']]]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'user@lrtjakarta.co.id',
+            'role' => 'ga',
+        ]);
     }
 
     public function test_mobile_satset_bearer_token_can_access_me(): void
     {
         $token = $this->exchangeToken();
 
-        $this->withHeader('Authorization', 'Bearer ' . $token)
+        $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/mobile/v1/satset/me')
             ->assertOk()
             ->assertJsonPath('data.email', 'user@lrtjakarta.co.id');
@@ -109,7 +117,7 @@ class MobileSatsetAuthTest extends TestCase
         config(['satset.mobile_sso.shared_secret' => 'test-shared-secret']);
         $body = json_encode(['email' => 'user@lrtjakarta.co.id', 'name' => 'User LRTJ']);
         $timestamp = now()->timestamp;
-        $signature = hash_hmac('sha256', $timestamp . '.' . $body, 'test-shared-secret');
+        $signature = hash_hmac('sha256', $timestamp.'.'.$body, 'test-shared-secret');
 
         return $this->call('POST', '/api/mobile/v1/satset/auth/sso-exchange', [], [], [], [
             'CONTENT_TYPE' => 'application/json',

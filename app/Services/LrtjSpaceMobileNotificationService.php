@@ -14,6 +14,37 @@ use Illuminate\Support\Facades\Schema;
 
 class LrtjSpaceMobileNotificationService
 {
+    public function notifyTicketCreated(Ticket $ticket): void
+    {
+        $ticket->loadMissing(['requester', 'status']);
+
+        $title = 'Permintaan SatSet baru';
+        $body = "{$ticket->ticket_no} dibuat oleh ".($ticket->requester?->name ?: 'pengguna SatSet').'.';
+
+        $payload = [
+            'event_type' => 'ticket_created',
+            'ticket_id' => (string) $ticket->id,
+            'ticket_no' => $ticket->ticket_no,
+            'ticket_title' => $ticket->title,
+            'request_type' => data_get($ticket->payload, 'request_type'),
+            'status' => $this->ticketStatusLabel($ticket),
+            'requester_name' => $ticket->requester?->name,
+            'requester_email' => $ticket->requester?->email,
+            'title' => $title,
+            'body' => $body,
+            'priority' => 'high',
+        ];
+
+        $requesterEmail = $ticket->requester?->email;
+        if ($requesterEmail && $this->acquireDedupe('ticket_created', $requesterEmail, (string) $ticket->id)) {
+            $requesterPayload = array_merge($payload, ['recipient_email' => $requesterEmail]);
+            $this->recordWebNotification($ticket->requester, $title, $body, $ticket);
+            $this->send($requesterPayload);
+        }
+
+        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$requesterEmail]);
+    }
+
     public function notifyTicketStatusChanged(Ticket $ticket, ?User $actor = null, ?string $previousStatus = null): void
     {
         $ticket->loadMissing(['requester', 'status']);
@@ -36,7 +67,7 @@ class LrtjSpaceMobileNotificationService
 
         $this->recordWebNotification($requester, $title, $body, $ticket);
 
-        $this->send([
+        $payload = [
             'event_type' => 'ticket_status_changed',
             'recipient_email' => $requester->email,
             'ticket_id' => (string) $ticket->id,
@@ -49,7 +80,10 @@ class LrtjSpaceMobileNotificationService
             'title' => $title,
             'body' => $body,
             'priority' => 'high',
-        ]);
+        ];
+
+        $this->send($payload);
+        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$requester->email]);
     }
 
     public function notifyApprovalRequested(Ticket $ticket, Approval $approval): void
@@ -69,7 +103,7 @@ class LrtjSpaceMobileNotificationService
 
         $this->recordWebNotification($approver, $title, $body, $ticket);
 
-        $this->send([
+        $payload = [
             'event_type' => 'ticket_approval_requested',
             'recipient_email' => $approver->email,
             'ticket_id' => (string) $ticket->id,
@@ -81,7 +115,10 @@ class LrtjSpaceMobileNotificationService
             'title' => $title,
             'body' => $body,
             'priority' => 'high',
-        ]);
+        ];
+
+        $this->send($payload);
+        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$approver->email]);
     }
 
     public function notifyApprovalDecided(Ticket $ticket, Approval $approval, User $actor, string $status, ?string $note = null): void
@@ -102,7 +139,7 @@ class LrtjSpaceMobileNotificationService
 
         $this->recordWebNotification($requester, $title, $body, $ticket);
 
-        $this->send([
+        $payload = [
             'event_type' => 'ticket_approval_decided',
             'recipient_email' => $requester->email,
             'ticket_id' => (string) $ticket->id,
@@ -117,7 +154,10 @@ class LrtjSpaceMobileNotificationService
             'title' => $title,
             'body' => $body,
             'priority' => 'high',
-        ]);
+        ];
+
+        $this->send($payload);
+        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$requester->email]);
     }
 
     public function notifyTicketAssigned(Ticket $ticket, ?User $assignedUser): void
@@ -135,7 +175,7 @@ class LrtjSpaceMobileNotificationService
 
         $this->recordWebNotification($assignedUser, $title, $body, $ticket);
 
-        $this->send([
+        $payload = [
             'event_type' => 'ticket_assigned',
             'recipient_email' => $assignedUser->email,
             'ticket_id' => (string) $ticket->id,
@@ -146,7 +186,56 @@ class LrtjSpaceMobileNotificationService
             'title' => $title,
             'body' => $body,
             'priority' => 'high',
-        ]);
+        ];
+
+        $this->send($payload);
+        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$assignedUser->email]);
+    }
+
+    private function notifyGaRecipients(
+        array $payload,
+        string $title,
+        string $message,
+        Ticket $ticket,
+        array $exceptEmails = [],
+    ): void {
+        if (! Schema::hasColumn('users', 'role')) {
+            return;
+        }
+
+        $excluded = collect($exceptEmails)
+            ->filter()
+            ->map(fn ($email) => strtolower((string) $email));
+
+        User::query()
+            ->whereNotNull('email')
+            ->whereRaw('LOWER(TRIM(role)) IN (?, ?, ?, ?, ?, ?)', [
+                'ga',
+                'bum',
+                'general affair',
+                'general affairs',
+                'bagian umum',
+                'operasional ga',
+            ])
+            ->get()
+            ->each(function (User $recipient) use ($payload, $title, $message, $ticket, $excluded): void {
+                if ($excluded->contains(strtolower((string) $recipient->email))) {
+                    return;
+                }
+
+                $recipientPayload = array_merge($payload, [
+                    'recipient_email' => $recipient->email,
+                    'recipient_scope' => 'ga_all_requests',
+                ]);
+                $dedupeMarker = hash('sha256', json_encode($recipientPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+                if (! $this->acquireDedupe('ga_copy', $recipient->email, (string) $ticket->id, $dedupeMarker)) {
+                    return;
+                }
+
+                $this->recordWebNotification($recipient, $title, $message, $ticket);
+                $this->send($recipientPayload);
+            });
     }
 
     private function recordWebNotification(?User $recipient, string $title, string $message, Ticket $ticket): void

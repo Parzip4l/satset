@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Services\MobileSatsetTicketService;
+use App\Support\GaAccess;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,8 @@ class MobileSatsetTicketController extends Controller
                 'email' => $user->email,
                 'username' => $user->username,
                 'phone' => $user->phone,
+                'role' => $user->role,
+                'can_view_all_tickets' => GaAccess::allowed($user),
             ],
         ]);
     }
@@ -40,10 +43,12 @@ class MobileSatsetTicketController extends Controller
     {
         $user = $request->user();
         $query = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department'])
-            ->where(function ($builder) use ($user) {
-                $builder->where('requester_id', $user->id)
-                    ->orWhere('assigned_user_id', $user->id)
-                    ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
+            ->when(! GaAccess::allowed($user), function ($builder) use ($user) {
+                $builder->where(function ($visible) use ($user) {
+                    $visible->where('requester_id', $user->id)
+                        ->orWhere('assigned_user_id', $user->id)
+                        ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
+                });
             })
             ->when($request->query('request_type'), fn ($builder, $type) => $builder->where('payload->request_type', $type))
             ->when($request->query('status_id'), fn ($builder, $statusId) => $builder->where('status_id', $statusId))

@@ -10,6 +10,12 @@ use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class TicketObserver implements ShouldHandleEventsAfterCommit
 {
+    public function created(Ticket $ticket): void
+    {
+        app(LrtjSpaceMobileNotificationService::class)
+            ->notifyTicketCreated($ticket->fresh(['requester', 'status']));
+    }
+
     public function updated(Ticket $ticket): void
     {
         $notifications = app(LrtjSpaceMobileNotificationService::class);

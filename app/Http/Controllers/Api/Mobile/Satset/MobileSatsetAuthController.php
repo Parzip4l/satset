@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class MobileSatsetAuthController extends Controller
@@ -26,8 +27,8 @@ class MobileSatsetAuthController extends Controller
             return response()->json(['success' => false, 'message' => 'SSO exchange timestamp tidak valid.'], 401);
         }
 
-        $expected = hash_hmac('sha256', $timestamp . '.' . $request->getContent(), $secret);
-        if (!hash_equals($expected, $signature)) {
+        $expected = hash_hmac('sha256', $timestamp.'.'.$request->getContent(), $secret);
+        if (! hash_equals($expected, $signature)) {
             return response()->json(['success' => false, 'message' => 'SSO exchange signature tidak valid.'], 401);
         }
 
@@ -36,6 +37,7 @@ class MobileSatsetAuthController extends Controller
             'name' => 'required|string|max:150',
             'username' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:30',
+            'role' => 'nullable|string|max:100',
             'device_id' => 'nullable|string|max:120',
             'device_name' => 'nullable|string|max:150',
             'platform' => 'nullable|string|max:30',
@@ -46,7 +48,10 @@ class MobileSatsetAuthController extends Controller
         $user->name = $user->name ?: $data['name'];
         $user->username = $user->username ?: ($data['username'] ?? Str::before($email, '@'));
         $user->phone = $user->phone ?: ($data['phone'] ?? null);
-        if (!$user->exists) {
+        if (array_key_exists('role', $data) && Schema::hasColumn('users', 'role')) {
+            $user->role = filled($data['role']) ? Str::lower(trim($data['role'])) : 'pelapor';
+        }
+        if (! $user->exists) {
             $user->password = Hash::make(Str::random(40));
         }
         $user->save();
@@ -75,6 +80,7 @@ class MobileSatsetAuthController extends Controller
                     'email' => $user->email,
                     'username' => $user->username,
                     'phone' => $user->phone,
+                    'role' => $user->role,
                 ],
             ],
         ]);
