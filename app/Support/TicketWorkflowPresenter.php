@@ -39,6 +39,7 @@ class TicketWorkflowPresenter
             'WAITING_ACCOUNTABILITY' => ['Menunggu pertanggungjawaban', 'Pemohon perlu mengunggah dokumen kegiatan.', 6, 'warning', 'bi-file-earmark-arrow-up'],
             'ACCOUNTABILITY_SUBMITTED', 'REPORTED' => ['Verifikasi pertanggungjawaban', 'Dokumen sudah dikirim dan sedang diverifikasi.', 6, 'info', 'bi-file-earmark-check'],
             'CLOSED' => ['Selesai', 'Seluruh proses konsumsi telah diselesaikan.', 7, 'success', 'bi-check-circle-fill'],
+            'REOPENED' => ['Dibuka kembali', 'Tiket dibuka kembali untuk melanjutkan atau memperbaiki proses konsumsi.', 5, 'warning', 'bi-arrow-counterclockwise'],
             default => [self::humanize($status), 'Proses permintaan konsumsi sedang berjalan.', 1, 'secondary', 'bi-hourglass-split'],
         };
 

@@ -178,6 +178,9 @@
         $canActOnPendingApproval = $pendingApproval
             && !$isRequester
             && ((string) $pendingApproval->approver_id === (string) auth()->id() || auth()->user()->role === 'admin');
+        $canSyncManagerApproval = $pendingApproval
+            && (int) $pendingApproval->level === 1
+            && ($isRequester || $canManageGaOperations || (string) $pendingApproval->approver_id === (string) auth()->id());
         $canUploadConsumptionEvidence = (int) $ticket->requester_id === (int) auth()->id() || $canManageGaOperations;
         $atkRtkEstimatedAmount = (float) data_get($ticket->payload, 'total_estimated_amount', 0);
         $atkRtkApprovalThreshold = (float) data_get($ticket->payload, 'approval_threshold', config('bum.atk_rtk_manager_approval_threshold', 100000));
@@ -189,6 +192,10 @@
             && ($workflowStatus === 'CLOSED' || ($ticket->status->name ?? null) === 'Closed');
         $canGenerateConsumptionForm = $requestType === 'consumption'
             && ($workflowStatus === 'CLOSED' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true));
+        $canReopenConsumption = $canManageGaOperations
+            && $requestType === 'consumption'
+            && $workflowStatus !== 'CANCELLED'
+            && ($workflowStatus === 'CLOSED' || ($ticket->status->name ?? null) === 'Closed');
         $canGenerateAtkRtkGoodsIssue = $requestType === 'atk_rtk'
             && ($workflowStatus === 'HANDED_OVER' || in_array($ticket->status->name ?? null, ['Closed', 'Resolved'], true))
             && \App\Support\AtkRtkGoodsIssue::isBulk($ticket->payload ?? []);
@@ -198,6 +205,7 @@
         $displayStatusName = $isBumRequest
             ? match ($workflowStatus) {
                 'CLOSED' => 'Closed',
+                'REOPENED' => 'Open',
                 'CANCELLED', 'REJECTED_BY_MANAGER' => 'Cancelled',
                 'WAITING_MANAGER_APPROVAL' => 'Open',
                 default => $workflowStatus !== '-' ? 'In Progress' : ($ticket->status->name ?? '-'),
@@ -554,6 +562,15 @@
                                         Approver saat ini sama dengan pemohon. Periksa reporting line atau Authority Matrix SatSet di Portal.
                                     </div>
                                 @endif
+                                @if($canSyncManagerApproval)
+                                    <form action="{{ route('ticket.approvals.sync-manager', $ticket) }}" method="POST" class="mt-3" onsubmit="return confirm('Ambil ulang atasan terbaru dari Portal dan alihkan approval Pending bila berubah?')">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                            <i class="bi bi-arrow-repeat me-1"></i> Sinkronkan Atasan dari Portal
+                                        </button>
+                                    </form>
+                                    <div class="text-muted small mt-2">Hanya approval Pending yang dialihkan. Approval yang sudah diproses tidak berubah.</div>
+                                @endif
                             </div>
                         </div>
                         @endif
@@ -880,6 +897,21 @@
                     <span class="badge bg-light text-dark border">{{ $workflowStatus }}</span>
                 </div>
                 <div class="card-body p-4">
+                    @if($canReopenConsumption)
+                    <div class="alert border-0 mb-4" style="background:#eef7fb; color:#0e5f74;">
+                        <div class="fw-bold mb-1"><i class="bi bi-arrow-counterclockwise me-1"></i>Tiket sudah ditutup</div>
+                        Tiket dapat dibuka kembali jika proses konsumsi masih perlu dilanjutkan atau diperbaiki.
+                    </div>
+                    <form action="{{ route('ticket.consumption.reopen', $ticket) }}" method="POST" class="row g-2 mb-4" onsubmit="return confirm('Buka kembali tiket konsumsi ini?')">
+                        @csrf
+                        <div class="col-12">
+                            <label class="meta-label">Alasan Buka Kembali <span class="text-danger">*</span></label>
+                            <textarea name="reason" class="form-control" rows="2" maxlength="1000" placeholder="Contoh: dokumen pertanggungjawaban perlu diperbaiki" required>{{ old('reason') }}</textarea>
+                            @error('reason') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-12"><button class="btn btn-warning w-100"><i class="bi bi-arrow-counterclockwise me-1"></i>Buka Kembali Tiket</button></div>
+                    </form>
+                    @endif
                     @if($canManageGaOperations)
                     @if($pendingApproval)
                     <div class="alert border-0 mb-0" style="background:#fff7ed; color:#9a3412;">
@@ -891,6 +923,9 @@
                         <div class="col-12">
                             <label class="meta-label">Status Proses</label>
                             <select name="workflow_status" class="form-select">
+                                @if($workflowStatus === 'REOPENED')
+                                    <option value="" selected disabled>Dibuka Kembali — pilih proses berikutnya</option>
+                                @endif
                                 @foreach(['APPROVED_BY_BUM', 'ORDERED_TO_VENDOR', 'RECEIVED', 'WAITING_ACCOUNTABILITY', 'REPORTED', 'CLOSED', 'CANCELLED'] as $statusOption)
                                     <option value="{{ $statusOption }}" @selected($workflowStatus === $statusOption)>{{ $statusOption }}</option>
                                 @endforeach

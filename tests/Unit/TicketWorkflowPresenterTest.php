@@ -31,6 +31,10 @@ class TicketWorkflowPresenterTest extends TestCase
                 ['request_type' => 'consumption', 'workflow_status' => 'WAITING_ACCOUNTABILITY'],
                 'Menunggu pertanggungjawaban', 6, 7,
             ],
+            'consumption reopened' => [
+                ['request_type' => 'consumption', 'workflow_status' => 'REOPENED'],
+                'Dibuka kembali', 5, 7,
+            ],
             'atk procurement' => [
                 ['request_type' => 'atk_rtk', 'workflow_status' => 'WAITING_PROCUREMENT', 'total_estimated_amount' => 150000, 'approval_threshold' => 100000],
                 'Dalam proses pengadaan', 3, 5,

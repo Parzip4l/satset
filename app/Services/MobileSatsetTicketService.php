@@ -55,6 +55,14 @@ class MobileSatsetTicketService
             'impacts' => Impact::orderBy('id')->get(['id', 'name', 'code']),
             'urgencies' => Urgency::orderBy('id')->get(['id', 'name', 'code']),
             'statuses' => Status::orderBy('id')->get(['id', 'name', 'code']),
+            'consumption_types' => [
+                'Snack',
+                'Makan Siang',
+                'Coffee Break',
+                'Snack + Makan',
+                'Snack + Makan + Coffee',
+                'Paket Lengkap',
+            ],
             'consumable_items' => ConsumableItem::where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'code', 'name', 'category', 'large_uom', 'small_uom', 'conversion_qty', 'unit_price', 'small_stock', 'current_stock', 'location']),

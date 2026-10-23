@@ -27,6 +27,7 @@ use App\Services\LrtjSpaceApprovalResolverService;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\LrtjSpacePortalSignatureService;
 use App\Services\SatsetApprovalDecisionService;
+use App\Services\SatsetPendingApprovalSyncService;
 use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
 use Carbon\Carbon;
@@ -1632,6 +1633,31 @@ class TicketController extends Controller
         return redirect()->back()->with('success', 'Persetujuan berhasil dicatat.');
     }
 
+    public function syncManagerApproval(
+        Request $request,
+        Ticket $ticket,
+        SatsetPendingApprovalSyncService $approvalSync,
+    ) {
+        $user = $request->user();
+        $canSync = (int) $ticket->requester_id === (int) $user?->id
+            || GaAccess::allowed($user)
+            || $ticket->approvals()
+                ->where('level', 1)
+                ->whereRaw('LOWER(status) = ?', ['pending'])
+                ->where('approver_id', $user?->id)
+                ->exists();
+
+        abort_unless($canSync, 403, 'Anda tidak berwenang menyinkronkan approver ticket ini.');
+
+        $result = $approvalSync->syncManagerApprover($ticket, $user);
+        $approverName = $result['approver']->name ?: $result['approver']->email;
+        $message = $result['changed']
+            ? "Approval Pending berhasil dialihkan ke {$approverName} sesuai data Portal terbaru."
+            : "Approver sudah sesuai data Portal terbaru: {$approverName}.";
+
+        return redirect()->route('ticket.show', $ticket)->with('success', $message);
+    }
+
     public function bumReviewAtkRtk(Request $request, Ticket $ticket)
     {
         $this->ensureGaOperationAccess();
@@ -1830,19 +1856,82 @@ class TicketController extends Controller
             default => 'In Progress',
         };
         $statusId = Status::where('name', $statusName)->value('id');
+        $isTerminal = in_array($data['workflow_status'], ['CLOSED', 'CANCELLED'], true);
 
         $ticket->update(array_filter([
             'payload' => $payload,
             'status_id' => $statusId,
+            'resolved_at' => $isTerminal ? now() : null,
+            'closed_at' => $isTerminal ? now() : null,
         ], fn ($value) => $value !== null));
+        if (! $isTerminal) {
+            $ticket->forceFill(['resolved_at' => null, 'closed_at' => null])->save();
+        }
         $ticket->histories()->create([
             'user_id' => auth()->id(),
+            'status_id' => $statusId,
             'action' => 'Update konsumsi rapat: '.$data['workflow_status'],
         ]);
 
         $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
 
         return back()->with('success', 'Status konsumsi rapat berhasil diperbarui.');
+    }
+
+    public function reopenConsumption(Request $request, Ticket $ticket)
+    {
+        $this->ensureGaOperationAccess();
+
+        $data = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ], [
+            'reason.required' => 'Alasan membuka kembali tiket wajib diisi.',
+        ]);
+
+        if (data_get($ticket->payload, 'request_type') !== 'consumption') {
+            abort(404);
+        }
+
+        DB::transaction(function () use ($ticket, $data): void {
+            $lockedTicket = Ticket::query()->lockForUpdate()->findOrFail($ticket->getKey());
+            $workflowStatus = data_get($lockedTicket->payload, 'workflow_status');
+            $isClosed = $workflowStatus === 'CLOSED'
+                || ($workflowStatus !== 'CANCELLED' && $lockedTicket->status?->name === 'Closed');
+
+            if (! $isClosed) {
+                throw ValidationException::withMessages([
+                    'reason' => 'Hanya tiket konsumsi yang sudah Closed yang dapat dibuka kembali.',
+                ]);
+            }
+
+            $openStatusId = Status::where('name', 'Open')->value('id');
+            if (! $openStatusId) {
+                throw ValidationException::withMessages([
+                    'reason' => 'Status Open belum tersedia pada master status.',
+                ]);
+            }
+
+            $payload = $lockedTicket->payload ?? [];
+            $payload['workflow_status'] = 'REOPENED';
+            $payload['reopened_at'] = now()->toDateTimeString();
+            $payload['reopened_by'] = auth()->id();
+            $payload['reopened_by_name'] = auth()->user()?->name;
+            $payload['reopen_reason'] = trim($data['reason']);
+
+            $lockedTicket->update([
+                'payload' => $payload,
+                'status_id' => $openStatusId,
+                'resolved_at' => null,
+                'closed_at' => null,
+            ]);
+            $lockedTicket->histories()->create([
+                'user_id' => auth()->id(),
+                'status_id' => $openStatusId,
+                'action' => 'Tiket konsumsi dibuka kembali. Alasan: '.trim($data['reason']),
+            ]);
+        });
+
+        return back()->with('success', 'Tiket konsumsi berhasil dibuka kembali.');
     }
 
     public function consumptionForm(Request $request, Ticket $ticket)

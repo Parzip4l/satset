@@ -46,7 +46,7 @@
             ?: $requesterDivision
     );
     $consumptionType = strtolower((string) data_get($payload, 'consumption_type', ''));
-    $needsOther = ! \Illuminate\Support\Str::contains($consumptionType, ['snack', 'makan siang', 'makan malam']);
+    $needsOther = ! \Illuminate\Support\Str::contains($consumptionType, ['snack', 'makan', 'coffee']);
     $requesterName = $text(data_get($payload, 'reporter_name'), $ticket->requester?->name ?: '-');
     $kadivName = $text($managerApproval?->approver?->name, data_get($payload, 'supervisor_name'));
     $bumApproval = $ticket->approvals
@@ -483,8 +483,8 @@
                 <td class="value-col">
                     <div class="checkbox-grid">
                         <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'snack') ? 'V' : '' }}</span><span class="check-label">Snack</span></span>
-                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'makan malam') ? 'V' : '' }}</span><span class="check-label">Makan Malam</span></span>
-                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'makan siang') ? 'V' : '' }}</span><span class="check-label">Makan Siang</span></span>
+                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'makan') ? 'V' : '' }}</span><span class="check-label">Makan</span></span>
+                        <span class="checkline"><span class="box">{{ \Illuminate\Support\Str::contains($consumptionType, 'coffee') ? 'V' : '' }}</span><span class="check-label">Coffee</span></span>
                         <span class="checkline"><span class="box">{{ $needsOther ? 'V' : '' }}</span><span class="check-label">Lainnya: {{ $needsOther ? $text(data_get($payload, 'consumption_type')) : '' }}</span></span>
                     </div>
                 </td>

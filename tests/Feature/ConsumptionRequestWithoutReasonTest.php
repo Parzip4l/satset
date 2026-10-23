@@ -157,6 +157,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         });
         $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
             $mock->shouldReceive('notifyApprovalRequested')->twice();
+            $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
         });
 
         $submissionToken = (string) Str::uuid();
@@ -339,5 +340,168 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
                 'evidence_file' => 'Bukti foto atau dokumen wajib dilampirkan.',
             ]);
         $this->assertSame(1, DB::table('requests')->count());
+    }
+
+    public function test_ga_team_can_reopen_closed_consumption_ticket_with_reason(): void
+    {
+        $now = ['created_at' => now(), 'updated_at' => now()];
+        $openStatus = DB::table('statuses')->insertGetId(['name' => 'Open', ...$now]);
+        $closedStatus = DB::table('statuses')->insertGetId(['name' => 'Closed', ...$now]);
+        $categoryId = DB::table('problem_categories')->insertGetId([
+            'code' => 'KONSUMSI',
+            'name' => 'Permintaan Konsumsi',
+            'description' => null,
+            ...$now,
+        ]);
+        $ticketCategoryId = DB::table('ticket_categories')->insertGetId([
+            'code' => 'BUM',
+            'name' => 'Layanan BUM',
+            'description' => null,
+            ...$now,
+        ]);
+
+        $requester = User::create([
+            'name' => 'Pemohon Konsumsi',
+            'email' => 'pemohon.reopen@lrtjakarta.co.id',
+            'username' => 'pemohon.reopen',
+            'phone' => '0',
+            'role' => 'user',
+            'password' => 'secret',
+        ]);
+        $gaOfficer = User::create([
+            'name' => 'Petugas GA',
+            'email' => 'ga.reopen@lrtjakarta.co.id',
+            'username' => 'ga.reopen',
+            'phone' => '0',
+            'role' => 'ga',
+            'password' => 'secret',
+        ]);
+        $ticket = \App\Models\Master\Ticket::create([
+            'ticket_no' => 'KONSUMSI-REOPEN-001',
+            'requester_id' => $requester->id,
+            'category_id' => $categoryId,
+            'ticket_category_id' => $ticketCategoryId,
+            'status_id' => $closedStatus,
+            'title' => 'Permintaan konsumsi rapat',
+            'payload' => [
+                'request_type' => 'consumption',
+                'workflow_status' => 'CLOSED',
+                'consumption_type' => 'Snack + Makan + Coffee',
+            ],
+            'resolved_at' => now(),
+            'closed_at' => now(),
+        ]);
+
+        $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('notifyTicketStatusChanged')->once();
+        });
+
+        $this->actingAs($gaOfficer)
+            ->from(route('ticket.show', $ticket))
+            ->post(route('ticket.consumption.reopen', $ticket), [
+                'reason' => 'Dokumen pertanggungjawaban perlu diperbaiki.',
+            ])
+            ->assertRedirect(route('ticket.show', $ticket))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Tiket konsumsi berhasil dibuka kembali.');
+
+        $ticket->refresh();
+        $this->assertSame($openStatus, $ticket->status_id);
+        $this->assertSame('REOPENED', data_get($ticket->payload, 'workflow_status'));
+        $this->assertSame('Dokumen pertanggungjawaban perlu diperbaiki.', data_get($ticket->payload, 'reopen_reason'));
+        $this->assertNull($ticket->resolved_at);
+        $this->assertNull($ticket->closed_at);
+        $this->assertDatabaseHas('ticket_histories', [
+            'ticket_id' => $ticket->id,
+            'user_id' => $gaOfficer->id,
+            'status_id' => $openStatus,
+            'action' => 'Tiket konsumsi dibuka kembali. Alasan: Dokumen pertanggungjawaban perlu diperbaiki.',
+        ]);
+    }
+
+    public function test_requester_can_sync_pending_manager_approval_from_portal(): void
+    {
+        $now = ['created_at' => now(), 'updated_at' => now()];
+        $openStatus = DB::table('statuses')->insertGetId(['name' => 'Open', ...$now]);
+        $categoryId = DB::table('problem_categories')->insertGetId([
+            'code' => 'KONSUMSI',
+            'name' => 'Permintaan Konsumsi',
+            'description' => null,
+            ...$now,
+        ]);
+
+        $requester = User::create([
+            'name' => 'Pemohon',
+            'email' => 'pemohon.sync@lrtjakarta.co.id',
+            'role' => 'user',
+            'password' => 'secret',
+        ]);
+        $oldApprover = User::create([
+            'name' => 'Atasan A',
+            'email' => 'atasan.a@lrtjakarta.co.id',
+            'role' => 'manager',
+            'password' => 'secret',
+        ]);
+        $newApprover = User::create([
+            'name' => 'Atasan B',
+            'email' => 'atasan.b@lrtjakarta.co.id',
+            'role' => 'manager',
+            'password' => 'secret',
+        ]);
+
+        $ticket = \App\Models\Master\Ticket::create([
+            'ticket_no' => 'KONSUMSI-SYNC-001',
+            'requester_id' => $requester->id,
+            'category_id' => $categoryId,
+            'status_id' => $openStatus,
+            'title' => 'Permintaan konsumsi',
+            'payload' => [
+                'request_type' => 'consumption',
+                'workflow_status' => 'WAITING_MANAGER_APPROVAL',
+                'supervisor_id' => $oldApprover->id,
+                'supervisor_name' => $oldApprover->name,
+            ],
+        ]);
+        $approvalId = DB::table('approvals')->insertGetId([
+            'request_id' => $ticket->id,
+            'approver_id' => $oldApprover->id,
+            'status' => 'Pending',
+            'level' => 1,
+            ...$now,
+        ]);
+
+        $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($ticket, $newApprover): void {
+            $mock->shouldReceive('resolveFirstApprover')
+                ->once()
+                ->withArgs(fn ($resolvedTicket) => (int) $resolvedTicket->id === (int) $ticket->id)
+                ->andReturn($newApprover);
+        });
+        $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock) use ($approvalId): void {
+            $mock->shouldReceive('notifyApprovalRequested')
+                ->once()
+                ->withArgs(fn ($notifiedTicket, $approval) => (int) $approval->id === (int) $approvalId);
+            $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
+        });
+
+        $this->actingAs($requester)
+            ->post(route('ticket.approvals.sync-manager', $ticket))
+            ->assertRedirect(route('ticket.show', $ticket))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', fn (string $message) => str_contains($message, 'Atasan B'));
+
+        $ticket->refresh();
+        $this->assertDatabaseHas('approvals', [
+            'id' => $approvalId,
+            'approver_id' => $newApprover->id,
+            'status' => 'Pending',
+        ]);
+        $this->assertSame($newApprover->id, data_get($ticket->payload, 'supervisor_id'));
+        $this->assertSame('Atasan B', data_get($ticket->payload, 'supervisor_name'));
+        $this->assertNotNull(data_get($ticket->payload, 'manager_approval_synced_at'));
+        $this->assertDatabaseHas('ticket_histories', [
+            'ticket_id' => $ticket->id,
+            'user_id' => $requester->id,
+            'action' => 'Approval atasan disinkronkan dari Portal: Atasan A menjadi Atasan B.',
+        ]);
     }
 }

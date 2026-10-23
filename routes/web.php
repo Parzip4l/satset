@@ -152,12 +152,15 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::post('/tickets/{ticket}/assign', [App\Http\Controllers\Master\TicketController::class, 'assign'])->name('ticket.assign');
     Route::post('/tickets/{ticket}/comment', [App\Http\Controllers\Master\TicketController::class, 'comment'])->name('ticket.comment');
     Route::post('{ticket}/approve', [App\Http\Controllers\Master\TicketController::class, 'approve'])->name('ticket.approve');
+    Route::post('/tickets/{ticket}/approvals/sync-manager', [App\Http\Controllers\Master\TicketController::class, 'syncManagerApproval'])
+        ->name('ticket.approvals.sync-manager');
     Route::post('/tickets/{ticket}/atk-rtk/bum-review', [App\Http\Controllers\Master\TicketController::class, 'bumReviewAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.bum-review');
     Route::post('/tickets/{ticket}/atk-rtk/replenish', [App\Http\Controllers\Master\TicketController::class, 'replenishAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.replenish');
     Route::post('/tickets/{ticket}/atk-rtk/handover', [App\Http\Controllers\Master\TicketController::class, 'handoverAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.handover');
     Route::get('/tickets/{ticket}/atk-rtk/goods-issue', [App\Http\Controllers\Master\TicketController::class, 'atkRtkGoodsIssue'])->name('ticket.atk-rtk.goods-issue');
     Route::get('/tickets/{ticket}/consumption/form', [App\Http\Controllers\Master\TicketController::class, 'consumptionForm'])->name('ticket.consumption.form');
     Route::post('/tickets/{ticket}/consumption/flow', [App\Http\Controllers\Master\TicketController::class, 'updateConsumptionFlow'])->middleware('ga.team')->name('ticket.consumption.flow');
+    Route::post('/tickets/{ticket}/consumption/reopen', [App\Http\Controllers\Master\TicketController::class, 'reopenConsumption'])->middleware('ga.team')->name('ticket.consumption.reopen');
     Route::post('/tickets/{ticket}/consumption/evidence', [App\Http\Controllers\Master\TicketController::class, 'uploadConsumptionEvidence'])->name('ticket.consumption.evidence');
     Route::post('/tickets/{ticket}/ga-request-finding/follow-up', [App\Http\Controllers\Master\TicketController::class, 'followUpGaRequestFinding'])
         ->middleware('ga.team')
