@@ -953,22 +953,24 @@ class TicketController extends Controller
 
         $this->storeRequestAttachment($request, $ticket, 'evidence_file', 'ga_report_evidence', $requester);
 
-        try {
-            Mail::to($ticket->requester->email)
-                ->send(new TicketCreated($ticket, 'requester'));
-            Log::info("Email ticket public terkirim ke pengaju: {$ticket->requester->email}");
-        } catch (\Exception $e) {
-            Log::error("Gagal kirim email ticket public ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
-        }
+        if (config('satset.ticket_email_notifications.enabled', false)) {
+            try {
+                Mail::to($ticket->requester->email)
+                    ->send(new TicketCreated($ticket, 'requester'));
+                Log::info("Email ticket public terkirim ke pengaju: {$ticket->requester->email}");
+            } catch (\Exception $e) {
+                Log::error("Gagal kirim email ticket public ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
+            }
 
-        foreach ($departments as $dep) {
-            if ($dep && $dep->email) {
-                try {
-                    Mail::to($dep->email)
-                        ->send(new TicketCreated($ticket, 'department'));
-                    Log::info("Email ticket public terkirim ke departemen: {$dep->email}");
-                } catch (\Exception $e) {
-                    Log::error("Gagal kirim email ticket public ke departemen: {$dep->email}. Error: ".$e->getMessage());
+            foreach ($departments as $dep) {
+                if ($dep && $dep->email) {
+                    try {
+                        Mail::to($dep->email)
+                            ->send(new TicketCreated($ticket, 'department'));
+                        Log::info("Email ticket public terkirim ke departemen: {$dep->email}");
+                    } catch (\Exception $e) {
+                        Log::error("Gagal kirim email ticket public ke departemen: {$dep->email}. Error: ".$e->getMessage());
+                    }
                 }
             }
         }
@@ -1030,6 +1032,10 @@ class TicketController extends Controller
 
     private function sendPublicTicketEmails(Ticket $ticket, int $categoryId): void
     {
+        if (! config('satset.ticket_email_notifications.enabled', false)) {
+            return;
+        }
+
         try {
             Mail::to($ticket->requester->email)
                 ->send(new TicketCreated($ticket, 'requester'));
@@ -1327,7 +1333,7 @@ class TicketController extends Controller
             $this->storeRequestAttachment($request, $ticket, 'evidence_file', 'ga_report_evidence');
         }
 
-        if (! $duplicate) {
+        if (! $duplicate && config('satset.ticket_email_notifications.enabled', false)) {
             try {
                 Mail::to($ticket->requester->email)
                     ->send(new TicketCreated($ticket, 'requester'));
@@ -1337,7 +1343,7 @@ class TicketController extends Controller
             }
         }
 
-        if (! $duplicate) {
+        if (! $duplicate && config('satset.ticket_email_notifications.enabled', false)) {
             foreach ($departments as $dep) {
                 if ($dep && $dep->email) {
                     try {
@@ -1509,18 +1515,19 @@ class TicketController extends Controller
             'action' => 'Status diupdate',
         ]);
 
-        // Kirim email ke pengaju tiket untuk update status
-        try {
-            Mail::to($ticket->requester->email)
-                ->send(new TicketCreated($ticket, 'requester', 'status_updated'));
-            Log::info("Email update status terkirim ke pengaju: {$ticket->requester->email}");
-        } catch (\Exception $e) {
-            Log::error("Gagal kirim email update status ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
+        if (config('satset.ticket_email_notifications.enabled', false)) {
+            try {
+                Mail::to($ticket->requester->email)
+                    ->send(new TicketCreated($ticket, 'requester', 'status_updated'));
+                Log::info("Email update status terkirim ke pengaju: {$ticket->requester->email}");
+            } catch (\Exception $e) {
+                Log::error("Gagal kirim email update status ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
+            }
         }
 
         $this->mobileNotifications()->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), auth()->user(), $previousStatus);
 
-        return redirect()->back()->with('success', 'Status tiket berhasil diupdate dan email dikirim.');
+        return redirect()->back()->with('success', 'Status tiket berhasil diupdate dan notifikasi aplikasi dikirim.');
     }
 
     public function showAssignForm(Ticket $ticket)

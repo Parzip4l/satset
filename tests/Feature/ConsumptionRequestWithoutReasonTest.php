@@ -252,6 +252,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $loggedInPayload = json_decode(DB::table('requests')->latest('id')->value('payload'), true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame($requestData['payload']['event_date'], $loggedInPayload['event_date']);
         $this->assertSame($requestData['payload']['event_end_date'], $loggedInPayload['event_end_date']);
+        Mail::assertNothingSent();
     }
 
     public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void
@@ -323,6 +324,8 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             ->get(route('ticket.attachments.show', [$ticket, $attachment]))
             ->assertOk()
             ->assertHeader('content-disposition', 'inline; filename=kondisi-dinding.png');
+
+        Mail::assertNothingSent();
 
         $this->actingAs($reporter)
             ->from(route('ticket.ga-permintaan-temuan.create'))

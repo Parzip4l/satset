@@ -147,7 +147,7 @@ class IntranetSatsetApprovalApiTest extends TestCase
             ->assertJsonPath('data.data.0.approver.email', 'manager@lrtjakarta.co.id');
     }
 
-    public function test_ga_can_access_every_ticket_while_regular_user_cannot(): void
+    public function test_admin_and_ga_can_access_every_ticket_while_regular_user_cannot(): void
     {
         $ticket = $this->approvalFixture()->request;
         $gaUser = User::forceCreate([
@@ -155,6 +155,12 @@ class IntranetSatsetApprovalApiTest extends TestCase
             'email' => 'ga@lrtjakarta.co.id',
             'password' => 'secret',
             'role' => 'ga',
+        ]);
+        $adminUser = User::forceCreate([
+            'name' => 'Administrator',
+            'email' => 'admin@lrtjakarta.co.id',
+            'password' => 'secret',
+            'role' => 'admin',
         ]);
         $regularUser = User::forceCreate([
             'name' => 'Regular User',
@@ -166,10 +172,11 @@ class IntranetSatsetApprovalApiTest extends TestCase
         $tickets = app(MobileSatsetTicketService::class);
 
         $this->assertTrue($tickets->canAccess($gaUser, $ticket));
+        $this->assertTrue($tickets->canAccess($adminUser, $ticket));
         $this->assertFalse($tickets->canAccess($regularUser, $ticket));
     }
 
-    public function test_ticket_notification_is_sent_to_requester_and_all_ga_users_only(): void
+    public function test_ticket_notification_is_sent_to_requester_admin_and_ga_users_only(): void
     {
         $ticket = $this->approvalFixture()->request;
         $gaUser = User::forceCreate([
@@ -177,6 +184,12 @@ class IntranetSatsetApprovalApiTest extends TestCase
             'email' => 'ga@lrtjakarta.co.id',
             'password' => 'secret',
             'role' => 'ga',
+        ]);
+        $adminUser = User::forceCreate([
+            'name' => 'Administrator',
+            'email' => 'admin@lrtjakarta.co.id',
+            'password' => 'secret',
+            'role' => 'admin',
         ]);
         User::forceCreate([
             'name' => 'Regular User',
@@ -193,18 +206,23 @@ class IntranetSatsetApprovalApiTest extends TestCase
         app(LrtjSpaceMobileNotificationService::class)
             ->notifyTicketStatusChanged($ticket->fresh(['requester', 'status']), null, 'Open');
 
-        Http::assertSentCount(2);
+        Http::assertSentCount(3);
         Http::assertSent(fn ($request) => data_get(json_decode($request->body(), true), 'recipient_email') === 'requester@lrtjakarta.co.id');
         Http::assertSent(function ($request) {
             $payload = json_decode($request->body(), true);
 
             return data_get($payload, 'recipient_email') === 'ga@lrtjakarta.co.id'
-                && data_get($payload, 'recipient_scope') === 'ga_all_requests';
+                && data_get($payload, 'recipient_scope') === 'admin_ga_all_requests';
         });
+        Http::assertSent(fn ($request) => data_get(json_decode($request->body(), true), 'recipient_email') === 'admin@lrtjakarta.co.id');
         Http::assertNotSent(fn ($request) => data_get(json_decode($request->body(), true), 'recipient_email') === 'regular@lrtjakarta.co.id');
 
         $this->assertDatabaseHas('notifications', [
             'user_id' => $gaUser->id,
+            'title' => 'Status SatSet berubah',
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $adminUser->id,
             'title' => 'Status SatSet berubah',
         ]);
     }

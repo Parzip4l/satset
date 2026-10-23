@@ -370,6 +370,10 @@ class MobileSatsetTicketService
 
     private function sendTicketEmails(Ticket $ticket, int $categoryId): void
     {
+        if (! config('satset.ticket_email_notifications.enabled', false)) {
+            return;
+        }
+
         try {
             Mail::to($ticket->requester->email)->send(new TicketCreated($ticket, 'requester'));
         } catch (\Exception $exception) {

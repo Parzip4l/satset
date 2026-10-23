@@ -42,7 +42,7 @@ class LrtjSpaceMobileNotificationService
             $this->send($requesterPayload);
         }
 
-        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$requesterEmail]);
+        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$requesterEmail]);
     }
 
     public function notifyTicketStatusChanged(Ticket $ticket, ?User $actor = null, ?string $previousStatus = null): void
@@ -83,7 +83,7 @@ class LrtjSpaceMobileNotificationService
         ];
 
         $this->send($payload);
-        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$requester->email]);
+        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$requester->email]);
     }
 
     public function notifyApprovalRequested(Ticket $ticket, Approval $approval): void
@@ -118,7 +118,7 @@ class LrtjSpaceMobileNotificationService
         ];
 
         $this->send($payload);
-        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$approver->email]);
+        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$approver->email]);
     }
 
     public function notifyApprovalDecided(Ticket $ticket, Approval $approval, User $actor, string $status, ?string $note = null): void
@@ -157,7 +157,7 @@ class LrtjSpaceMobileNotificationService
         ];
 
         $this->send($payload);
-        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$requester->email]);
+        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$requester->email]);
     }
 
     public function notifyTicketAssigned(Ticket $ticket, ?User $assignedUser): void
@@ -189,10 +189,10 @@ class LrtjSpaceMobileNotificationService
         ];
 
         $this->send($payload);
-        $this->notifyGaRecipients($payload, $title, $body, $ticket, [$assignedUser->email]);
+        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$assignedUser->email]);
     }
 
-    private function notifyGaRecipients(
+    private function notifyAdminAndGaRecipients(
         array $payload,
         string $title,
         string $message,
@@ -209,7 +209,10 @@ class LrtjSpaceMobileNotificationService
 
         User::query()
             ->whereNotNull('email')
-            ->whereRaw('LOWER(TRIM(role)) IN (?, ?, ?, ?, ?, ?)', [
+            ->whereRaw('LOWER(TRIM(role)) IN (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+                'admin',
+                'superadmin',
+                'super_admin',
                 'ga',
                 'bum',
                 'general affair',
@@ -225,7 +228,7 @@ class LrtjSpaceMobileNotificationService
 
                 $recipientPayload = array_merge($payload, [
                     'recipient_email' => $recipient->email,
-                    'recipient_scope' => 'ga_all_requests',
+                    'recipient_scope' => 'admin_ga_all_requests',
                 ]);
                 $dedupeMarker = hash('sha256', json_encode($recipientPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
