@@ -41,7 +41,7 @@ class MobileSatsetTicketService
 
     public function __construct(
         private readonly LrtjSpaceMobileNotificationService $notifications,
-        private readonly LrtjSpaceApprovalResolverService $approvalResolver,
+        private readonly SatsetInitialApprovalService $initialApproval,
         private readonly SatsetApprovalDecisionService $approvalDecisions,
         private readonly LrtjSpacePortalSignatureService $portalSignatures,
     ) {}
@@ -587,19 +587,7 @@ class MobileSatsetTicketService
 
     private function createManagerApproval(Ticket $ticket): void
     {
-        $approver = $this->approvalResolver->resolveFirstApprover($ticket);
-
-        $approval = Approval::firstOrCreate([
-            'request_id' => $ticket->id,
-            'level' => 1,
-        ], [
-            'approver_id' => $approver->id,
-            'status' => 'Pending',
-        ]);
-
-        if ($approval->wasRecentlyCreated) {
-            $this->notifications->notifyApprovalRequested($ticket, $approval);
-        }
+        $this->initialApproval->create($ticket);
     }
 
     private function generateTicketNo(int $categoryId): string

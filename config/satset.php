@@ -28,6 +28,10 @@ return [
         'verify_ssl' => filter_var(env('LRTJ_SPACE_APPROVAL_RESOLVER_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
         'consumption_bum_position' => env('SATSET_CONSUMPTION_BUM_POSITION', 'General Affair Department Head'),
         'consumption_bum_group' => env('SATSET_CONSUMPTION_BUM_GROUP', 'BUM'),
+        'direct_ga_requester_emails' => array_values(array_filter(array_map(
+            fn ($email) => strtolower(trim($email)),
+            explode(',', env('SATSET_DIRECT_GA_REQUESTER_EMAILS', 'teamga@lrtjakarta.co.id'))
+        ))),
     ],
 
     'portal_signatures' => [

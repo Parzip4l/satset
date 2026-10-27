@@ -23,7 +23,6 @@ use App\Models\Master\Urgency;
 use App\Models\User;
 use App\Services\ConsumableStockService;
 use App\Services\GaRequestFindingReportService;
-use App\Services\LrtjSpaceApprovalResolverService;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\LrtjSpacePortalSignatureService;
 use App\Services\SatsetApprovalDecisionService;
@@ -2317,25 +2316,7 @@ class TicketController extends Controller
 
     private function createManagerApproval(Ticket $ticket): void
     {
-        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($ticket);
-
-        if ((string) $approver->getKey() === (string) $ticket->requester_id) {
-            throw ValidationException::withMessages([
-                'approval_resolver' => 'Portal mengembalikan approver yang sama dengan pemohon untuk '.$ticket->ticket_no.'. Periksa reporting line atau Authority Matrix SatSet di Portal.',
-            ]);
-        }
-
-        $approval = Approval::firstOrCreate([
-            'request_id' => $ticket->id,
-            'level' => 1,
-        ], [
-            'approver_id' => $approver->id,
-            'status' => 'Pending',
-        ]);
-
-        if ($approval->wasRecentlyCreated) {
-            $this->mobileNotifications()->notifyApprovalRequested($ticket, $approval);
-        }
+        app(\App\Services\SatsetInitialApprovalService::class)->create($ticket);
     }
 
     private function attachRequesterSignature(Ticket $ticket, User $requester, bool $required = false): bool

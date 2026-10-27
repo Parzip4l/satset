@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Master\Ticket;
 use App\Models\User;
 use App\Services\LrtjSpaceApprovalResolverService;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\LrtjSpacePortalSignatureService;
+use App\Services\SatsetInitialApprovalService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -253,6 +255,88 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertSame($requestData['payload']['event_date'], $loggedInPayload['event_date']);
         $this->assertSame($requestData['payload']['event_end_date'], $loggedInPayload['event_end_date']);
         Mail::assertNothingSent();
+    }
+
+    public function test_team_ga_custom_account_skips_manager_and_routes_directly_to_ga(): void
+    {
+        config()->set('satset.approval_resolver.direct_ga_requester_emails', [
+            'teamga@lrtjakarta.co.id',
+        ]);
+
+        $now = ['created_at' => now(), 'updated_at' => now()];
+        $categoryId = DB::table('problem_categories')->insertGetId([
+            'code' => 'KONSUMSI',
+            'name' => 'Permintaan Konsumsi',
+            'description' => null,
+            ...$now,
+        ]);
+        $statusId = DB::table('statuses')->insertGetId(['name' => 'Open', ...$now]);
+
+        $requester = User::create([
+            'name' => 'Team GA',
+            'email' => 'teamga@lrtjakarta.co.id',
+            'username' => 'teamga',
+            'phone' => '0',
+            'role' => 'ga',
+            'password' => 'secret',
+        ]);
+        $gaApprover = User::create([
+            'name' => 'Kepala Bagian Umum',
+            'email' => 'ga.head@lrtjakarta.co.id',
+            'username' => 'ga.head',
+            'phone' => '0',
+            'role' => 'manager',
+            'password' => 'secret',
+        ]);
+
+        $resolver = $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($gaApprover): void {
+            $mock->shouldNotReceive('resolveFirstApprover');
+            $mock->shouldReceive('resolveConsumptionBumApprover')->once()->andReturn($gaApprover);
+        });
+        $notifications = $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('notifyApprovalRequested')->once();
+            $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
+            $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
+        });
+        $service = new SatsetInitialApprovalService($resolver, $notifications);
+
+        $consumption = Ticket::create([
+            'ticket_no' => 'KONSUMSI-TEAM-GA',
+            'requester_id' => $requester->id,
+            'category_id' => $categoryId,
+            'title' => 'Permintaan Konsumsi Team GA',
+            'status_id' => $statusId,
+            'payload' => [
+                'request_type' => 'consumption',
+                'workflow_status' => 'WAITING_MANAGER_APPROVAL',
+                'reporter_email' => 'teamga@lrtjakarta.co.id',
+            ],
+        ]);
+
+        $approval = $service->create($consumption);
+
+        $this->assertNotNull($approval);
+        $this->assertSame(2, (int) $approval->level);
+        $this->assertSame($gaApprover->id, (int) $approval->approver_id);
+        $this->assertSame('WAITING_BUM_VERIFICATION', data_get($consumption->fresh()->payload, 'workflow_status'));
+        $this->assertTrue((bool) data_get($consumption->fresh()->payload, 'manager_approval_skipped'));
+
+        $atk = Ticket::create([
+            'ticket_no' => 'ATK-TEAM-GA',
+            'requester_id' => $requester->id,
+            'category_id' => $categoryId,
+            'title' => 'Permintaan ATK Team GA',
+            'status_id' => $statusId,
+            'payload' => [
+                'request_type' => 'atk_rtk',
+                'workflow_status' => 'WAITING_MANAGER_APPROVAL',
+                'reporter_email' => 'teamga@lrtjakarta.co.id',
+            ],
+        ]);
+
+        $this->assertNull($service->create($atk));
+        $this->assertSame('WAITING_BUM_REVIEW', data_get($atk->fresh()->payload, 'workflow_status'));
+        $this->assertDatabaseMissing('approvals', ['request_id' => $atk->id]);
     }
 
     public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void
