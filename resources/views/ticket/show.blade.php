@@ -839,7 +839,7 @@
                             <div class="col-12"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
                             <div class="col-12">
                                 <label class="form-label small text-muted mb-1">Foto bukti barang diterima requester <span class="text-danger">*</span></label>
-                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" data-max-file-size-mb="5" data-max-file-size-label="5 MB" required>
+                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" data-max-file-size-mb="10" data-max-file-size-label="10 MB" required>
                             </div>
                             <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
                             <div class="col-12"><button class="btn btn-primary w-100">Handover Semua & Kurangi Gudang Kecil</button></div>
@@ -860,7 +860,7 @@
                             <div class="col-6"><input name="received_by" class="form-control" value="{{ $ticket->requester->name ?? '' }}" placeholder="Diterima oleh" required></div>
                             <div class="col-12">
                                 <label class="form-label small text-muted mb-1">Foto bukti barang diterima requester <span class="text-danger">*</span></label>
-                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" data-max-file-size-mb="5" data-max-file-size-label="5 MB" required>
+                                <input type="file" name="handover_evidence_file" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/*" data-max-file-size-mb="10" data-max-file-size-label="10 MB" required>
                             </div>
                             <div class="col-12"><textarea name="notes" class="form-control" rows="2" placeholder="Catatan serah terima"></textarea></div>
                             <div class="col-12"><button class="btn btn-primary w-100">Handover & Kurangi Gudang Kecil</button></div>

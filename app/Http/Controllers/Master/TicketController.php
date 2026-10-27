@@ -1781,7 +1781,7 @@ class TicketController extends Controller
             'item_id' => 'nullable|exists:consumable_items,id',
             'fulfilled_qty' => 'nullable|integer|min:1',
             'received_by' => 'required|string|max:150',
-            'handover_evidence_file' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'handover_evidence_file' => 'required|image|mimes:jpg,jpeg,png,webp|max:10240',
             'notes' => 'nullable|string',
         ]);
 
