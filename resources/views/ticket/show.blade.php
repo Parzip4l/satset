@@ -324,11 +324,12 @@
                         } elseif ($requestType === 'ga_request_finding') {
                             $detailPayload = collect([
                                 'Jenis Laporan' => data_get($ticket->payload, 'report_type'),
+                                'PIC / Pelapor' => data_get($ticket->payload, 'reporter_name', $ticket->requester->name ?? null),
+                                'Kontak PIC' => data_get($ticket->payload, 'reporter_phone'),
                                 'Lokasi' => data_get($ticket->payload, 'location'),
                                 'Detail Lokasi' => data_get($ticket->payload, 'detail_location'),
                                 'Uraian' => data_get($ticket->payload, 'description'),
                                 'Ekspektasi Tindak Lanjut' => data_get($ticket->payload, 'expected_action'),
-                                'Kontak Pelapor' => data_get($ticket->payload, 'reporter_phone'),
                                 'Status BUM' => $workflowStatus,
                             ])->filter(fn ($value) => filled($value));
                         } else {
