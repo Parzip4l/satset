@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Support\SatsetRequesterPolicy;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -58,6 +59,15 @@ class LrtjSpacePortalSignatureService
 
     public function createRequesterSignature(Ticket $ticket, User $requester): ?array
     {
+        if (SatsetRequesterPolicy::routesDirectlyToGa($requester->email)) {
+            Log::info('Portal requester signature skipped for direct GA account.', [
+                'ticket_no' => $ticket->ticket_no,
+                'requester_email' => $requester->email,
+            ]);
+
+            return null;
+        }
+
         $signature = $this->createRequesterSignatureWithSigner($ticket, [
             'id' => (string) $requester->id,
             'name' => $requester->name,

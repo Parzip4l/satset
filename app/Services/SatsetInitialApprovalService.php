@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
-use Illuminate\Support\Str;
+use App\Support\SatsetRequesterPolicy;
 use Illuminate\Validation\ValidationException;
 
 class SatsetInitialApprovalService
@@ -22,7 +22,9 @@ class SatsetInitialApprovalService
 
         $ticket->loadMissing('requester');
 
-        if ($this->shouldSkipManager($ticket)) {
+        if (SatsetRequesterPolicy::routesDirectlyToGa(
+            $ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email')
+        )) {
             return $this->routeDirectlyToGa($ticket);
         }
 
@@ -35,15 +37,6 @@ class SatsetInitialApprovalService
         }
 
         return $this->persistApproval($ticket, $approver->id, 1);
-    }
-
-    private function shouldSkipManager(Ticket $ticket): bool
-    {
-        $requesterEmail = Str::lower(trim((string) ($ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email'))));
-        $directEmails = collect(config('satset.approval_resolver.direct_ga_requester_emails', []))
-            ->map(fn ($email) => Str::lower(trim((string) $email)));
-
-        return $requesterEmail !== '' && $directEmails->contains($requesterEmail);
     }
 
     private function routeDirectlyToGa(Ticket $ticket): ?Approval

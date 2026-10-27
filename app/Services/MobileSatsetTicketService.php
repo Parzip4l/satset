@@ -19,6 +19,7 @@ use App\Models\Master\TicketHistory;
 use App\Models\Master\Urgency;
 use App\Models\User;
 use App\Support\GaAccess;
+use App\Support\SatsetRequesterPolicy;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -336,7 +337,7 @@ class MobileSatsetTicketService
     {
         $signature = $this->portalSignatures->createRequesterSignature($ticket, $requester);
         if (! $signature) {
-            if ($required) {
+            if ($required && ! SatsetRequesterPolicy::routesDirectlyToGa($requester->email)) {
                 throw ValidationException::withMessages([
                     'portal_signature' => 'QR Portal pemohon belum berhasil dibuat. Pastikan user pemohon aktif di Portal dan konfigurasi signature SatSet sudah benar.',
                 ]);

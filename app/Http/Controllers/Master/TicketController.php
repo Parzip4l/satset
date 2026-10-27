@@ -29,6 +29,7 @@ use App\Services\SatsetApprovalDecisionService;
 use App\Services\SatsetPendingApprovalSyncService;
 use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
+use App\Support\SatsetRequesterPolicy;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Database\QueryException;
@@ -2323,7 +2324,7 @@ class TicketController extends Controller
     {
         $signature = app(LrtjSpacePortalSignatureService::class)->createRequesterSignature($ticket, $requester);
         if (! $signature) {
-            if ($required) {
+            if ($required && ! SatsetRequesterPolicy::routesDirectlyToGa($requester->email)) {
                 throw ValidationException::withMessages([
                     'portal_signature' => 'QR Portal pemohon belum berhasil dibuat. Pastikan user pemohon aktif di Portal dan konfigurasi signature SatSet sudah benar.',
                 ]);

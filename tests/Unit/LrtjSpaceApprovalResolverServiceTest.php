@@ -434,6 +434,33 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         });
     }
 
+    public function test_requester_signature_skips_portal_for_direct_ga_account(): void
+    {
+        config()->set('satset.approval_resolver.direct_ga_requester_emails', [
+            'teamga@lrtjakarta.co.id',
+        ]);
+        Http::fake();
+
+        $requester = User::forceCreate([
+            'name' => 'Team GA',
+            'email' => 'teamga@lrtjakarta.co.id',
+            'password' => 'secret',
+        ]);
+        $ticket = new Ticket([
+            'ticket_no' => 'TCK-KONSUMSI-TEAM-GA',
+            'payload' => ['request_type' => 'consumption'],
+        ]);
+        $ticket->id = 100;
+        $ticket->requester_id = $requester->id;
+        $ticket->setRelation('requester', $requester);
+
+        $signature = app(LrtjSpacePortalSignatureService::class)
+            ->createRequesterSignature($ticket, $requester);
+
+        $this->assertNull($signature);
+        Http::assertNothingSent();
+    }
+
     private function ticket(string $requestType, float $amount): Ticket
     {
         $requester = User::forceCreate([

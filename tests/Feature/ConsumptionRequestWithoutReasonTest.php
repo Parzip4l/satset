@@ -339,6 +339,85 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertDatabaseMissing('approvals', ['request_id' => $atk->id]);
     }
 
+    public function test_team_ga_public_consumption_skips_portal_requester_lookup(): void
+    {
+        config()->set('satset.approval_resolver.direct_ga_requester_emails', [
+            'teamga@lrtjakarta.co.id',
+        ]);
+
+        $now = ['created_at' => now(), 'updated_at' => now()];
+        DB::table('priorities')->insert(['name' => 'Medium', ...$now]);
+        DB::table('impacts')->insert(['name' => 'Medium', ...$now]);
+        DB::table('urgencies')->insert(['name' => 'Medium', ...$now]);
+        DB::table('statuses')->insert(['name' => 'Open', ...$now]);
+        DB::table('problem_categories')->insert([
+            'code' => 'KONSUMSI',
+            'name' => 'Permintaan Konsumsi',
+            'description' => null,
+            ...$now,
+        ]);
+        DB::table('ticket_categories')->insert([
+            'code' => 'BUM',
+            'name' => 'Layanan BUM',
+            'description' => null,
+            ...$now,
+        ]);
+
+        $gaApprover = User::create([
+            'name' => 'Kepala Bagian Umum',
+            'email' => 'ga.head@lrtjakarta.co.id',
+            'username' => 'ga.head',
+            'phone' => '0',
+            'role' => 'manager',
+            'password' => 'secret',
+        ]);
+
+        $this->mock(LrtjSpacePortalSignatureService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('createRequesterSignature')->once()->andReturnNull();
+        });
+        $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($gaApprover): void {
+            $mock->shouldNotReceive('resolveFirstApprover');
+            $mock->shouldNotReceive('resolveRequester');
+            $mock->shouldReceive('resolveConsumptionBumApprover')->once()->andReturn($gaApprover);
+        });
+        $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
+            $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
+            $mock->shouldReceive('notifyApprovalRequested')->once();
+        });
+
+        $response = $this->post(route('public.ticket.konsumsi.store'), [
+            'submission_token' => (string) Str::uuid(),
+            'reporter_name' => 'Team GA',
+            'reporter_email' => 'teamga@lrtjakarta.co.id',
+            'payload' => [
+                'activity_name' => 'Koordinasi GA',
+                'event_type' => 'Meeting',
+                'event_date' => now()->addDay()->format('Y-m-d'),
+                'event_end_date' => now()->addDay()->format('Y-m-d'),
+                'start_time' => '09:00',
+                'end_time' => '11:00',
+                'location' => 'Ruang GA',
+                'participant_count' => 5,
+                'consumption_type' => 'Snack',
+            ],
+        ]);
+
+        $response->assertRedirect(route('public.ticket.konsumsi.create'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $ticket = Ticket::where('requester_id', User::where('email', 'teamga@lrtjakarta.co.id')->value('id'))->firstOrFail();
+        $this->assertSame('WAITING_BUM_VERIFICATION', data_get($ticket->payload, 'workflow_status'));
+        $this->assertTrue((bool) data_get($ticket->payload, 'manager_approval_skipped'));
+        $this->assertDatabaseHas('approvals', [
+            'request_id' => $ticket->id,
+            'approver_id' => $gaApprover->id,
+            'level' => 2,
+            'status' => 'Pending',
+        ]);
+    }
+
     public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void
     {
         Mail::fake();
