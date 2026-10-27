@@ -261,7 +261,7 @@ class MobileSatsetTicketService
             'payload' => $ticket->payload ?? [],
             'created_at' => optional($ticket->created_at)->toIso8601String(),
             'requester' => $this->userSummary($ticket->requester),
-            'status' => $this->modelSummary($ticket->status),
+            'status' => $this->effectiveStatusSummary($ticket),
             'priority' => $this->modelSummary($ticket->priority),
             'category' => $this->modelSummary($ticket->category),
             'department' => $this->modelSummary($ticket->department),
@@ -610,5 +610,23 @@ class MobileSatsetTicketService
     private function modelSummary(mixed $model): ?array
     {
         return $model ? ['id' => $model->id, 'name' => $model->name, 'code' => $model->code ?? null] : null;
+    }
+
+    private function effectiveStatusSummary(Ticket $ticket): ?array
+    {
+        $summary = $this->modelSummary($ticket->status);
+
+        if (
+            data_get($ticket->payload, 'request_type') === 'ga_request_finding'
+            && strtoupper((string) data_get($ticket->payload, 'workflow_status')) === 'CLOSED'
+        ) {
+            return [
+                'id' => $summary['id'] ?? null,
+                'name' => 'Closed',
+                'code' => 'CLOSED',
+            ];
+        }
+
+        return $summary;
     }
 }

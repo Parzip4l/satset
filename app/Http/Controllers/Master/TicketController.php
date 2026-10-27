@@ -1503,15 +1503,32 @@ class TicketController extends Controller
         ]);
 
         $previousStatus = $ticket->status?->name;
+        $selectedStatus = Status::findOrFail($request->status_id);
+        $updates = ['status_id' => $selectedStatus->id];
 
-        // update status ticket
-        $ticket->status_id = $request->status_id;
-        $ticket->save();
+        if (data_get($ticket->payload, 'request_type') === 'ga_request_finding') {
+            $normalizedStatus = strtolower(trim((string) $selectedStatus->name));
+            $payload = $ticket->payload ?? [];
+
+            if ($normalizedStatus === 'closed') {
+                $payload['workflow_status'] = 'CLOSED';
+                $updates['payload'] = $payload;
+                $updates['resolved_at'] = $ticket->resolved_at ?: now();
+                $updates['closed_at'] = $ticket->closed_at ?: now();
+            } elseif ($normalizedStatus === 'in progress') {
+                $payload['workflow_status'] = 'IN_PROGRESS';
+                $updates['payload'] = $payload;
+                $updates['resolved_at'] = null;
+                $updates['closed_at'] = null;
+            }
+        }
+
+        $ticket->update($updates);
 
         // simpan ke history
         $ticket->histories()->create([
             'user_id' => auth()->id(),
-            'status_id' => $ticket->status_id,
+            'status_id' => $selectedStatus->id,
             'action' => 'Status diupdate',
         ]);
 

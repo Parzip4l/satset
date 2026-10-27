@@ -162,7 +162,10 @@
                                 @forelse($tickets as $ticket)
                                     @php
                                         // Warna Status
-                                        $statusName = $ticket->status->name ?? 'Unknown';
+                                        $workflowStatus = strtoupper((string) data_get($ticket->payload, 'workflow_status', ''));
+                                        $statusName = $workflowStatus === 'CLOSED'
+                                            ? 'Closed'
+                                            : ($ticket->status->name ?? 'Unknown');
                                         $statusColor = match($statusName) {
                                             'Open' => 'primary',
                                             'In Progress' => 'warning',
