@@ -204,7 +204,7 @@
         $requesterApproverLabel = $requestType === 'atk_rtk' ? 'Kadep Pemohon' : 'Kadiv Pemohon';
         $displayStatusName = $isBumRequest
             ? match ($workflowStatus) {
-                'CLOSED' => 'Closed',
+                'CLOSED', 'HANDED_OVER' => 'Closed',
                 'REOPENED' => 'Open',
                 'CANCELLED', 'REJECTED_BY_MANAGER' => 'Cancelled',
                 'WAITING_MANAGER_APPROVAL' => 'Open',
