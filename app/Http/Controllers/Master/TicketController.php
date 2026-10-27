@@ -1229,6 +1229,7 @@ class TicketController extends Controller
                 'payload.supervisor_id' => 'nullable|exists:users,id',
                 'payload.needed_date' => 'required|date',
                 'payload.delivery_location' => 'required|string|max:150',
+                'payload.recipient_pic' => 'nullable|string|max:150',
             ]);
         } elseif ($requestType === 'ga_request_finding') {
             $rules = array_merge($rules, [

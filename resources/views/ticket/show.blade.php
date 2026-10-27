@@ -317,7 +317,7 @@
                                 'Jumlah Diserahkan' => data_get($ticket->payload, 'fulfilled_qty'),
                                 'Tanggal Dibutuhkan' => data_get($ticket->payload, 'needed_date'),
                                 'Lokasi Pengiriman' => data_get($ticket->payload, 'delivery_location'),
-                                'PIC Penerima' => data_get($ticket->payload, 'recipient_pic'),
+                                'PIC Penerima' => data_get($ticket->payload, 'recipient_pic') ?: 'Belum tercatat',
                                 'Atasan Approval' => data_get($ticket->payload, 'supervisor_name'),
                                 'Status BUM' => $workflowStatus,
                             ])->filter(fn ($value) => filled($value));

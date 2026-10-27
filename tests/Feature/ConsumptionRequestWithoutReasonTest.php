@@ -24,7 +24,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
     {
         parent::setUp();
 
-        foreach (['approvals', 'ticket_histories', 'attachments', 'requests', 'category_department', 'departments', 'statuses', 'ticket_categories', 'urgencies', 'impacts', 'priorities', 'problem_categories', 'users'] as $table) {
+        foreach (['approvals', 'ticket_histories', 'attachments', 'requests', 'consumable_items', 'category_department', 'departments', 'statuses', 'ticket_categories', 'urgencies', 'impacts', 'priorities', 'problem_categories', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -75,6 +75,19 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             $table->id();
             $table->foreignId('category_id');
             $table->foreignId('department_id');
+            $table->timestamps();
+        });
+        Schema::create('consumable_items', function (Blueprint $table): void {
+            $table->id();
+            $table->string('code');
+            $table->string('name');
+            $table->string('large_uom')->nullable();
+            $table->string('small_uom')->nullable();
+            $table->integer('conversion_qty')->default(1);
+            $table->decimal('unit_price', 15, 2)->default(0);
+            $table->integer('small_stock')->default(0);
+            $table->integer('current_stock')->default(0);
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
         Schema::create('requests', function (Blueprint $table): void {
@@ -416,6 +429,79 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             'level' => 2,
             'status' => 'Pending',
         ]);
+    }
+
+    public function test_logged_in_atk_request_persists_recipient_pic_from_form(): void
+    {
+        $now = ['created_at' => now(), 'updated_at' => now()];
+        $priorityId = DB::table('priorities')->insertGetId(['name' => 'Medium', ...$now]);
+        $impactId = DB::table('impacts')->insertGetId(['name' => 'Medium', ...$now]);
+        $urgencyId = DB::table('urgencies')->insertGetId(['name' => 'Medium', ...$now]);
+        DB::table('statuses')->insert(['name' => 'Open', ...$now]);
+        $categoryId = DB::table('problem_categories')->insertGetId([
+            'code' => 'ATKRTK',
+            'name' => 'Permintaan ATK/RTK',
+            'description' => null,
+            ...$now,
+        ]);
+        $ticketCategoryId = DB::table('ticket_categories')->insertGetId([
+            'code' => 'BUM',
+            'name' => 'Layanan BUM',
+            'description' => null,
+            ...$now,
+        ]);
+        $itemId = DB::table('consumable_items')->insertGetId([
+            'code' => 'I.45',
+            'name' => 'Lakban Bening Besar',
+            'large_uom' => 'pack',
+            'small_uom' => 'pcs',
+            'conversion_qty' => 6,
+            'unit_price' => 8800,
+            'small_stock' => 10,
+            'current_stock' => 2,
+            'is_active' => true,
+            ...$now,
+        ]);
+        $requester = User::create([
+            'name' => 'Pemohon ATK',
+            'email' => 'pemohon.atk@lrtjakarta.co.id',
+            'username' => 'pemohon.atk',
+            'phone' => '0',
+            'role' => 'user',
+            'password' => 'secret',
+        ]);
+
+        $this->mock(LrtjSpacePortalSignatureService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('createRequesterSignature')->once()->andReturnNull();
+        });
+        $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
+            $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
+        });
+
+        $response = $this->actingAs($requester)->post(route('ticket.store'), [
+            'submission_token' => (string) Str::uuid(),
+            'request_type' => 'atk_rtk',
+            'category_id' => $categoryId,
+            'ticket_category_id' => $ticketCategoryId,
+            'priority_id' => $priorityId,
+            'impact_id' => $impactId,
+            'urgency_id' => $urgencyId,
+            'payload' => [
+                'request_subject' => 'Permintaan Lakban',
+                'item_type' => 'ATK',
+                'items' => [['item_id' => $itemId, 'quantity' => 1]],
+                'needed_date' => now()->addDay()->format('Y-m-d'),
+                'delivery_location' => 'MCC',
+                'recipient_pic' => 'Budi PIC MCC',
+            ],
+        ]);
+
+        $response->assertRedirect(route('ticket.atk-rtk.create'))
+            ->assertSessionHasNoErrors();
+
+        $ticket = Ticket::where('requester_id', $requester->id)->firstOrFail();
+        $this->assertSame('Budi PIC MCC', data_get($ticket->payload, 'recipient_pic'));
     }
 
     public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void
