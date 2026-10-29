@@ -734,6 +734,8 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
 
         $this->assertTrue($visibleTicketNumbers->contains($approvedTicket->ticket_no));
         $this->assertFalse($visibleTicketNumbers->contains($unrelatedTicket->ticket_no));
+        $this->assertTrue(\App\Support\TicketAccess::canView($approver, $approvedTicket));
+        $this->assertFalse(\App\Support\TicketAccess::canView($approver, $unrelatedTicket));
     }
 
     public function test_requester_can_sync_pending_manager_approval_from_portal(): void

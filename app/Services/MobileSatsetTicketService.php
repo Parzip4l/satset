@@ -19,6 +19,7 @@ use App\Models\Master\TicketHistory;
 use App\Models\Master\Urgency;
 use App\Models\User;
 use App\Support\GaAccess;
+use App\Support\TicketAccess;
 use App\Support\ItAccess;
 use App\Support\ServiceDomains;
 use App\Support\SatsetRequesterPolicy;
@@ -223,21 +224,7 @@ class MobileSatsetTicketService
 
     public function canAccess(User $user, Ticket $ticket): bool
     {
-        if (ItAccess::isIt($ticket)) {
-            return ItAccess::canRead($user, $ticket);
-        }
-
-        if (GaAccess::allowed($user)) {
-            return true;
-        }
-
-        if ((int) $ticket->requester_id === (int) $user->id || (int) $ticket->assigned_user_id === (int) $user->id) {
-            return true;
-        }
-
-        return Approval::where('request_id', $ticket->id)
-            ->where('approver_id', $user->id)
-            ->exists();
+        return TicketAccess::canView($user, $ticket);
     }
 
     public function serializeTicket(Ticket $ticket): array

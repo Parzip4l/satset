@@ -32,6 +32,7 @@ use App\Support\GaAccess;
 use App\Support\ItAccess;
 use App\Support\ServiceDomains;
 use App\Support\SatsetRequesterPolicy;
+use App\Support\TicketAccess;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Database\QueryException;
@@ -1416,6 +1417,12 @@ class TicketController extends Controller
      */
     public function show(Request $request, Ticket $ticket)
     {
+        abort_unless(
+            TicketAccess::canView($request->user(), $ticket),
+            403,
+            'Anda tidak memiliki akses untuk melihat detail tiket ini.'
+        );
+
         if (is_numeric($request->route()->originalParameter('ticket'))) {
             return redirect()->route('ticket.show', $ticket);
         }
@@ -1437,12 +1444,7 @@ class TicketController extends Controller
         abort_unless((int) $attachment->request_id === (int) $ticket->id, 404);
 
         $user = $request->user();
-        $canView = (int) $ticket->requester_id === (int) $user?->id
-            || (int) $ticket->assigned_user_id === (int) $user?->id
-            || GaAccess::allowed($user)
-            || $ticket->approvals()->where('approver_id', $user?->id)->exists();
-
-        abort_unless($canView, 403);
+        abort_unless(TicketAccess::canView($user, $ticket), 403);
 
         $disk = Storage::disk('public');
         abort_unless($disk->exists($attachment->file_path), 404, 'File lampiran tidak ditemukan di penyimpanan.');
