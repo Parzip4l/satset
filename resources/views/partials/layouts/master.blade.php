@@ -18,6 +18,7 @@
     <link rel="shortcut icon" href="{{ asset('assets/images/k_favicon_32x.png') }}">
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <meta name="theme-color" content="#e31b23">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="{{ asset('assets/images/satset-icon-192.png') }}">
 
