@@ -149,7 +149,7 @@
     @endphp
 
     @if(session('success'))
-        <div class="alert alert-success border-0 shadow-sm rounded-3">{{ session('success') }}</div>
+        <div id="statusFlashFallback" class="alert alert-success border-0 shadow-sm rounded-3">{{ session('success') }}</div>
     @endif
     @if(session('error'))
         <div class="alert alert-danger border-0 shadow-sm rounded-3">{{ session('error') }}</div>
@@ -175,13 +175,18 @@
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editItemCodeModal">
                 <i class="bi bi-pencil-square me-1"></i> Edit Kode
             </button>
-            <form method="POST" action="{{ route('bum.items.status.update', $item) }}">
+            <form
+                method="POST"
+                action="{{ route('bum.items.status.update', $item) }}"
+                class="js-item-status-form"
+                data-item-name="{{ $item->name }}"
+                data-will-activate="{{ $item->is_active ? '0' : '1' }}"
+            >
                 @csrf
                 @method('PATCH')
                 <input type="hidden" name="is_active" value="{{ $item->is_active ? 0 : 1 }}">
                 <button
                     class="btn {{ $item->is_active ? 'btn-outline-secondary' : 'btn-outline-success' }}"
-                    onclick="return confirm('{{ $item->is_active ? 'Nonaktifkan barang ini? Barang tidak akan tampil lagi pada form permintaan user.' : 'Aktifkan barang ini agar kembali tampil pada form permintaan user?' }}')"
                 >
                     <i class="bi {{ $item->is_active ? 'bi-eye-slash' : 'bi-eye' }} me-1"></i>
                     {{ $item->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
@@ -412,8 +417,54 @@
 @endsection
 
 @section('js')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const flashSuccess = @json(session('success'));
+        if (flashSuccess && window.Swal) {
+            document.getElementById('statusFlashFallback')?.classList.add('d-none');
+            Swal.fire({
+                icon: 'success',
+                title: 'Berhasil!',
+                text: flashSuccess,
+                timer: 2400,
+                showConfirmButton: false
+            });
+        }
+
+        document.querySelectorAll('.js-item-status-form').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (form.dataset.confirmed === '1') return;
+
+                event.preventDefault();
+                const willActivate = form.dataset.willActivate === '1';
+                const itemName = form.dataset.itemName || 'barang ini';
+                const message = willActivate
+                    ? `Barang “${itemName}” akan kembali tampil pada form permintaan user.`
+                    : `Barang “${itemName}” tidak akan tampil lagi pada form permintaan user.`;
+
+                if (!window.Swal) {
+                    if (window.confirm(message)) form.submit();
+                    return;
+                }
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: willActivate ? 'Aktifkan barang?' : 'Nonaktifkan barang?',
+                    text: message,
+                    showCancelButton: true,
+                    confirmButtonText: willActivate ? 'Ya, aktifkan' : 'Ya, nonaktifkan',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: willActivate ? '#198754' : '#e21a1a',
+                    reverseButtons: true
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    form.dataset.confirmed = '1';
+                    form.submit();
+                });
+            });
+        });
+
         @if($errors->getBag('itemCode')->any())
             bootstrap.Modal.getOrCreateInstance(document.getElementById('editItemCodeModal')).show();
         @elseif($errors->any() || session('error'))
