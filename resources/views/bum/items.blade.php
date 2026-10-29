@@ -252,7 +252,14 @@
                     <option value="RTK" @selected(request('category') === 'RTK')>RTK</option>
                 </select>
             </div>
-            <div class="col-lg-7 col-md-5">
+            <div class="col-lg-2 col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">Semua Status</option>
+                    <option value="active" @selected(request('status') === 'active')>Aktif</option>
+                    <option value="inactive" @selected(request('status') === 'inactive')>Nonaktif</option>
+                </select>
+            </div>
+            <div class="col-lg-5 col-md-5">
                 <input name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari kode atau nama barang">
             </div>
             <div class="col-lg-2 col-md-3">
@@ -303,9 +310,23 @@
                                 @endif
                             </td>
                             <td class="text-end">
-                                <a href="{{ route('bum.items.show', $item) }}" class="btn btn-sm btn-light border items-btn">
-                                    Detail
-                                </a>
+                                <div class="d-flex justify-content-end gap-1">
+                                    <form method="POST" action="{{ route('bum.items.status.update', $item) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="is_active" value="{{ $item->is_active ? 0 : 1 }}">
+                                        <button
+                                            class="btn btn-sm {{ $item->is_active ? 'btn-outline-secondary' : 'btn-outline-success' }} items-btn"
+                                            title="{{ $item->is_active ? 'Nonaktifkan barang' : 'Aktifkan barang' }}"
+                                            onclick="return confirm('{{ $item->is_active ? 'Nonaktifkan barang ini? Barang tidak akan tampil lagi pada form permintaan user.' : 'Aktifkan barang ini agar kembali tampil pada form permintaan user?' }}')"
+                                        >
+                                            {{ $item->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
+                                        </button>
+                                    </form>
+                                    <a href="{{ route('bum.items.show', $item) }}" class="btn btn-sm btn-light border items-btn">
+                                        Detail
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                     @empty

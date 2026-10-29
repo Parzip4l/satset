@@ -105,4 +105,34 @@ class BumItemCodeUpdateTest extends TestCase
             'code' => 'III.24',
         ]);
     }
+
+    public function test_ga_can_deactivate_and_reactivate_an_item(): void
+    {
+        $ga = User::create([
+            'name' => 'Team GA',
+            'email' => 'teamga@lrtjakarta.co.id',
+            'password' => 'password',
+            'role' => 'ga',
+        ]);
+        $item = ConsumableItem::create([
+            'code' => 'III.26',
+            'name' => 'Barang Bisa Dinonaktifkan',
+            'category' => 'ATK',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($ga)
+            ->from(route('bum.items'))
+            ->patch(route('bum.items.status.update', $item), ['is_active' => false])
+            ->assertRedirect(route('bum.items'))
+            ->assertSessionHas('success');
+        $this->assertFalse($item->fresh()->is_active);
+
+        $this->actingAs($ga)
+            ->from(route('bum.items'))
+            ->patch(route('bum.items.status.update', $item), ['is_active' => true])
+            ->assertRedirect(route('bum.items'))
+            ->assertSessionHas('success');
+        $this->assertTrue($item->fresh()->is_active);
+    }
 }

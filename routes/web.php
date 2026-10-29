@@ -174,6 +174,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::post('/items/{item}/stock-adjustment', [BumInventoryController::class, 'adjustItemStock'])->name('items.stock-adjustment');
         Route::get('/items/{item}', [BumInventoryController::class, 'showItem'])->name('items.show');
         Route::patch('/items/{item}/code', [BumInventoryController::class, 'updateItemCode'])->name('items.code.update');
+        Route::patch('/items/{item}/status', [BumInventoryController::class, 'updateItemStatus'])->name('items.status.update');
         Route::put('/items/{item}', [BumInventoryController::class, 'updateItem'])->name('items.update');
         Route::get('/stock-card', [BumInventoryController::class, 'stockCard'])->name('stock-card');
         Route::get('/receivings', [BumInventoryController::class, 'receivings'])->name('receivings');

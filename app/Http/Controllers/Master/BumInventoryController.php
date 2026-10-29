@@ -50,7 +50,7 @@ class BumInventoryController extends Controller
             $lowStockCount = ConsumableItem::whereColumn('small_stock', '<=', 'minimum_stock')->where('is_active', true)->count();
             $pendingReceiving = ProcurementReceiving::whereIn('status', ['DRAFT', 'SUBMITTED', 'PO_CREATED', 'PO_SENT_TO_VENDOR', 'DELIVERY_SCHEDULED'])->count();
             $currentOpname = StockOpname::where('period', now()->format('Y-m'))->latest()->first();
-            $lowStockItems = ConsumableItem::whereColumn('small_stock', '<=', 'minimum_stock')->orderBy('name')->take(8)->get();
+            $lowStockItems = ConsumableItem::whereColumn('small_stock', '<=', 'minimum_stock')->where('is_active', true)->orderBy('name')->take(8)->get();
         } else {
             $lowStockCount = 0;
             $pendingReceiving = 0;
@@ -123,6 +123,8 @@ class BumInventoryController extends Controller
 
         $items = ConsumableItem::query()
             ->when($request->category, fn ($query, $category) => $query->where('category', $category))
+            ->when($request->status === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($request->status === 'inactive', fn ($query) => $query->where('is_active', false))
             ->when($request->search, fn ($query, $search) => $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")))
             ->orderBy($sortColumn, $direction)
             ->orderBy('name')
@@ -350,6 +352,23 @@ class BumInventoryController extends Controller
         ]);
 
         return back()->with('success', 'Kode barang berhasil diperbarui.');
+    }
+
+    public function updateItemStatus(Request $request, ConsumableItem $item)
+    {
+        $data = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        $isActive = (bool) $data['is_active'];
+        $item->update(['is_active' => $isActive]);
+
+        return back()->with(
+            'success',
+            $isActive
+                ? 'Barang berhasil diaktifkan dan kembali tampil pada form permintaan user.'
+                : 'Barang berhasil dinonaktifkan dan tidak lagi tampil pada form permintaan user.'
+        );
     }
 
     public function adjustItemStock(Request $request, ConsumableItem $item, ConsumableStockService $stockService)

@@ -160,7 +160,12 @@
 
     <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-end gap-3 mb-4">
         <div>
-            <div class="text-muted small fw-bold mb-1">{{ $item->code }} | {{ $item->category }}</div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <div class="text-muted small fw-bold">{{ $item->code }} | {{ $item->category }}</div>
+                <span class="badge {{ $item->is_active ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary' }}">
+                    {{ $item->is_active ? 'Aktif' : 'Nonaktif' }}
+                </span>
+            </div>
             <h3 class="detail-title">{{ $item->name }}</h3>
             <p class="text-muted mb-0">1 {{ $item->large_uom }} = {{ $item->conversion_qty }} {{ $item->small_uom }} | Rp{{ number_format($item->unit_price, 0, ',', '.') }}/{{ $item->small_uom }} | Binloc {{ $item->location ?? '-' }}</p>
         </div>
@@ -170,6 +175,18 @@
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editItemCodeModal">
                 <i class="bi bi-pencil-square me-1"></i> Edit Kode
             </button>
+            <form method="POST" action="{{ route('bum.items.status.update', $item) }}">
+                @csrf
+                @method('PATCH')
+                <input type="hidden" name="is_active" value="{{ $item->is_active ? 0 : 1 }}">
+                <button
+                    class="btn {{ $item->is_active ? 'btn-outline-secondary' : 'btn-outline-success' }}"
+                    onclick="return confirm('{{ $item->is_active ? 'Nonaktifkan barang ini? Barang tidak akan tampil lagi pada form permintaan user.' : 'Aktifkan barang ini agar kembali tampil pada form permintaan user?' }}')"
+                >
+                    <i class="bi {{ $item->is_active ? 'bi-eye-slash' : 'bi-eye' }} me-1"></i>
+                    {{ $item->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
+                </button>
+            </form>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#adjustStockModal">
                 <i class="bi bi-arrow-left-right me-1"></i> Tambah/Kurangi Stok
             </button>

@@ -43,6 +43,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -1161,7 +1162,7 @@ class TicketController extends Controller
             'payload.request_subject' => 'required|string|max:150',
             'payload.item_type' => 'required|string|max:100',
             'payload.items' => 'required|array|min:1',
-            'payload.items.*.item_id' => 'required|exists:consumable_items,id',
+            'payload.items.*.item_id' => ['required', Rule::exists('consumable_items', 'id')->where('is_active', true)],
             'payload.items.*.quantity' => 'required|integer|min:1',
             'payload.supervisor_id' => 'nullable|exists:users,id',
             'payload.needed_date' => 'required|date',
@@ -1234,7 +1235,7 @@ class TicketController extends Controller
                 'payload.request_subject' => 'required|string|max:150',
                 'payload.item_type' => 'required|string|max:100',
                 'payload.items' => 'required|array|min:1',
-                'payload.items.*.item_id' => 'required|exists:consumable_items,id',
+                'payload.items.*.item_id' => ['required', Rule::exists('consumable_items', 'id')->where('is_active', true)],
                 'payload.items.*.quantity' => 'required|integer|min:1',
                 'payload.supervisor_id' => 'nullable|exists:users,id',
                 'payload.needed_date' => 'required|date',

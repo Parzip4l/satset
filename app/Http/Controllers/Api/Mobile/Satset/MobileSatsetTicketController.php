@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class MobileSatsetTicketController extends Controller
 {
@@ -145,7 +146,7 @@ class MobileSatsetTicketController extends Controller
             'payload.request_subject' => 'required|string|max:150',
             'payload.item_type' => 'required|string|max:100',
             'payload.items' => 'required|array|min:1',
-            'payload.items.*.item_id' => 'required|exists:consumable_items,id',
+            'payload.items.*.item_id' => ['required', Rule::exists('consumable_items', 'id')->where('is_active', true)],
             'payload.items.*.quantity' => 'required|integer|min:1',
             'payload.supervisor_id' => 'nullable|exists:users,id',
             'payload.needed_date' => 'required|date',
