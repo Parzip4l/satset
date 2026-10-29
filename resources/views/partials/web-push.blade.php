@@ -4,8 +4,10 @@
             $satsetWebPushConfig = [
                 'publicKey' => config('satset.web_push.public_key'),
                 'subscribeUrl' => route('web-push.subscriptions.store'),
+                'unsubscribeUrl' => route('web-push.subscriptions.destroy'),
                 'serviceWorkerUrl' => asset('satset-sw.js'),
                 'appName' => config('app.name', 'SatSet'),
+                'subscriptionVersion' => '2026-10-29-2',
             ];
         @endphp
         <script>

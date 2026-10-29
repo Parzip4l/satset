@@ -5,6 +5,7 @@
     if (!config || !config.publicKey) return;
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const subscriptionVersionKey = 'satset-web-push-subscription-version';
 
     function browserName() {
         const ua = navigator.userAgent;
@@ -55,16 +56,56 @@
         }
     }
 
+    async function removeStoredSubscription(subscription) {
+        if (!subscription?.endpoint || !config.unsubscribeUrl) return;
+
+        try {
+            await fetch(config.unsubscribeUrl, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ endpoint: subscription.endpoint }),
+            });
+        } catch (error) {
+            console.warn('Subscription lama belum dapat dihapus dari SatSet:', error);
+        }
+    }
+
     async function ensureSubscription(registration) {
         let subscription = await registration.pushManager.getSubscription();
+        let refreshed = false;
+
+        if (subscription && localStorage.getItem(subscriptionVersionKey) !== config.subscriptionVersion) {
+            await removeStoredSubscription(subscription);
+            await subscription.unsubscribe();
+            subscription = null;
+            refreshed = true;
+        }
+
         if (!subscription) {
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: base64UrlToUint8Array(config.publicKey),
             });
+            refreshed = true;
         }
         await saveSubscription(subscription);
-        return subscription;
+        localStorage.setItem(subscriptionVersionKey, config.subscriptionVersion);
+        return { subscription, refreshed };
+    }
+
+    async function showActivationNotification(registration) {
+        await registration.showNotification('Notifikasi SatSet aktif', {
+            body: 'Browser ini siap menerima pembaruan tiket dan approval SatSet.',
+            icon: '/assets/images/satset-icon-192.png',
+            badge: '/assets/images/k_favicon_32x.png',
+            tag: 'satset-push-activation',
+            data: { url: '/ticket/tiket-saya' },
+        });
     }
 
     async function waitForSwal() {
@@ -207,7 +248,10 @@
         await navigator.serviceWorker.ready;
 
         if (Notification.permission === 'granted') {
-            await ensureSubscription(registration);
+            const result = await ensureSubscription(registration);
+            if (result.refreshed) {
+                await showActivationNotification(registration);
+            }
         } else if (Notification.permission === 'denied') {
             await showBlocked(registration);
         } else {
