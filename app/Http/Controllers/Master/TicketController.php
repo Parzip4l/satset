@@ -139,7 +139,7 @@ class TicketController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $isAdmin = strtolower((string) ($user->role ?? '')) === 'admin';
+        $isAdmin = \App\Support\AccountAccess::isAdmin($user);
 
         $baseQuery = ItAccess::constrainVisible(Ticket::query(), $user)
             ->when(! $isAdmin, fn ($query) => $query->where('requester_id', $user->id));
@@ -166,7 +166,7 @@ class TicketController extends Controller
 
         $approvals = Approval::query()
             ->with(['request.requester', 'request.status', 'request.priority', 'approver'])
-            ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
+            ->when(! \App\Support\AccountAccess::isAdmin($user), fn ($query) => $query->where('approver_id', $user->id))
             ->when($statusFilter !== 'all', fn ($query) => $query->where('status', $statusFilter))
             ->whereHas('request', fn ($tickets) => ItAccess::constrainVisible($tickets, $user))
             ->latest()
@@ -174,7 +174,7 @@ class TicketController extends Controller
 
         $pendingCount = Approval::query()
             ->whereHas('request', fn ($tickets) => ItAccess::constrainVisible($tickets, $user))
-            ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
+            ->when(! \App\Support\AccountAccess::isAdmin($user), fn ($query) => $query->where('approver_id', $user->id))
             ->where('status', 'Pending')
             ->count();
 
@@ -187,7 +187,7 @@ class TicketController extends Controller
     public function ticketsIndex(Request $request)
     {
         $user = auth()->user();
-        $isAdmin = strtolower((string) ($user->role ?? '')) === 'admin';
+        $isAdmin = \App\Support\AccountAccess::isAdmin($user);
         $search = $request->get('search');
         $statusId = $request->get('status_id');
         $priorityId = $request->get('priority_id');
@@ -1648,11 +1648,11 @@ class TicketController extends Controller
 
         $approval = Approval::where('request_id', $ticket->id)->findOrFail($request->approval_id);
 
-        if ((int) $approval->approver_id !== (int) auth()->id() && (auth()->user()->role ?? null) !== 'admin') {
+        if ((int) $approval->approver_id !== (int) auth()->id() && ! \App\Support\AccountAccess::isAdmin(auth()->user())) {
             abort(403, 'Approval hanya dapat diproses oleh approver terkait.');
         }
 
-        if ((int) $ticket->requester_id === (int) auth()->id() && (auth()->user()->role ?? null) !== 'admin') {
+        if ((int) $ticket->requester_id === (int) auth()->id() && ! \App\Support\AccountAccess::isAdmin(auth()->user())) {
             return redirect()->back()->with('error', 'User tidak boleh approve request miliknya sendiri.');
         }
 
@@ -2399,7 +2399,7 @@ class TicketController extends Controller
 
     private function ensureAdminAccess(): void
     {
-        if (strtolower(auth()->user()->role ?? '') !== 'admin') {
+        if (! \App\Support\AccountAccess::isAdmin(auth()->user())) {
             abort(403, 'Aksi ini hanya untuk admin.');
         }
     }

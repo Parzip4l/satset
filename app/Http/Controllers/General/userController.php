@@ -41,6 +41,7 @@ class userController extends Controller
 
     public function store(Request $request)
     {
+        abort_if(strtolower(trim((string) $request->input('role'))) === 'superadmin' && ! \App\Support\AccountAccess::isSuperadmin($request->user()), 403);
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
@@ -80,7 +81,8 @@ class userController extends Controller
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $isAdmin = strtolower((string) Auth::user()?->role) === 'admin';
+        $isAdmin = \App\Support\AccountAccess::isAdmin(Auth::user());
+        abort_if(! \App\Support\AccountAccess::isSuperadmin(Auth::user()) && (\App\Support\AccountAccess::isSuperadmin($user) || strtolower(trim((string) $request->input('role'))) === 'superadmin'), 403);
 
         if ($request->has('name')) {
             abort_unless($isAdmin, 403, 'Hanya admin yang dapat mengubah nama user.');
@@ -132,7 +134,7 @@ class userController extends Controller
     public function destroy($id)
     {
         $currentUser = auth()->user();
-        if ($currentUser->role !== 'admin') {
+        if (! \App\Support\AccountAccess::isAdmin($currentUser) || (\App\Support\AccountAccess::isSuperadmin(User::findOrFail($id)) && ! \App\Support\AccountAccess::isSuperadmin($currentUser))) {
             return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk menghapus user.');
         }
 
@@ -154,13 +156,14 @@ class userController extends Controller
 
     private function availableRolesFor(?User $user): Collection
     {
-        $roles = strtolower($user->role ?? '') === 'admin'
+        $roles = \App\Support\AccountAccess::isAdmin($user)
             ? Role::query()->pluck('name')
             : Role::query()->where('name', 'pelapor')->pluck('name');
 
-        if (strtolower($user->role ?? '') === 'admin') {
+        if (\App\Support\AccountAccess::isAdmin($user)) {
             $roles = $roles->merge(['admin', 'pelapor', 'ga']);
         }
+        $roles = \App\Support\AccountAccess::isSuperadmin($user) ? $roles->push('superadmin') : $roles->reject(fn ($role) => strtolower(trim((string) $role)) === 'superadmin');
 
         if ($roles->isEmpty()) {
             $roles = collect(['pelapor']);

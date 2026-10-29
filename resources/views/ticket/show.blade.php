@@ -177,7 +177,7 @@
             && (string) $pendingApproval->approver_id === (string) $ticket->requester_id;
         $canActOnPendingApproval = $pendingApproval
             && !$isRequester
-            && ((string) $pendingApproval->approver_id === (string) auth()->id() || auth()->user()->role === 'admin');
+            && ((string) $pendingApproval->approver_id === (string) auth()->id() || \App\Support\AccountAccess::isAdmin(auth()->user()));
         $canSyncManagerApproval = $pendingApproval
             && (int) $pendingApproval->level === 1
             && ($isRequester || $canManageGaOperations || (string) $pendingApproval->approver_id === (string) auth()->id());
@@ -680,7 +680,7 @@
             @endif
 
             {{-- 2. ADMIN PANEL (Simetris & Rapi) --}}
-            @if(auth()->user()->role == 'admin' && !$isBumRequest)
+            @if(\App\Support\AccountAccess::isAdmin(auth()->user()) && !$isBumRequest)
             <div class="card-clean border-top-4 border-warning" style="border-top: 4px solid var(--lrt-orange);">
                 <div class="card-header-clean bg-light">
                     <span class="header-title text-dark"><i class="bi bi-shield-lock-fill text-warning"></i> {{ $isBumRequest ? 'Kontrol Status' : 'Admin Zone' }}</span>

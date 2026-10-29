@@ -20,7 +20,7 @@ class DashboardController extends Controller
 
         // Base query: Admin = semua, PIC = miliknya
         $requestsQuery = \App\Support\ItAccess::constrainVisible(RequestModel::query(), $user);
-        if(strtolower($user->role) !== 'admin') {
+        if (! \App\Support\AccountAccess::isAdmin($user)) {
             $requestsQuery->where('requester_id', $user->id);
         }
 

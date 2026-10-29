@@ -10,7 +10,7 @@ class EnsureAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless(strtolower((string) $request->user()?->role) === 'admin', 403, 'Aksi ini hanya untuk admin.');
+        abort_unless(\App\Support\AccountAccess::isAdmin($request->user()), 403, 'Aksi ini hanya untuk admin.');
 
         return $next($request);
     }

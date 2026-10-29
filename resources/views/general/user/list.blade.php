@@ -183,7 +183,7 @@
                     @csrf
                     @method('PUT')
 
-                    @if(strtolower(auth()->user()->role ?? '') === 'admin')
+                    @if(\App\Support\AccountAccess::isAdmin(auth()->user()))
                     <div class="mb-3">
                         <label class="form-label small text-uppercase fw-bold text-muted">Nama Lengkap</label>
                         <input type="text" name="name" class="form-control" value="{{ $data->name }}" maxlength="255" autocomplete="name" required>
@@ -201,7 +201,7 @@
                         <input type="email" name="email" class="form-control" value="{{$data->email}}" required>
                     </div>
 
-                    @if(strtolower(auth()->user()->role ?? '') === 'admin')
+                    @if(\App\Support\AccountAccess::isAdmin(auth()->user()))
                     <div class="mb-3">
                         <label class="form-label small text-uppercase fw-bold text-muted">Role Access</label>
                         <select name="role" class="form-select">

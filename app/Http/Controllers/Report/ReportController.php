@@ -212,7 +212,7 @@ class ReportController extends Controller
 
         $user = Auth::user();
         
-        if (!in_array($user->role->name ?? $user->role, ['qshe','admin'])) {
+        if (!in_array($user->role->name ?? $user->role, ['qshe','admin','superadmin'])) {
             return response()->json(['message' => 'Anda tidak memiliki akses untuk melakukan review.'], 403);
         }
         $request->validate([

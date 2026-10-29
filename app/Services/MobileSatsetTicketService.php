@@ -198,7 +198,7 @@ class MobileSatsetTicketService
             abort(404, 'Approval tidak ditemukan untuk ticket ini.');
         }
 
-        if ((int) $approval->approver_id !== (int) $user->id && ! in_array($user->role ?? null, ['admin', 'manager'], true)) {
+        if ((int) $approval->approver_id !== (int) $user->id && ! \App\Support\AccountAccess::isAdmin($user) && ($user->role ?? null) !== 'manager') {
             abort(403, 'User bukan approver ticket ini.');
         }
 

@@ -401,7 +401,7 @@
 
 @section('content')
 @php
-    $isAdmin = strtolower((string) (auth()->user()->role ?? '')) === 'admin';
+    $isAdmin = \App\Support\AccountAccess::isAdmin(auth()->user());
 
     $metrics = [
         ['label' => 'Total request', 'value' => $stats['total'] ?? 0, 'icon' => 'bi-layers'],

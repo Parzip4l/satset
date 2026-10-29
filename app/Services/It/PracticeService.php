@@ -23,6 +23,9 @@ class PracticeService
 
     public function teamMember(User $user, int $team): bool
     {
+        if (\App\Support\AccountAccess::isSuperadmin($user)) {
+            return DB::table('support_teams')->where('id', $team)->where('is_active', true)->exists();
+        }
         return DB::table('support_team_members')->join('support_teams', 'support_teams.id', '=', 'support_team_members.support_team_id')
             ->where('support_team_id', $team)->where('user_id', $user->id)->where('support_teams.is_active', true)->whereIn('role', ['coordinator', 'technician'])->exists();
     }

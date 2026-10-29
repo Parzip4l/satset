@@ -82,6 +82,22 @@ class MobileSatsetAuthTest extends TestCase
             ->assertJsonPath('data.email', 'user@lrtjakarta.co.id');
     }
 
+    public function test_sso_cannot_grant_or_remove_local_superadmin_role(): void
+    {
+        config(['satset.mobile_sso.shared_secret' => 'test-shared-secret']);
+        \App\Models\User::create(['name' => 'Super', 'email' => 'super@example.test', 'role' => 'superadmin', 'password' => 'password']);
+        foreach ([['super@example.test', 'pelapor', 'superadmin'], ['new@example.test', 'superadmin', 'pelapor']] as [$email, $role, $expected]) {
+            $body = json_encode(['email' => $email, 'name' => 'User', 'role' => $role]);
+            $timestamp = now()->timestamp;
+            $this->call('POST', '/api/mobile/v1/satset/auth/sso-exchange', [], [], [], [
+                'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json',
+                'HTTP_X_SATSET_TIMESTAMP' => $timestamp,
+                'HTTP_X_SATSET_SIGNATURE' => hash_hmac('sha256', $timestamp.'.'.$body, 'test-shared-secret'),
+            ], $body)->assertOk();
+            $this->assertDatabaseHas('users', ['email' => $email, 'role' => $expected]);
+        }
+    }
+
     public function test_mobile_consumption_rejects_an_event_longer_than_seven_days(): void
     {
         $token = $this->exchangeToken();

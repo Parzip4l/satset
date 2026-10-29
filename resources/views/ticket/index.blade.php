@@ -273,7 +273,7 @@
                                                             <i class="bi bi-eye me-2 text-primary"></i> Lihat Detail
                                                         </a>
                                                     </li>
-                                                    @if ($statusName == 'Open' && ((int) $ticket->requester_id === (int) auth()->id() || (auth()->user()->role ?? null) === 'admin'))
+                                                    @if ($statusName == 'Open' && ((int) $ticket->requester_id === (int) auth()->id() || \App\Support\AccountAccess::isAdmin(auth()->user())))
                                                     <li><hr class="dropdown-divider opacity-50"></li>
                                                     <li>
                                                         <button type="button" class="dropdown-item py-2 text-danger" onclick="confirmDelete('{{ $ticket->id }}', '{{ $ticket->ticket_no }}')">

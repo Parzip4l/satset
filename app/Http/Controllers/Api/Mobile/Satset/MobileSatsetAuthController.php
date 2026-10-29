@@ -48,8 +48,9 @@ class MobileSatsetAuthController extends Controller
         $user->name = $user->name ?: $data['name'];
         $user->username = $user->username ?: ($data['username'] ?? Str::before($email, '@'));
         $user->phone = $user->phone ?: ($data['phone'] ?? null);
-        if (array_key_exists('role', $data) && Schema::hasColumn('users', 'role')) {
-            $user->role = filled($data['role']) ? Str::lower(trim($data['role'])) : 'pelapor';
+        if (array_key_exists('role', $data) && Schema::hasColumn('users', 'role') && ! \App\Support\AccountAccess::isSuperadmin($user)) {
+            $portalRole = filled($data['role']) ? Str::lower(trim($data['role'])) : 'pelapor';
+            $user->role = $portalRole === 'superadmin' ? ($user->role ?: 'pelapor') : $portalRole;
         }
         if (! $user->exists) {
             $user->password = Hash::make(Str::random(40));

@@ -27,8 +27,10 @@ class PracticeController extends Controller
         $this->check($request);
         $request->validate(['type' => 'nullable|in:problem,change,knowledge,asset']);
         $user = $request->user();
-        $teams = DB::table('support_team_members')->join('support_teams', 'support_teams.id', '=', 'support_team_members.support_team_id')
-            ->where('user_id', $user->id)->where('is_active', true)->whereIn('role', ['technician', 'coordinator'])->pluck('support_teams.id');
+        $teams = \App\Support\AccountAccess::isSuperadmin($user)
+            ? DB::table('support_teams')->where('is_active', true)->pluck('id')
+            : DB::table('support_team_members')->join('support_teams', 'support_teams.id', '=', 'support_team_members.support_team_id')
+                ->where('user_id', $user->id)->where('is_active', true)->whereIn('role', ['technician', 'coordinator'])->pluck('support_teams.id');
         $query = DB::table('it_practice_records')->whereIn('support_team_id', $teams);
         if (! ItAccess::can($user, 'view_restricted_it')) {
             $query->where('is_restricted', false);

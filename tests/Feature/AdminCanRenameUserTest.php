@@ -57,6 +57,18 @@ class AdminCanRenameUserTest extends TestCase
         ]);
     }
 
+    public function test_only_superadmin_can_assign_or_modify_superadmin_accounts(): void
+    {
+        $admin = $this->user('Admin', 'admin@lrtjakarta.co.id', 'admin');
+        $super = $this->user('Super', 'super@lrtjakarta.co.id', 'superadmin');
+        $target = $this->user('Target', 'target@lrtjakarta.co.id', 'pelapor');
+        $this->actingAs($admin)->put(route('user.update', $target), ['role' => 'superadmin'])->assertForbidden();
+        $this->put(route('user.update', $super), ['password' => 'newpassword', 'password_confirmation' => 'newpassword'])->assertForbidden();
+        $this->post(route('user.store'), ['name' => 'New', 'email' => 'new@lrtjakarta.co.id', 'role' => 'superadmin', 'password' => 'password'])->assertForbidden();
+        $this->actingAs($super)->put(route('user.update', $target), ['role' => 'superadmin'])->assertRedirect();
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'role' => 'superadmin']);
+    }
+
     private function user(string $name, string $email, string $role): User
     {
         return User::create([

@@ -21,6 +21,7 @@
                     ->get();
 
                 $filteredMenus = $menus->filter(function ($menu) use ($roles) {
+                    if (\App\Support\AccountAccess::isSuperadmin(auth()->user())) return true;
                     $roleIds = is_string($menu->role_id) ? json_decode($menu->role_id, true) : $menu->role_id;
                     return is_array($roleIds) && in_array($roles, $roleIds);
                 });
@@ -41,10 +42,11 @@
                     @php
                         // Filter sub-menu yang boleh dilihat user
                         $visibleChildren = $menu->children->filter(function($child) use ($roles) {
+                            if (\App\Support\AccountAccess::isSuperadmin(auth()->user())) return true;
                             $childRoleIds = is_string($child->role_id) ? json_decode($child->role_id, true) : $child->role_id;
                             return is_array($childRoleIds) && in_array($roles, $childRoleIds);
                         });
-                        $isAdminSettingsMenu = strtolower((string) (auth()->user()->role ?? '')) === 'admin'
+                        $isAdminSettingsMenu = \App\Support\AccountAccess::isAdmin(auth()->user())
                             && (str_contains(strtolower((string) $menu->title), 'setting')
                                 || str_contains(strtolower((string) $menu->title), 'pengaturan'));
                     @endphp

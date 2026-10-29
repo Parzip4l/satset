@@ -15,8 +15,8 @@ class ItAccess
     public static function can(?User $user, string $capability): bool
     {
         return $user && in_array($capability, self::CAPABILITIES, true)
-            && Schema::hasTable('it_user_capabilities')
-            && DB::table('it_user_capabilities')->where('user_id', $user->id)->where('capability', $capability)->exists();
+            && (AccountAccess::isSuperadmin($user) || (Schema::hasTable('it_user_capabilities')
+            && DB::table('it_user_capabilities')->where('user_id', $user->id)->where('capability', $capability)->exists()));
     }
 
     public static function isIt(Ticket $ticket): bool

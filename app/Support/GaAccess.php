@@ -19,6 +19,7 @@ class GaAccess
 
         if ($roleNames->contains(fn ($role) => in_array($role, [
             'admin',
+            'superadmin',
             'ga',
             'bum',
             'general affair',

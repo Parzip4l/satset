@@ -55,7 +55,7 @@
         @endforeach
     </div>
 
-    @if(strtolower(auth()->user()->role) === 'admin')
+    @if(\App\Support\AccountAccess::isAdmin(auth()->user()))
     <div class="row mb-4">
         <div class="col-xl-8">
             <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
@@ -195,7 +195,7 @@
 @section('js')
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
-    @if(strtolower(auth()->user()->role) === 'admin')
+    @if(\App\Support\AccountAccess::isAdmin(auth()->user()))
     // Area Chart - Monthly Activity
     var areaOptions = {
         chart: { type: 'area', height: 350, toolbar: { show: false }, fontFamily: 'Inter, sans-serif' },

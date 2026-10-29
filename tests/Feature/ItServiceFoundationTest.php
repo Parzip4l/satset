@@ -108,10 +108,10 @@ class ItServiceFoundationTest extends TestCase
         $this->assertSame('atk_rtk', TicketServiceDomain::code($this->ticket($user, 'atk_rtk')));
     }
 
-    public function test_admin_ga_and_superadmin_do_not_implicitly_read_it_or_manage_configuration(): void
+    public function test_admin_and_ga_do_not_implicitly_read_it_or_manage_configuration(): void
     {
         $ticket = $this->ticket($this->user());
-        foreach (['admin', 'ga', 'superadmin'] as $role) {
+        foreach (['admin', 'ga'] as $role) {
             $user = $this->user($role);
             $this->assertFalse(ItAccess::canRead($user, $ticket));
             $this->assertFalse(Gate::forUser($user)->allows('manage_it_configuration'));
@@ -120,9 +120,21 @@ class ItServiceFoundationTest extends TestCase
         }
     }
 
-    public function test_configuration_and_publishing_capabilities_do_not_grant_ticket_read_access(): void
+    public function test_superadmin_has_it_capabilities_and_can_read_restricted_tickets(): void
     {
         $user = $this->user('superadmin');
+        $ticket = $this->ticket($this->user(), 'it', true);
+        foreach (ItAccess::CAPABILITIES as $capability) {
+            $this->assertTrue(ItAccess::can($user, $capability));
+        }
+        $this->assertTrue(ItAccess::canRead($user, $ticket));
+        $this->assertTrue(\App\Support\GaAccess::allowed($user));
+        $this->assertTrue(\App\Support\AccountAccess::isAdmin($user));
+    }
+
+    public function test_configuration_and_publishing_capabilities_do_not_grant_ticket_read_access(): void
+    {
+        $user = $this->user('admin');
         $this->grant($user, 'manage_it_configuration');
         $this->assertTrue(Gate::forUser($user)->allows('manage_it_configuration'));
         $this->assertFalse(Gate::forUser($user)->allows('publish_it_configuration'));
@@ -244,7 +256,7 @@ class ItServiceFoundationTest extends TestCase
 
     public function test_capability_bootstrap_requires_reason_and_supports_revocation(): void
     {
-        $user = $this->user('superadmin');
+        $user = $this->user('admin');
         $this->artisan('satset:it-capability', ['user_id' => $user->id, 'capability' => 'manage_it_configuration'])->assertFailed();
         $args = ['user_id' => $user->id, 'capability' => 'manage_it_configuration', '--reason' => 'Test bootstrap'];
         $this->artisan('satset:it-capability', $args)->assertSuccessful();
