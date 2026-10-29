@@ -29,6 +29,8 @@ use App\Services\SatsetApprovalDecisionService;
 use App\Services\SatsetPendingApprovalSyncService;
 use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
+use App\Support\ItAccess;
+use App\Support\ServiceDomains;
 use App\Support\SatsetRequesterPolicy;
 use Carbon\Carbon;
 use Closure;
@@ -139,7 +141,7 @@ class TicketController extends Controller
         $user = auth()->user();
         $isAdmin = strtolower((string) ($user->role ?? '')) === 'admin';
 
-        $baseQuery = Ticket::query()
+        $baseQuery = ItAccess::constrainVisible(Ticket::query(), $user)
             ->when(! $isAdmin, fn ($query) => $query->where('requester_id', $user->id));
 
         $stats = [
@@ -148,6 +150,7 @@ class TicketController extends Controller
             'in_progress' => (clone $baseQuery)->whereHas('status', fn ($query) => $query->where('name', 'In Progress'))->count(),
             'completed' => (clone $baseQuery)->whereHas('status', fn ($query) => $query->whereIn('name', ['Resolved', 'Closed']))->count(),
             'pending_approvals' => Approval::query()
+                ->whereHas('request', fn ($tickets) => ItAccess::constrainVisible($tickets, $user))
                 ->when(! $isAdmin, fn ($query) => $query->where('approver_id', $user->id))
                 ->where('status', 'Pending')
                 ->count(),
@@ -165,11 +168,12 @@ class TicketController extends Controller
             ->with(['request.requester', 'request.status', 'request.priority', 'approver'])
             ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
             ->when($statusFilter !== 'all', fn ($query) => $query->where('status', $statusFilter))
-            ->whereHas('request')
+            ->whereHas('request', fn ($tickets) => ItAccess::constrainVisible($tickets, $user))
             ->latest()
             ->paginate(10);
 
         $pendingCount = Approval::query()
+            ->whereHas('request', fn ($tickets) => ItAccess::constrainVisible($tickets, $user))
             ->when(($user->role ?? null) !== 'admin', fn ($query) => $query->where('approver_id', $user->id))
             ->where('status', 'Pending')
             ->count();
@@ -190,7 +194,7 @@ class TicketController extends Controller
         $categoryId = $request->get('category_id');
         $departmentId = $request->get('department_id');
 
-        $tickets = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency'])
+        $tickets = ItAccess::constrainVisible(Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency']), $user)
             ->when(! $isAdmin, fn ($query) => $query->where('requester_id', $user->id))
             ->when($search, function ($query, $searchValue) {
                 $query->where(function ($builder) use ($searchValue) {
@@ -204,10 +208,13 @@ class TicketController extends Controller
             ->when($statusId, fn ($query) => $query->where('status_id', $statusId))
             ->when($priorityId, fn ($query) => $query->where('priority_id', $priorityId))
             ->when($categoryId, fn ($query) => $query->where('category_id', $categoryId))
+            ->when($request->query('service'), fn ($query, $code) => \App\Support\TicketServiceDomain::filter($query, $code))
             ->when($departmentId, fn ($query) => $query->where('department_id', $departmentId))
             ->latest()
             ->paginate(10);
 
+        $tickets->appends($request->query());
+        $serviceOptions = collect(ServiceDomains::catalog())->pluck('name', 'code')->all();
         $users = User::all();
         $priority = Priority::all();
         $status = Status::all();
@@ -241,11 +248,13 @@ class TicketController extends Controller
             ],
         ];
 
+        $createActions[] = ['label' => 'Layanan IT', 'description' => 'Gangguan dan permintaan layanan IT', 'icon' => 'bi-laptop', 'route' => 'it.request'];
+
         if ($request->ajax()) {
-            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'createButtonLabel', 'createActions'))->render();
+            return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'createButtonLabel', 'createActions', 'serviceOptions'))->render();
         }
 
-        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'createButtonLabel', 'createActions'));
+        return view('ticket.index', compact('tickets', 'status', 'priority', 'categories', 'users', 'departments', 'indexRoute', 'pageTitle', 'pageSubtitle', 'resetRoute', 'createButtonLabel', 'createActions', 'serviceOptions'));
     }
 
     public function gaRequestsIndex(Request $request)
@@ -262,6 +271,7 @@ class TicketController extends Controller
 
         $tickets = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency'])
             ->whereIn('payload->request_type', $gaRequestTypes)
+            ->whereNot(fn ($it) => ItAccess::constrainIt($it))
             ->when(in_array($requestType, $gaRequestTypes, true), fn ($query) => $query->where('payload->request_type', $requestType))
             ->when($search, function ($query, $searchValue) {
                 $query->where(function ($builder) use ($searchValue) {

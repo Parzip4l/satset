@@ -19,6 +19,8 @@ use App\Models\Master\TicketHistory;
 use App\Models\Master\Urgency;
 use App\Models\User;
 use App\Support\GaAccess;
+use App\Support\ItAccess;
+use App\Support\ServiceDomains;
 use App\Support\SatsetRequesterPolicy;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
@@ -51,6 +53,7 @@ class MobileSatsetTicketService
     {
         return [
             'request_types' => $this->requestTypes(),
+            'service_domains' => ServiceDomains::catalog(),
             'problem_categories' => ProblemCategory::orderBy('name')->get(['id', 'name', 'code', 'parent_id']),
             'ticket_categories' => TicketCategory::orderBy('name')->get(['id', 'name', 'code']),
             'priorities' => Priority::orderBy('id')->get(['id', 'name', 'code']),
@@ -220,6 +223,10 @@ class MobileSatsetTicketService
 
     public function canAccess(User $user, Ticket $ticket): bool
     {
+        if (ItAccess::isIt($ticket)) {
+            return ItAccess::canRead($user, $ticket);
+        }
+
         if (GaAccess::allowed($user)) {
             return true;
         }
@@ -235,6 +242,16 @@ class MobileSatsetTicketService
 
     public function serializeTicket(Ticket $ticket): array
     {
+        if (ItAccess::isIt($ticket)) {
+            // IT is read-only in this phase. Never expose legacy payload, comments or public file URLs.
+            return [
+                'id' => $ticket->id, 'ticket_no' => $ticket->ticket_no,
+                'request_type' => 'it', 'service_domain' => 'it',
+                'title' => $ticket->title, 'description' => $ticket->description,
+                'created_at' => $ticket->created_at?->toIso8601String(),
+                'read_only' => true,
+            ];
+        }
         $ticket->loadMissing([
             'requester',
             'category',
@@ -256,6 +273,7 @@ class MobileSatsetTicketService
             'id' => $ticket->id,
             'ticket_no' => $ticket->ticket_no,
             'request_type' => data_get($ticket->payload, 'request_type', 'general'),
+            'service_domain' => \App\Support\TicketServiceDomain::code($ticket),
             'title' => $ticket->title,
             'description' => $ticket->description,
             'payload' => $ticket->payload ?? [],

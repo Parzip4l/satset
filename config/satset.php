@@ -1,6 +1,21 @@
 <?php
 
 return [
+    // Submission stays closed until the workflow, approval and SLA release gates are verified.
+    'it' => [
+        'requests_enabled' => filter_var(env('SATSET_IT_REQUESTS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        'bootstrap_actor_id' => env('SATSET_IT_BOOTSTRAP_ACTOR_ID'),
+        'pilot' => [
+            'required' => true,
+            'version_id' => (int) env('SATSET_IT_PILOT_VERSION_ID', 0),
+            'user_ids' => array_map(fn ($v) => preg_match('/^[1-9][0-9]*$/', trim($v)) ? (int) trim($v) : 0, array_values(array_filter(explode(',', (string) env('SATSET_IT_PILOT_USER_IDS', '')), fn ($v) => trim($v) !== ''))),
+            'catalog_keys' => array_values(array_filter(array_map('trim', explode(',', (string) env('SATSET_IT_PILOT_CATALOG_KEYS', ''))))),
+            'business_approved' => filter_var(env('SATSET_IT_PILOT_BUSINESS_APPROVED', false), FILTER_VALIDATE_BOOLEAN),
+            'uat_approved' => filter_var(env('SATSET_IT_PILOT_UAT_APPROVED', false), FILTER_VALIDATE_BOOLEAN),
+            'restore_verified' => filter_var(env('SATSET_IT_PILOT_RESTORE_VERIFIED', false), FILTER_VALIDATE_BOOLEAN),
+            'support_ready' => filter_var(env('SATSET_IT_PILOT_SUPPORT_READY', false), FILTER_VALIDATE_BOOLEAN),
+        ],
+    ],
     'mobile_sso' => [
         'shared_secret' => env('LRTJ_SPACE_SATSET_SHARED_SECRET'),
         'signature_tolerance_seconds' => (int) env('LRTJ_SPACE_SATSET_SIGNATURE_TOLERANCE', 300),

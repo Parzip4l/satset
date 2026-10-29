@@ -11,16 +11,16 @@ class Assignment extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['request_id', 'assignee_user_id ', 'assignee_department_id','assigned_at','accepted_at','completed_at','notes'];
+    protected $fillable = ['request_id', 'assignee_user_id', 'assignee_department_id','assigned_at','accepted_at','completed_at','notes'];
 
     public function request()
     {
-        return $this->belongsTo(Ticket::class);
+        return $this->belongsTo(Ticket::class, 'request_id');
     }
 
     public function staff()
     {
-        return $this->belongsTo(User::class, 'assigned_to');
+        return $this->belongsTo(User::class, 'assignee_user_id');
     }
 
     public function manager()

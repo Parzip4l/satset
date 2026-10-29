@@ -24,6 +24,11 @@ class Ticket extends Model
     use HasFactory;
     protected $table = "requests";
 
+    protected static function booted(): void
+    {
+        static::creating(fn (self $ticket) => \App\Support\TicketServiceDomain::assignKnownDomain($ticket));
+    }
+
     protected $fillable = [
         'ticket_no',
         'submission_token',
@@ -61,7 +66,7 @@ class Ticket extends Model
 
     public function assignments()
     {
-        return $this->hasMany(Assignment::class);
+        return $this->hasMany(Assignment::class, 'request_id');
     }
 
     public function priority(): BelongsTo
@@ -122,6 +127,16 @@ class Ticket extends Model
     protected $casts = [
         'payload' => 'array',
     ];
+
+    public function serviceDomain(): BelongsTo
+    {
+        return $this->belongsTo(ServiceDomain::class);
+    }
+
+    public function itDetail()
+    {
+        return $this->hasOne(\App\Models\It\TicketDetail::class, 'request_id');
+    }
 
     public function getRouteKey(): mixed
     {

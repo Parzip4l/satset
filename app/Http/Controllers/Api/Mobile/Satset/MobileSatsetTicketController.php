@@ -7,6 +7,7 @@ use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Services\MobileSatsetTicketService;
 use App\Support\GaAccess;
+use App\Support\ItAccess;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -42,7 +43,7 @@ class MobileSatsetTicketController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-        $query = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department'])
+        $query = ItAccess::constrainVisible(Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department']), $user)
             ->when(! GaAccess::allowed($user), function ($builder) use ($user) {
                 $builder->where(function ($visible) use ($user) {
                     $visible->where('requester_id', $user->id)
@@ -50,6 +51,7 @@ class MobileSatsetTicketController extends Controller
                         ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
                 });
             })
+            ->when($request->query('service'), fn ($builder, $code) => \App\Support\TicketServiceDomain::filter($builder, $code))
             ->when($request->query('request_type'), fn ($builder, $type) => $builder->where('payload->request_type', $type))
             ->when($request->query('status_id'), fn ($builder, $statusId) => $builder->where('status_id', $statusId))
             ->when($request->query('search'), function ($builder, $search) {

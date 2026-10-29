@@ -29,6 +29,9 @@ return [
     */
 
     'connections' => [
+        'it_database' => [
+            'driver'=>'database', 'connection'=>null, 'table'=>'it_queue_jobs', 'queue'=>'it', 'retry_after'=>120, 'after_commit'=>true,
+        ],
 
         'sync' => [
             'driver' => 'sync',
@@ -106,7 +109,7 @@ return [
     'failed' => [
         'driver' => env('QUEUE_FAILED_DRIVER', 'database-uuids'),
         'database' => env('DB_CONNECTION', 'sqlite'),
-        'table' => 'failed_jobs',
+        'table' => env('QUEUE_FAILED_TABLE', 'failed_jobs'),
     ],
 
 ];

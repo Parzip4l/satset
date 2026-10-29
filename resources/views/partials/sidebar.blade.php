@@ -96,6 +96,18 @@
                 @endif
             @endforeach
 
+            <li class="pe-menu-title">Layanan IT</li>
+            <li class="pe-slide">
+                <a href="{{ route('it.index') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show') ? 'active' : '' }}">
+                    <i class="bi bi-laptop pe-nav-icon"></i><span class="pe-nav-content">Layanan IT</span>
+                </a>
+            </li>
+            @if(\Illuminate\Support\Facades\Schema::hasTable('it_sla_clocks') && (\App\Support\ItAccess::operational(auth()->user()) || \App\Support\ItAccess::can(auth()->user(), 'view_it_queue') || \App\Support\ItAccess::can(auth()->user(), 'manage_it_configuration')))
+            <li class="pe-slide"><a href="{{ route('it.dashboard') }}" class="pe-nav-link {{ request()->routeIs('it.dashboard') ? 'active' : '' }}"><i class="bi bi-bar-chart-line pe-nav-icon"></i><span class="pe-nav-content">Dashboard IT</span></a></li>
+            @endif
+            @if(\Illuminate\Support\Facades\Schema::hasTable('it_configuration_sets') && (\App\Support\ItAccess::can(auth()->user(), 'manage_it_configuration') || \App\Support\ItAccess::can(auth()->user(), 'publish_it_configuration')))
+            <li class="pe-slide"><a href="{{ route('it.configuration.index') }}" class="pe-nav-link {{ request()->routeIs('it.configuration.*') ? 'active' : '' }}"><i class="bi bi-sliders pe-nav-icon"></i><span class="pe-nav-content">Konfigurasi IT</span></a></li>
+            @endif
             @if($canAccessGaMenu)
             <li class="pe-menu-title">Operasional GA</li>
             @include('partials.ga-menu-items', ['topLevel' => true])

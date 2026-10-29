@@ -199,6 +199,11 @@ class LrtjSpaceMobileNotificationService
         Ticket $ticket,
         array $exceptEmails = [],
     ): void {
+        // IT recipients are selected by the future IT domain event handler, never GA broadcast.
+        if (\App\Support\ItAccess::isIt($ticket)) {
+            return;
+        }
+
         if (! Schema::hasColumn('users', 'role')) {
             return;
         }

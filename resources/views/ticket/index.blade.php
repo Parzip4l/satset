@@ -111,6 +111,17 @@
                             </div>
                             @endif
 
+                            @if(!empty($serviceOptions))
+                            <div class="col-md-3">
+                                <label for="service-filter" class="visually-hidden">Layanan</label>
+                                <select class="form-select" id="service-filter" name="service" onchange="this.form.submit()">
+                                    <option value="">Semua Layanan</option>
+                                    @foreach($serviceOptions as $code => $label)
+                                        <option value="{{ $code }}" @selected(request('service') === $code)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endif
                             {{-- Filter Priority --}}
                             <div class="col-md-3">
                                 <select class="form-select" id="priority-filter" name="priority_id" onchange="this.form.submit()">

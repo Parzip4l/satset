@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Master\EscalationRule;
+use Illuminate\Database\Seeder;
 
 class EscalationRuleSeeder extends Seeder
 {
     public function run(): void
     {
-        EscalationRule::insert([
-            ['sla_id' => 1, 'escalate_to_role' => 'manager', 'time_limit' => 120],
-            ['sla_id' => 2, 'escalate_to_role' => 'admin', 'time_limit' => 240],
-        ]);
+        // No user or recipient authority is inferred from a demonstration policy.
+        foreach (\App\Models\Master\Sla::where('name', 'like', 'Demo %')->get() as $sla) {
+            EscalationRule::firstOrCreate(['sla_id' => $sla->id, 'threshold_minutes' => $sla->resolve_time_minutes]);
+        }
     }
 }

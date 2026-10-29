@@ -90,7 +90,47 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     // Page
     Route::get('dashboard', [dashboardController::class, 'index'])->name('dashboard.index');
 
+    Route::prefix('it/configuration')->name('it.configuration.')->group(function () {
+        Route::get('/pilot', \App\Http\Controllers\It\PilotController::class)->name('pilot');
+        Route::get('/teams', [\App\Http\Controllers\It\TeamController::class, 'index'])->name('teams');
+        Route::post('/teams', [\App\Http\Controllers\It\TeamController::class, 'store'])->name('teams.store');
+        Route::put('/teams/{team}', [\App\Http\Controllers\It\TeamController::class, 'update'])->name('teams.update');
+        Route::get('/', [\App\Http\Controllers\It\ConfigurationController::class, 'index'])->name('index');
+        Route::post('/drafts', [\App\Http\Controllers\It\ConfigurationController::class, 'draft'])->name('draft');
+        Route::get('/versions/{version}', [\App\Http\Controllers\It\ConfigurationController::class, 'show'])->name('show');
+        Route::put('/versions/{version}', [\App\Http\Controllers\It\ConfigurationController::class, 'update'])->name('update');
+        Route::post('/versions/{version}/publish', [\App\Http\Controllers\It\ConfigurationController::class, 'publish'])->name('publish');
+        Route::post('/versions/{version}/rollback', [\App\Http\Controllers\It\ConfigurationController::class, 'rollback'])->name('rollback');
+        Route::post('/versions/{version}/sla-preview', \App\Http\Controllers\It\SlaPreviewController::class)->name('sla-preview');
+        Route::post('/versions/{version}/preview', [\App\Http\Controllers\It\ConfigurationController::class, 'preview'])->name('preview');
+    });
+
     // Ticket
+    Route::prefix('it')->name('it.')->controller(\App\Http\Controllers\It\WorkflowController::class)->group(function () {
+        Route::get('/practices', [\App\Http\Controllers\It\PracticeController::class,'index'])->name('practices.index');
+        Route::post('/practices', [\App\Http\Controllers\It\PracticeController::class,'store'])->name('practices.store');
+        Route::get('/practices/{record}', [\App\Http\Controllers\It\PracticeController::class,'show'])->name('practices.show');
+        Route::post('/practices/{record}/{action}', [\App\Http\Controllers\It\PracticeController::class,'action'])->name('practices.action');
+        Route::get('/operations', [\App\Http\Controllers\It\OperationsController::class,'index'])->name('operations');
+        Route::get('/dashboard', [\App\Http\Controllers\It\ManagementDashboardController::class,'index'])->name('dashboard');
+        Route::get('/operations/health', [\App\Http\Controllers\It\OperationsController::class,'health'])->name('operations.health');
+        Route::post('/operations/notifications/{notification}/read', [\App\Http\Controllers\It\OperationsController::class,'read'])->name('operations.notifications.read');
+        Route::get('/', 'index')->name('index');
+        Route::get('/request', 'requestEntry')->name('request');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/form', 'form')->name('form');
+        Route::post('/tickets', 'store')->name('store');
+        Route::get('/tickets/{ticket}', 'show')->name('show');
+        Route::get('/tickets/{ticket}/revise', 'reviseForm')->name('revise.form');
+        Route::post('/tickets/{ticket}/form', 'reviseForm')->name('revise.schema');
+        Route::post('/tickets/{ticket}/actions/{action}', 'action')->name('action');
+        Route::get('/tickets/{ticket}/attachments/{attachment}', 'attachment')->name('attachment');
+        Route::get('/approvals', 'approvals')->name('approvals');
+        Route::get('/approvals/{approval}', 'approval')->name('approval');
+        Route::post('/approvals/{approval}/decision', 'decide')->name('decide');
+        Route::get('/notifications', 'notifications')->name('notifications');
+        Route::post('/notifications/{notification}/read', 'readNotification')->name('notifications.read');
+    });
     Route::get('/ticket/tiket-saya', [App\Http\Controllers\Master\TicketController::class, 'ticketsIndex'])
         ->name('ticket.mine');
     Route::redirect('/ticket/general', '/ticket/tiket-saya')

@@ -19,7 +19,7 @@ class DashboardController extends Controller
         $selectedYear = $request->tahun ?? Carbon::now()->year;
 
         // Base query: Admin = semua, PIC = miliknya
-        $requestsQuery = RequestModel::query();
+        $requestsQuery = \App\Support\ItAccess::constrainVisible(RequestModel::query(), $user);
         if(strtolower($user->role) !== 'admin') {
             $requestsQuery->where('requester_id', $user->id);
         }
@@ -69,7 +69,7 @@ class DashboardController extends Controller
             ->toArray();
 
         // Tahun tersedia
-        $availableYears = RequestModel::selectRaw('YEAR(created_at) as year')
+        $availableYears = (clone $requestsQuery)->selectRaw('YEAR(requests.created_at) as year')
             ->distinct()
             ->orderByDesc('year')
             ->pluck('year')

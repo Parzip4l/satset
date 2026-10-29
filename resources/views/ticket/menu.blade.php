@@ -164,8 +164,41 @@
     .request-section-heading {
         align-items: end;
         display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
         justify-content: space-between;
-        margin-bottom: 10px;
+        margin-bottom: 14px;
+    }
+
+    .requests-approval-link {
+        align-items: center;
+        background: rgba(255, 255, 255, .8);
+        border: 1px solid var(--request-border);
+        border-radius: 9px;
+        color: #626c78;
+        display: inline-flex;
+        font-size: .82rem;
+        font-weight: 650;
+        gap: 8px;
+        padding: 9px 13px;
+        text-decoration: none;
+        transition: background .18s ease, border-color .18s ease;
+    }
+
+    .requests-approval-link:hover,
+    .requests-approval-link:focus-visible {
+        background: #fff;
+        border-color: #a0a7b0;
+        color: var(--request-ink);
+    }
+
+    .requests-approval-count {
+        background: rgba(226, 26, 26, .08);
+        border-radius: 6px;
+        color: var(--request-red);
+        min-width: 22px;
+        padding: 2px 6px;
+        text-align: center;
     }
 
     .request-section-heading h2 {
@@ -185,7 +218,7 @@
     .request-services {
         display: grid;
         gap: 12px;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .request-service {
@@ -197,7 +230,7 @@
         color: inherit;
         display: flex;
         flex-direction: column;
-        min-height: 190px;
+        min-height: 220px;
         overflow: hidden;
         padding: 18px;
         position: relative;
@@ -247,6 +280,7 @@
 
     .request-service-kicker {
         color: var(--request-muted);
+        display: block;
         font-size: .7rem;
         font-weight: 750;
         letter-spacing: .07em;
@@ -288,6 +322,15 @@
         margin-top: auto;
         transition: color .18s ease, transform .18s ease;
         width: 30px;
+    }
+
+    .request-service > span:nth-child(2) {
+        margin-bottom: 18px;
+    }
+
+    .request-service:focus-visible {
+        outline: 2px solid var(--service-accent);
+        outline-offset: 3px;
     }
 
     .request-service:hover .request-service-arrow {
@@ -368,50 +411,21 @@
         ['label' => 'Menunggu approval', 'value' => $stats['pending_approvals'] ?? 0, 'icon' => 'bi-person-check', 'class' => 'pending'],
     ];
 
-    $services = [
-        [
-            'title' => $isAdmin ? 'Semua Tiket' : 'Tiket Saya',
-            'kicker' => $isAdmin ? 'Seluruh requester' : 'Riwayat permintaan',
-            'description' => $isAdmin
-                ? 'Lihat seluruh tiket dari semua requester dan semua jenis permintaan.'
-                : 'Lihat seluruh tiket dan semua jenis permintaan yang pernah Anda ajukan.',
-            'icon' => 'bi-ticket-perforated',
-            'route' => 'ticket.mine',
-            'class' => 'tone-blue',
-        ],
-        [
-            'title' => 'Permintaan Konsumsi',
-            'kicker' => 'Kegiatan & rapat',
-            'description' => 'Ajukan konsumsi kegiatan dengan alur approval atasan dan verifikasi Bagian Umum.',
-            'icon' => 'bi-cup-hot',
-            'route' => 'ticket.konsumsi.create',
-            'class' => 'tone-teal',
-        ],
-        [
-            'title' => 'Permintaan ATK / RTK',
-            'kicker' => 'Kebutuhan kantor',
-            'description' => 'Ajukan alat tulis atau perlengkapan rumah tangga kantor dari katalog yang tersedia.',
-            'icon' => 'bi-box-seam',
-            'route' => 'ticket.atk-rtk.create',
-            'class' => 'tone-amber',
-        ],
-        [
-            'title' => 'GA Permintaan & Temuan',
-            'kicker' => 'Layanan fasilitas',
-            'description' => 'Sampaikan kebutuhan dukungan atau temuan fasilitas agar dapat segera ditindaklanjuti.',
-            'icon' => 'bi-building-gear',
-            'route' => 'ticket.ga-permintaan-temuan.create',
-            'class' => 'featured tone-red',
-        ],
-        [
-            'title' => 'Approval Saya',
-            'kicker' => 'Tugas persetujuan',
-            'description' => 'Tinjau permintaan yang menunggu keputusan Anda dan lihat riwayat persetujuannya.',
-            'icon' => 'bi-check2-square',
-            'route' => 'ticket.approvals',
-            'class' => 'tone-slate',
-        ],
+    $servicePresentation = [
+        'atk_rtk' => ['kicker' => 'Kebutuhan kantor', 'class' => 'tone-amber', 'description' => 'Ajukan alat tulis atau perlengkapan rumah tangga kantor dari katalog yang tersedia.'],
+        'consumption' => ['kicker' => 'Kegiatan & rapat', 'class' => 'tone-teal', 'description' => 'Ajukan konsumsi kegiatan dengan alur approval atasan dan verifikasi Bagian Umum.'],
+        'ga_request_finding' => ['kicker' => 'Layanan fasilitas', 'class' => 'featured tone-red', 'description' => 'Sampaikan kebutuhan dukungan atau temuan fasilitas agar dapat segera ditindaklanjuti.'],
+        'it' => ['kicker' => 'Teknologi & dukungan', 'class' => 'tone-blue', 'description' => 'Ajukan gangguan atau kebutuhan layanan teknologi informasi.'],
     ];
+    $services = collect(\App\Support\ServiceDomains::catalog())->map(fn ($domain) => [
+        'title' => $domain['name'],
+        'kicker' => $servicePresentation[$domain['code']]['kicker'],
+        'description' => $servicePresentation[$domain['code']]['description'],
+        'icon' => $domain['icon'],
+        'route' => $domain['route'],
+        'class' => $servicePresentation[$domain['code']]['class'],
+    ]);
+
 @endphp
 
 <div class="container-fluid requests-page mt-2">
@@ -453,6 +467,13 @@
                 <h2>Layanan</h2>
                 <p>Pilih jenis permintaan yang sesuai.</p>
             </div>
+            <a href="{{ route('ticket.approvals') }}" class="requests-approval-link">
+                <i class="bi bi-check2-square" aria-hidden="true"></i>
+                Persetujuan Saya
+                @if(($stats['pending_approvals'] ?? 0) > 0)
+                    <span class="requests-approval-count">{{ number_format($stats['pending_approvals']) }}</span>
+                @endif
+            </a>
         </div>
 
         <div class="request-services">

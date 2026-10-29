@@ -15,6 +15,47 @@ services:
       - db
       - redis
 
+  it-worker:
+    image: satset-app
+    restart: unless-stopped
+    working_dir: /var/www
+    command: ["php", "artisan", "queue:work", "it_database", "--queue=it", "--sleep=2", "--tries=5", "--timeout=60", "--max-time=3600"]
+    environment:
+      QUEUE_CONNECTION: it_database
+      QUEUE_FAILED_TABLE: it_queue_failed_jobs
+      IT_RUNTIME_COMPONENT: worker
+    volumes:
+      - ./:/var/www
+    networks:
+      - satset-network
+    stop_grace_period: 70s
+    healthcheck:
+      test: ["CMD", "php", "artisan", "satset:it-health", "--component=worker", "--max-age=180"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+
+  it-scheduler:
+    image: satset-app
+    restart: unless-stopped
+    working_dir: /var/www
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      QUEUE_CONNECTION: it_database
+      QUEUE_FAILED_TABLE: it_queue_failed_jobs
+      IT_RUNTIME_COMPONENT: scheduler
+    volumes:
+      - ./:/var/www
+    networks:
+      - satset-network
+    healthcheck:
+      test: ["CMD", "php", "artisan", "satset:it-health", "--component=scheduler", "--max-age=180"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 120s
+
   nginx:
     image: nginx:alpine
     container_name: satset-nginx

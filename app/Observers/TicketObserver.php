@@ -12,12 +12,14 @@ class TicketObserver implements ShouldHandleEventsAfterCommit
 {
     public function created(Ticket $ticket): void
     {
+        if (data_get($ticket->payload, 'it_workflow') === 'it_v1') return;
         app(LrtjSpaceMobileNotificationService::class)
             ->notifyTicketCreated($ticket->fresh(['requester', 'status']));
     }
 
     public function updated(Ticket $ticket): void
     {
+        if (data_get($ticket->payload, 'it_workflow') === 'it_v1') return;
         $notifications = app(LrtjSpaceMobileNotificationService::class);
 
         if ($ticket->wasChanged(['status_id', 'payload'])) {

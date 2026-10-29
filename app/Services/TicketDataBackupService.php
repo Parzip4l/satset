@@ -18,6 +18,7 @@ class TicketDataBackupService
     /** @var array<string, string> */
     private const TABLE_FOREIGN_KEYS = [
         'requests' => 'id',
+        'service_domain_reviews' => 'request_id',
         'assignments' => 'request_id',
         'approvals' => 'request_id',
         'approval_audits' => 'ticket_id',
@@ -38,6 +39,7 @@ class TicketDataBackupService
 
     public function createArchive(string $destination): array
     {
+        $this->assertLegacyOnly();
         if (! class_exists(ZipArchive::class)) {
             throw new RuntimeException('Ekstensi PHP ZIP belum tersedia di server.');
         }
@@ -92,6 +94,7 @@ class TicketDataBackupService
 
     public function clearAll(): int
     {
+        $this->assertLegacyOnly();
         $attachmentPaths = $this->attachmentPaths();
         $count = Schema::hasTable('requests') ? DB::table('requests')->count() : 0;
 
@@ -130,8 +133,19 @@ class TicketDataBackupService
 
     public function restoreArchive(string $archive): int
     {
+        $this->assertLegacyOnly();
         ['payload' => $payload] = $this->inspectArchive($archive);
         $tables = $payload['tables'];
+        if (! empty($tables['it_ticket_details'])) {
+            throw new RuntimeException('Backup ZIP lama tidak mendukung pemulihan detail IT. Gunakan backup database lengkap.');
+        }
+        $itDomainId = Schema::hasTable('service_domains') ? DB::table('service_domains')->where('code', 'it')->value('id') : null;
+        foreach ($tables['requests'] as $row) {
+            $fields = is_string($row['payload'] ?? null) ? json_decode($row['payload'], true) : ($row['payload'] ?? []);
+            if (data_get($fields, 'request_type') === 'it' || ($itDomainId && (string) ($row['service_domain_id'] ?? '') === (string) $itDomainId)) {
+                throw new RuntimeException('Backup ZIP berisi tiket IT. Gunakan backup database lengkap.');
+            }
+        }
         $oldAttachmentPaths = $this->attachmentPaths();
 
         DB::transaction(function () use ($tables): void {
@@ -176,6 +190,17 @@ class TicketDataBackupService
         foreach (array_reverse(array_keys(self::TABLE_FOREIGN_KEYS)) as $table) {
             if (Schema::hasTable($table)) {
                 DB::table($table)->delete();
+            }
+        }
+    }
+
+    private function assertLegacyOnly(): void
+    {
+        if (Schema::hasColumn('requests', 'payload')) {
+            $query = \App\Models\Master\Ticket::query();
+            \App\Support\ItAccess::constrainIt($query);
+            if ($query->exists()) {
+                throw new RuntimeException('Pengelolaan ZIP lama belum mendukung isolasi dan detail IT. Gunakan backup database lengkap.');
             }
         }
     }

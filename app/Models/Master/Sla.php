@@ -1,19 +1,22 @@
-<?php 
+<?php
 
 namespace App\Models\Master;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Models\Master\ProblemCategory;
+use Illuminate\Database\Eloquent\Model;
 
 class Sla extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['problem_category_id', 'response_time', 'resolution_time','name','response_time_minutes','resolve_time_minutes'];
+    protected $table = 'sla';
 
-    public function category()
+    protected $fillable = ['name', 'response_time_minutes', 'resolve_time_minutes', 'business_hours'];
+
+    protected $casts = ['business_hours' => 'boolean', 'response_time_minutes' => 'integer', 'resolve_time_minutes' => 'integer'];
+
+    public function routingRules()
     {
-        return $this->belongsTo(ProblemCategory::class, 'problem_category_id');
+        return $this->hasMany(RoutingRule::class, 'sla_id');
     }
 }

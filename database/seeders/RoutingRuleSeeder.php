@@ -1,18 +1,17 @@
-<?php 
+<?php
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Master\RoutingRule;
+use Illuminate\Database\Seeder;
 
 class RoutingRuleSeeder extends Seeder
 {
     public function run(): void
     {
-        RoutingRule::insert([
-            ['problem_category_id' => 1, 'assigned_role' => 'staff'],
-            ['problem_category_id' => 2, 'assigned_role' => 'staff'],
-            ['problem_category_id' => 3, 'assigned_role' => 'developer'],
-        ]);
+        // Use real category/department references rather than invented role names or numeric IDs.
+        foreach (\App\Models\Master\DepartmentCategory::all() as $mapping) {
+            RoutingRule::firstOrCreate(['category_id' => $mapping->category_id, 'assignee_department_id' => $mapping->department_id], ['default_priority' => 'MED']);
+        }
     }
 }

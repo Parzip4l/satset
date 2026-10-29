@@ -60,6 +60,7 @@ class TicketApiController extends Controller
         // ======================================================================
         $tickets = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department'])
             
+            ->whereNot(fn ($it) => \App\Support\ItAccess::constrainIt($it))
             ->where('requester_id', $user->id)
 
             // --- FILTER LOGIC ---
