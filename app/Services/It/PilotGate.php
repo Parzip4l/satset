@@ -4,6 +4,7 @@ namespace App\Services\It;
 
 use App\Models\It\ConfigurationVersion;
 use App\Models\User;
+use App\Support\ServiceDomains;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -116,7 +117,7 @@ class PilotGate
 
     public function allowed(?User $user, ?string $catalog = null): bool
     {
-        if (! config('satset.it.requests_enabled', false)) {
+        if (! ServiceDomains::itActive() || ! config('satset.it.requests_enabled', false)) {
             return false;
         }
         if (! config('satset.it.pilot.required', true)) {

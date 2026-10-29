@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Schema;
 
 class ServiceDomains
 {
+    public static function itActive(): bool
+    {
+        return Schema::hasTable('service_domains') && (bool) ServiceDomain::where('code', 'it')->value('is_active');
+    }
+
     public const DEFINITIONS = [
         'atk_rtk' => ['name' => 'ATK/RTK', 'description' => 'Alat tulis dan perlengkapan rumah tangga kantor.', 'icon' => 'bi-box-seam', 'route' => 'ticket.atk-rtk.create'],
         'consumption' => ['name' => 'Konsumsi', 'description' => 'Konsumsi rapat dan kegiatan.', 'icon' => 'bi-cup-hot', 'route' => 'ticket.konsumsi.create'],

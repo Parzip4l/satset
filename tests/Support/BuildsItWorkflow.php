@@ -83,6 +83,7 @@ trait BuildsItWorkflow
         foreach (['000001_create_it_service_foundation', '000003_create_it_configuration_versions', '000004_create_it_workflow'] as $file) {
             (require database_path('migrations/2026_10_28_'.$file.'.php'))->up();
         }
+        DB::table('service_domains')->where('code', 'it')->update(['is_active' => true]);
         DB::table('problem_categories')->insert(['code' => 'IT', 'name' => 'IT']);
         DB::table('statuses')->insert([['code' => 'open', 'name' => 'Open'], ['code' => 'progress', 'name' => 'In Progress'], ['code' => 'resolved', 'name' => 'Resolved'], ['code' => 'closed', 'name' => 'Closed']]);
         $this->requester = $this->user('Pemohon');

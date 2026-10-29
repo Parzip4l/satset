@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\It\FormEngine;
 use App\Services\It\TicketWorkflow;
 use App\Support\ItAccess;
+use App\Support\ServiceDomains;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -53,6 +54,9 @@ class WorkflowController extends Controller
 
     public function requestEntry(Request $r, TicketWorkflow $workflow)
     {
+        if (! ServiceDomains::itActive()) {
+            return view('it.coming-soon');
+        }
         if ($workflow->enabled($r->user())) {
             return redirect()->route('it.create');
         }

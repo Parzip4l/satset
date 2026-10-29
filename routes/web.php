@@ -78,6 +78,8 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::post('/update-status/{id}', [App\Http\Controllers\Setting\MenuController::class, 'updateStatus'])->name('update.status');
     Route::resource('user', App\Http\Controllers\General\userController::class);
     Route::resource('role', App\Http\Controllers\Setting\RoleController::class);
+    Route::get('settings/it-service', [\App\Http\Controllers\Setting\ItServiceController::class, 'index'])->middleware('admin.only')->name('settings.it-service.index');
+    Route::put('settings/it-service', [\App\Http\Controllers\Setting\ItServiceController::class, 'update'])->middleware('admin.only')->name('settings.it-service.update');
     Route::prefix('settings/ticket-data')->name('settings.ticket-data.')->middleware('admin.only')->group(function () {
         Route::get('/', [TicketDataController::class, 'index'])->name('index');
         Route::post('/backup', [TicketDataController::class, 'backup'])->name('backup');

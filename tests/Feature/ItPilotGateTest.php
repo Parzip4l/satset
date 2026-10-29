@@ -32,6 +32,25 @@ class ItPilotGateTest extends TestCase
         $this->mock(OperationHealth::class)->shouldReceive('report')->andReturn(['ready' => true]);
     }
 
+    public function test_admin_can_disable_it_and_block_new_requests_without_removing_access_to_tickets(): void
+    {
+        $this->actingAs($this->manager)->put(route('settings.it-service.update'), ['is_active' => 0])->assertRedirect();
+        $this->assertDatabaseHas('service_domains', ['code' => 'it', 'is_active' => false]);
+        $this->actingAs($this->requester)->get(route('it.request'))->assertOk()->assertSee('Layanan IT segera hadir');
+        $this->getJson(route('it.create'))->assertStatus(423);
+        $this->postJson(route('it.store'), $this->input())->assertStatus(423);
+        $this->get(route('it.index'))->assertOk();
+        $this->actingAs($this->manager)->put(route('settings.it-service.update'), ['is_active' => 1])->assertRedirect();
+        $this->actingAs($this->requester)->get(route('it.request'))->assertRedirect(route('it.create'));
+    }
+
+    public function test_non_admin_cannot_change_it_service_status(): void
+    {
+        $this->requester->update(['role' => 'employee']);
+        $this->actingAs($this->requester)->put(route('settings.it-service.update'), ['is_active' => 0])->assertForbidden();
+        $this->assertDatabaseHas('service_domains', ['code' => 'it', 'is_active' => true]);
+    }
+
     public function test_only_scoped_participant_can_see_and_submit_scoped_catalog(): void
     {
         $this->actingAs($this->requester)->get(route('it.request'))->assertRedirect(route('it.create'));

@@ -65,7 +65,7 @@
                         @php
                             $parentActive = $visibleChildren->contains(function ($child) {
                                 return $child->url && $child->url !== '#' && request()->routeIs($child->url);
-                            }) || ($isAdminSettingsMenu && request()->routeIs('settings.ticket-data.*'));
+                            }) || ($isAdminSettingsMenu && request()->routeIs('settings.ticket-data.*', 'settings.it-service.*'));
                         @endphp
                         <li class="pe-slide pe-has-sub">
                             <a href="#collapseSide{{ $menu->id }}" class="pe-nav-link {{ $parentActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $parentActive ? 'true' : 'false' }}" aria-controls="collapseSide{{ $menu->id }}">
@@ -88,6 +88,7 @@
                                     <li class="pe-slide-item">
                                         <a href="{{ route('settings.ticket-data.index') }}" class="pe-nav-link {{ request()->routeIs('settings.ticket-data.*') ? 'active' : '' }}">Backup & Data Tiket</a>
                                     </li>
+                                    <li class="pe-slide-item"><a href="{{ route('settings.it-service.index') }}" class="pe-nav-link {{ request()->routeIs('settings.it-service.*') ? 'active' : '' }}">Status Layanan IT</a></li>
                                 @endif
                             </ul>
                         </li>
@@ -98,7 +99,7 @@
 
             <li class="pe-menu-title">Layanan IT</li>
             <li class="pe-slide">
-                <a href="{{ route('it.index') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show') ? 'active' : '' }}">
+                <a href="{{ route(\App\Support\ServiceDomains::itActive() ? 'it.index' : 'it.request') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show', 'it.request') ? 'active' : '' }}">
                     <i class="bi bi-laptop pe-nav-icon"></i><span class="pe-nav-content">Layanan IT</span>
                 </a>
             </li>
