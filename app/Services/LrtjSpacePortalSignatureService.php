@@ -134,6 +134,15 @@ class LrtjSpacePortalSignatureService
             throw new \InvalidArgumentException('QR tindak lanjut GA hanya didukung untuk Permintaan & Temuan GA.');
         }
 
+        if (SatsetRequesterPolicy::routesDirectlyToGa($signer->email)) {
+            Log::info('Portal GA follow-up signature skipped for direct GA account.', [
+                'ticket_no' => $ticket->ticket_no,
+                'signer_email' => $signer->email,
+            ]);
+
+            return null;
+        }
+
         return $this->createSignature([
             'module' => 'satset',
             'signature_type' => 'ga_request_finding_follow_up',

@@ -998,6 +998,13 @@
                     @else
                         <form action="{{ route('ticket.ga-request-finding.follow-up', $ticket) }}" method="POST" enctype="multipart/form-data" class="row g-3">
                             @csrf
+                            @if($errors->any())
+                                <div class="col-12">
+                                    <div class="alert alert-danger border-0 mb-0">
+                                        <i class="bi bi-exclamation-circle-fill me-1"></i> {{ $errors->first() }}
+                                    </div>
+                                </div>
+                            @endif
                             <div class="col-12">
                                 <label class="meta-label mb-2">Hasil Tindak Lanjut <span class="text-danger">*</span></label>
                                 <textarea name="follow_up_notes" class="form-control" rows="3" maxlength="2000" placeholder="Jelaskan pekerjaan atau penyelesaian yang sudah dilakukan..." required>{{ old('follow_up_notes') }}</textarea>

@@ -199,6 +199,57 @@ class GaRequestFindingFollowUpTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_direct_ga_account_can_close_without_portal_ga_signature(): void
+    {
+        Storage::fake('public');
+        config([
+            'satset.direct_ga_requester_emails' => ['teamga@lrtjakarta.co.id'],
+            'satset.portal_signatures.shared_secret' => 'test-secret',
+            'satset.portal_signatures.base_url' => 'https://portal.example.test',
+            'satset.portal_signatures.endpoint' => '/api/signatures',
+        ]);
+        Http::fake([
+            'https://portal.example.test/*' => Http::response(['data' => [
+                'signature_id' => 'sig-requester',
+                'verify_url' => 'https://portal.example.test/signatures/sig-requester',
+            ]]),
+        ]);
+
+        $requester = $this->user('Requester', 'requester3@example.test', 'employee');
+        $teamGa = $this->user('Team GA', 'teamga@lrtjakarta.co.id', 'ga');
+        $inProgressStatus = DB::table('statuses')->insertGetId(['name' => 'In Progress', 'created_at' => now(), 'updated_at' => now()]);
+        $closedStatus = DB::table('statuses')->insertGetId(['name' => 'Closed', 'created_at' => now(), 'updated_at' => now()]);
+
+        $ticket = Ticket::create([
+            'ticket_no' => 'TCK-GA-0003',
+            'requester_id' => $requester->id,
+            'title' => 'GA Temuan - Area Stasiun',
+            'status_id' => $inProgressStatus,
+            'payload' => [
+                'request_type' => 'ga_request_finding',
+                'workflow_status' => 'IN_PROGRESS',
+            ],
+        ]);
+
+        $response = $this->actingAs($teamGa)->post(
+            route('ticket.ga-request-finding.follow-up', $ticket),
+            [
+                'workflow_status' => 'CLOSED',
+                'follow_up_notes' => 'Temuan sudah ditindaklanjuti oleh Team GA.',
+                'follow_up_evidence_file' => UploadedFile::fake()->image('bukti-temuan.jpg'),
+            ]
+        );
+
+        $response->assertRedirect()->assertSessionHas('success');
+        $ticket->refresh();
+
+        $this->assertSame('CLOSED', data_get($ticket->payload, 'workflow_status'));
+        $this->assertSame($closedStatus, $ticket->status_id);
+        $this->assertNotNull($ticket->closed_at);
+        $this->assertNull(data_get($ticket->payload, 'portal_signatures.ga_officer'));
+        Http::assertSentCount(1);
+    }
+
     private function user(string $name, string $email, string $role): User
     {
         return User::create([
