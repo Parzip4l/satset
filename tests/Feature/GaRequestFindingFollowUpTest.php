@@ -199,7 +199,7 @@ class GaRequestFindingFollowUpTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_direct_ga_account_can_close_without_portal_ga_signature(): void
+    public function test_direct_ga_account_can_close_with_configured_portal_fallback_signature(): void
     {
         Storage::fake('public');
         config([
@@ -207,13 +207,21 @@ class GaRequestFindingFollowUpTest extends TestCase
             'satset.portal_signatures.shared_secret' => 'test-secret',
             'satset.portal_signatures.base_url' => 'https://portal.example.test',
             'satset.portal_signatures.endpoint' => '/api/signatures',
+            'satset.portal_signatures.direct_ga_fallback_signer' => [
+                'id' => null,
+                'name' => 'Azwita',
+                'email' => 'azwita@lrtjakarta.co.id',
+            ],
         ]);
-        Http::fake([
-            'https://portal.example.test/*' => Http::response(['data' => [
-                'signature_id' => 'sig-requester',
-                'verify_url' => 'https://portal.example.test/signatures/sig-requester',
-            ]]),
-        ]);
+        Http::fake(function ($request) {
+            $isGaSignature = $request['signature_type'] === 'ga_request_finding_follow_up';
+            $signatureId = $isGaSignature ? 'sig-ga-azwita' : 'sig-requester';
+
+            return Http::response(['data' => [
+                'signature_id' => $signatureId,
+                'verify_url' => 'https://portal.example.test/signatures/'.$signatureId,
+            ]]);
+        });
 
         $requester = $this->user('Requester', 'requester3@example.test', 'employee');
         $teamGa = $this->user('Team GA', 'teamga@lrtjakarta.co.id', 'ga');
@@ -246,8 +254,14 @@ class GaRequestFindingFollowUpTest extends TestCase
         $this->assertSame('CLOSED', data_get($ticket->payload, 'workflow_status'));
         $this->assertSame($closedStatus, $ticket->status_id);
         $this->assertNotNull($ticket->closed_at);
-        $this->assertNull(data_get($ticket->payload, 'portal_signatures.ga_officer'));
-        Http::assertSentCount(1);
+        $this->assertSame('sig-ga-azwita', data_get($ticket->payload, 'portal_signatures.ga_officer.portal_signature_id'));
+        Http::assertSent(function ($request): bool {
+            return $request['signature_type'] === 'ga_request_finding_follow_up'
+                && $request['signer']['id'] === null
+                && $request['signer']['name'] === 'Azwita'
+                && $request['signer']['email'] === 'azwita@lrtjakarta.co.id';
+        });
+        Http::assertSentCount(2);
     }
 
     private function user(string $name, string $email, string $role): User

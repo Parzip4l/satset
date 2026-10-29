@@ -134,13 +134,31 @@ class LrtjSpacePortalSignatureService
             throw new \InvalidArgumentException('QR tindak lanjut GA hanya didukung untuk Permintaan & Temuan GA.');
         }
 
+        $signatureSigner = [
+            'id' => (string) $signer->id,
+            'name' => $signer->name,
+            'email' => $signer->email,
+        ];
+
         if (SatsetRequesterPolicy::routesDirectlyToGa($signer->email)) {
-            Log::info('Portal GA follow-up signature skipped for direct GA account.', [
+            $fallbackSigner = (array) config('satset.portal_signatures.direct_ga_fallback_signer', []);
+            $signatureSigner = [
+                'id' => filled($fallbackSigner['id'] ?? null) ? (string) $fallbackSigner['id'] : null,
+                'name' => (string) ($fallbackSigner['name'] ?? 'Azwita'),
+                'email' => strtolower(trim((string) ($fallbackSigner['email'] ?? 'azwita@lrtjakarta.co.id'))),
+            ];
+
+            if ($signatureSigner['email'] === '') {
+                throw ValidationException::withMessages([
+                    'portal_signature' => 'Email fallback tanda tangan Team GA belum dikonfigurasi.',
+                ]);
+            }
+
+            Log::info('Portal GA follow-up signature uses configured fallback signer.', [
                 'ticket_no' => $ticket->ticket_no,
                 'signer_email' => $signer->email,
+                'fallback_signer_email' => $signatureSigner['email'],
             ]);
-
-            return null;
         }
 
         return $this->createSignature([
@@ -153,11 +171,7 @@ class LrtjSpacePortalSignatureService
                 'title' => $ticket->title,
                 'request_type' => 'ga_request_finding',
             ],
-            'signer' => [
-                'id' => (string) $signer->id,
-                'name' => $signer->name,
-                'email' => $signer->email,
-            ],
+            'signer' => $signatureSigner,
             'signed_at' => Carbon::parse($signedAt ?: now())->toIso8601String(),
         ], $throwOnFailure);
     }

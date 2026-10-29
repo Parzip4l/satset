@@ -55,6 +55,11 @@ return [
         'shared_secret' => env('LRTJ_SPACE_SATSET_SHARED_SECRET'),
         'timeout' => (int) env('LRTJ_SPACE_SIGNATURE_TIMEOUT', 15),
         'verify_ssl' => filter_var(env('LRTJ_SPACE_SIGNATURE_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+        'direct_ga_fallback_signer' => [
+            'id' => env('SATSET_DIRECT_GA_SIGNATURE_FALLBACK_ID'),
+            'name' => env('SATSET_DIRECT_GA_SIGNATURE_FALLBACK_NAME', 'Azwita'),
+            'email' => env('SATSET_DIRECT_GA_SIGNATURE_FALLBACK_EMAIL', 'azwita@lrtjakarta.co.id'),
+        ],
     ],
 
     'intranet_api' => [
