@@ -167,6 +167,9 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('bum.items') }}" class="btn btn-light border">Kembali</a>
             <a href="{{ route('bum.stock-card', ['item_id' => $item->id]) }}" class="btn btn-outline-primary">Stock Card</a>
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editItemCodeModal">
+                <i class="bi bi-pencil-square me-1"></i> Edit Kode
+            </button>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#adjustStockModal">
                 <i class="bi bi-arrow-left-right me-1"></i> Tambah/Kurangi Stok
             </button>
@@ -297,6 +300,47 @@
     </div>
 </div>
 
+<div class="modal fade adjust-modal" id="editItemCodeModal" tabindex="-1" aria-labelledby="editItemCodeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="POST" action="{{ route('bum.items.code.update', $item) }}">
+                @csrf
+                @method('PATCH')
+                <div class="modal-header align-items-start">
+                    <div>
+                        <h5 class="modal-title fw-bold" id="editItemCodeModalLabel">Edit Kode Barang</h5>
+                        <div class="text-muted small">Kode dapat menggunakan angka Romawi dan titik, misalnya III.25.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="stock-note mb-3">
+                        <div class="fw-bold">{{ $item->name }}</div>
+                        <div class="text-muted small mt-1">Kode saat ini: <strong class="text-dark">{{ $item->code }}</strong></div>
+                    </div>
+                    <label class="form-label" for="itemCode">Kode Barang</label>
+                    <input
+                        id="itemCode"
+                        name="code"
+                        class="form-control @error('code', 'itemCode') is-invalid @enderror"
+                        value="{{ old('code', $item->code, 'itemCode') }}"
+                        maxlength="50"
+                        placeholder="Contoh: III.25"
+                        required
+                    >
+                    @error('code', 'itemCode')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div class="modal-footer d-flex flex-column flex-md-row gap-2">
+                    <button class="btn btn-primary flex-fill">Simpan Kode</button>
+                    <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade adjust-modal" id="adjustStockModal" tabindex="-1" aria-labelledby="adjustStockModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -353,7 +397,9 @@
 @section('js')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        @if($errors->any() || session('error'))
+        @if($errors->getBag('itemCode')->any())
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('editItemCodeModal')).show();
+        @elseif($errors->any() || session('error'))
             bootstrap.Modal.getOrCreateInstance(document.getElementById('adjustStockModal')).show();
         @endif
     });

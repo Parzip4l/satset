@@ -339,6 +339,19 @@ class BumInventoryController extends Controller
         return back()->with('success', 'Master barang berhasil diperbarui.');
     }
 
+    public function updateItemCode(Request $request, ConsumableItem $item)
+    {
+        $data = $request->validateWithBag('itemCode', [
+            'code' => 'required|string|max:50|unique:consumable_items,code,' . $item->id,
+        ]);
+
+        $item->update([
+            'code' => trim($data['code']),
+        ]);
+
+        return back()->with('success', 'Kode barang berhasil diperbarui.');
+    }
+
     public function adjustItemStock(Request $request, ConsumableItem $item, ConsumableStockService $stockService)
     {
         $data = $request->validate([
