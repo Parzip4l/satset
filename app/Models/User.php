@@ -3,13 +3,12 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Master\Divisions;
+use App\Models\Setting\Role;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Schema;
-
-use App\Models\Master\Divisions;
-use App\Models\Setting\Role;
 
 class User extends Authenticatable
 {
@@ -44,7 +43,7 @@ class User extends Authenticatable
         'remember_token',
         'role_id',
         'role',
-        'phone'
+        'phone',
     ];
 
     /**
@@ -92,5 +91,10 @@ class User extends Authenticatable
     public function division()
     {
         return $this->belongsTo(Divisions::class);
+    }
+
+    public function webPushSubscriptions()
+    {
+        return $this->hasMany(WebPushSubscription::class);
     }
 }

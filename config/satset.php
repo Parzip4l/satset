@@ -35,6 +35,15 @@ return [
         'enabled' => filter_var(env('SATSET_TICKET_EMAIL_NOTIFICATIONS_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
+    'web_push' => [
+        'enabled' => filter_var(env('SATSET_WEB_PUSH_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        'subject' => env('SATSET_WEB_PUSH_SUBJECT', 'mailto:teamga@lrtjakarta.co.id'),
+        'public_key' => env('SATSET_WEB_PUSH_PUBLIC_KEY'),
+        'private_key' => env('SATSET_WEB_PUSH_PRIVATE_KEY'),
+        'ttl' => (int) env('SATSET_WEB_PUSH_TTL', 86400),
+        'timeout' => (int) env('SATSET_WEB_PUSH_TIMEOUT', 10),
+    ],
+
     'approval_resolver' => [
         'base_url' => rtrim(env('LRTJ_SPACE_BASE_URL', 'https://portal.lrtjakarta.co.id'), '/'),
         'endpoint' => env('LRTJ_SPACE_APPROVAL_RESOLVER_ENDPOINT', '/api/v1/approval/resolve'),

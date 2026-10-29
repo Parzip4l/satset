@@ -13,6 +13,10 @@
     <script type="module" src="{{ asset('assets/js/layout-setup.js') }}"></script>
 
     <link rel="shortcut icon" href="{{ asset('assets/images/k_favicon_32x.png') }}">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <meta name="theme-color" content="#e31b23">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="{{ asset('assets/images/satset-icon-192.png') }}">
 
     @yield('css')
 
@@ -38,6 +42,7 @@
 
     @include('partials.vendor-scripts')
     <script src="{{ asset('assets/js/file-upload-guard.js') }}?v={{ filemtime(public_path('assets/js/file-upload-guard.js')) }}"></script>
+    @include('partials.web-push')
 
     @yield('js')
     @yield('script') {{-- Tambahan jika ada halaman yang memakai section 'script' --}}

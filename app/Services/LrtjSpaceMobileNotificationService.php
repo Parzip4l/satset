@@ -248,16 +248,26 @@ class LrtjSpaceMobileNotificationService
 
     private function recordWebNotification(?User $recipient, string $title, string $message, Ticket $ticket): void
     {
-        if (! $recipient?->id || ! Schema::hasTable('notifications')) {
+        if (! $recipient?->id) {
             return;
         }
 
-        WebNotification::create([
-            'user_id' => $recipient->id,
-            'title' => $title,
-            'message' => $message,
-            'url' => route('ticket.show', $ticket),
-            'is_read' => false,
+        $url = route('ticket.show', $ticket);
+
+        if (Schema::hasTable('notifications')) {
+            WebNotification::create([
+                'user_id' => $recipient->id,
+                'title' => $title,
+                'message' => $message,
+                'url' => $url,
+                'is_read' => false,
+            ]);
+        }
+
+        app(BrowserWebPushService::class)->sendToUser($recipient, $title, $message, $url, [
+            'ticket_id' => (string) $ticket->id,
+            'ticket_no' => $ticket->ticket_no,
+            'tag' => 'satset-ticket-'.$ticket->id,
         ]);
     }
 

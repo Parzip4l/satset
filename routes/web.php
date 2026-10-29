@@ -255,6 +255,10 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::get('/get-pic-by-division/{id}', [App\Http\Controllers\Report\ReportController::class, 'getPicByDivision']);
 
     // Notifications
+    Route::post('/web-push/subscriptions', [App\Http\Controllers\WebPushSubscriptionController::class, 'store'])
+        ->name('web-push.subscriptions.store');
+    Route::delete('/web-push/subscriptions', [App\Http\Controllers\WebPushSubscriptionController::class, 'destroy'])
+        ->name('web-push.subscriptions.destroy');
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
