@@ -30,6 +30,14 @@
             }
 
             $canAccessGaMenu = \App\Support\GaAccess::allowed(auth()->user());
+            $canAccessApprovalMenu = auth()->check()
+                && \Illuminate\Support\Facades\Schema::hasTable('approvals')
+                && \App\Models\Master\Approval::where('approver_id', auth()->id())->exists();
+            $pendingApprovalMenuCount = $canAccessApprovalMenu
+                ? \App\Models\Master\Approval::where('approver_id', auth()->id())
+                    ->whereRaw('LOWER(status) = ?', ['pending'])
+                    ->count()
+                : 0;
         @endphp
 
         <ul class="pe-main-menu list-unstyled">
@@ -98,6 +106,19 @@
 
                 @endif
             @endforeach
+
+            @if($canAccessApprovalMenu)
+            <li class="pe-menu-title">Persetujuan</li>
+            <li class="pe-slide">
+                <a href="{{ route('ticket.approvals') }}" class="pe-nav-link {{ request()->routeIs('ticket.approvals') ? 'active' : '' }}">
+                    <i class="bi bi-clipboard-check pe-nav-icon"></i>
+                    <span class="pe-nav-content">Approval Saya</span>
+                    @if($pendingApprovalMenuCount > 0)
+                        <span class="badge bg-danger rounded-pill ms-auto">{{ $pendingApprovalMenuCount > 99 ? '99+' : $pendingApprovalMenuCount }}</span>
+                    @endif
+                </a>
+            </li>
+            @endif
 
             <li class="pe-menu-title">Layanan IT</li>
             <li class="pe-slide">

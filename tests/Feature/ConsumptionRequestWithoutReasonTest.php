@@ -24,7 +24,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
     {
         parent::setUp();
 
-        foreach (['approvals', 'ticket_histories', 'attachments', 'requests', 'consumable_items', 'category_department', 'departments', 'statuses', 'ticket_categories', 'urgencies', 'impacts', 'priorities', 'problem_categories', 'users'] as $table) {
+        foreach (['approvals', 'ticket_histories', 'attachments', 'requests', 'consumable_items', 'category_department', 'departments', 'statuses', 'ticket_categories', 'urgencies', 'impacts', 'priorities', 'problem_categories', 'menus', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -124,6 +124,13 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             $table->foreignId('approver_id');
             $table->string('status');
             $table->unsignedInteger('level');
+            $table->timestamps();
+        });
+        Schema::create('menus', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('parent_id')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->integer('order')->default(0);
             $table->timestamps();
         });
         Schema::create('attachments', function (Blueprint $table): void {
@@ -736,6 +743,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertFalse($visibleTicketNumbers->contains($unrelatedTicket->ticket_no));
         $this->assertTrue(\App\Support\TicketAccess::canView($approver, $approvedTicket));
         $this->assertFalse(\App\Support\TicketAccess::canView($approver, $unrelatedTicket));
+        $this->assertStringContainsString('Approval Saya', view('partials.sidebar')->render());
     }
 
     public function test_requester_can_sync_pending_manager_approval_from_portal(): void
