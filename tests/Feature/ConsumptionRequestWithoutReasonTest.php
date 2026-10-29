@@ -672,6 +672,70 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         ]);
     }
 
+    public function test_approver_still_sees_ticket_after_approval_is_completed(): void
+    {
+        $now = ['created_at' => now(), 'updated_at' => now()];
+        $categoryId = DB::table('problem_categories')->insertGetId([
+            'code' => 'KONSUMSI',
+            'name' => 'Permintaan Konsumsi',
+            'description' => null,
+            ...$now,
+        ]);
+        $statusId = DB::table('statuses')->insertGetId(['name' => 'Closed', ...$now]);
+        $requester = User::create([
+            'name' => 'Pemohon Approval',
+            'email' => 'pemohon.approval@lrtjakarta.co.id',
+            'username' => 'pemohon.approval',
+            'role' => 'user',
+            'password' => 'secret',
+        ]);
+        $approver = User::create([
+            'name' => 'Atasan Approver',
+            'email' => 'atasan.approval@lrtjakarta.co.id',
+            'username' => 'atasan.approval',
+            'role' => 'user',
+            'password' => 'secret',
+        ]);
+
+        $approvedTicket = Ticket::create([
+            'ticket_no' => 'TCK-APPROVED-VISIBLE',
+            'requester_id' => $requester->id,
+            'category_id' => $categoryId,
+            'status_id' => $statusId,
+            'title' => 'Tiket yang sudah disetujui',
+            'payload' => [
+                'request_type' => 'consumption',
+                'workflow_status' => 'CLOSED',
+            ],
+        ]);
+        $unrelatedTicket = Ticket::create([
+            'ticket_no' => 'TCK-UNRELATED-HIDDEN',
+            'requester_id' => $requester->id,
+            'category_id' => $categoryId,
+            'status_id' => $statusId,
+            'title' => 'Tiket tanpa relasi approver',
+            'payload' => [
+                'request_type' => 'consumption',
+                'workflow_status' => 'CLOSED',
+            ],
+        ]);
+        DB::table('approvals')->insert([
+            'request_id' => $approvedTicket->id,
+            'approver_id' => $approver->id,
+            'status' => 'approved',
+            'level' => 1,
+            ...$now,
+        ]);
+
+        $this->actingAs($approver);
+        $view = app(\App\Http\Controllers\Master\TicketController::class)
+            ->ticketsIndex(\Illuminate\Http\Request::create('/ticket/tiket-saya', 'GET'));
+        $visibleTicketNumbers = $view->getData()['tickets']->getCollection()->pluck('ticket_no');
+
+        $this->assertTrue($visibleTicketNumbers->contains($approvedTicket->ticket_no));
+        $this->assertFalse($visibleTicketNumbers->contains($unrelatedTicket->ticket_no));
+    }
+
     public function test_requester_can_sync_pending_manager_approval_from_portal(): void
     {
         $now = ['created_at' => now(), 'updated_at' => now()];

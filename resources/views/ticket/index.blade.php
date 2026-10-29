@@ -28,7 +28,7 @@
 @php
     $indexRoute = $indexRoute ?? 'ticket.mine';
     $pageTitle = $pageTitle ?? 'Tiket Saya';
-    $pageSubtitle = $pageSubtitle ?? 'Pantau seluruh tiket dan semua jenis permintaan yang pernah Anda ajukan.';
+    $pageSubtitle = $pageSubtitle ?? 'Pantau tiket yang pernah Anda ajukan atau yang pernah Anda proses sebagai approver.';
     $resetRoute = $resetRoute ?? route($indexRoute);
     $requestTypeOptions = $requestTypeOptions ?? [];
     $createActions = $createActions ?? [];

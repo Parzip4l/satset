@@ -143,7 +143,10 @@ class TicketController extends Controller
         $isAdmin = \App\Support\AccountAccess::isAdmin($user);
 
         $baseQuery = ItAccess::constrainVisible(Ticket::query(), $user)
-            ->when(! $isAdmin, fn ($query) => $query->where('requester_id', $user->id));
+            ->when(! $isAdmin, fn ($query) => $query->where(function ($visible) use ($user) {
+                $visible->where('requester_id', $user->id)
+                    ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
+            }));
 
         $stats = [
             'total' => (clone $baseQuery)->count(),
@@ -196,7 +199,10 @@ class TicketController extends Controller
         $departmentId = $request->get('department_id');
 
         $tickets = ItAccess::constrainVisible(Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency']), $user)
-            ->when(! $isAdmin, fn ($query) => $query->where('requester_id', $user->id))
+            ->when(! $isAdmin, fn ($query) => $query->where(function ($visible) use ($user) {
+                $visible->where('requester_id', $user->id)
+                    ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
+            }))
             ->when($search, function ($query, $searchValue) {
                 $query->where(function ($builder) use ($searchValue) {
                     $builder->where('title', 'like', '%'.$searchValue.'%')
@@ -225,7 +231,7 @@ class TicketController extends Controller
         $pageTitle = $isAdmin ? 'Semua Tiket' : 'Tiket Saya';
         $pageSubtitle = $isAdmin
             ? 'Pantau seluruh tiket dari semua requester dan semua jenis permintaan.'
-            : 'Pantau seluruh tiket dan semua jenis permintaan yang pernah Anda ajukan.';
+            : 'Pantau tiket yang pernah Anda ajukan atau yang pernah Anda proses sebagai approver.';
         $resetRoute = route($indexRoute);
         $createButtonLabel = 'Buat Permintaan';
         $createActions = [
@@ -1666,7 +1672,9 @@ class TicketController extends Controller
             'satset_web'
         );
 
-        return redirect()->back()->with('success', 'Persetujuan berhasil dicatat.');
+        return redirect()
+            ->route('ticket.show', $ticket)
+            ->with('success', 'Persetujuan berhasil dicatat. Anda tetap dapat memantau detail tiket ini.');
     }
 
     public function syncManagerApproval(
