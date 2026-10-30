@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Support\SatsetRequesterPolicy;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
@@ -16,7 +17,17 @@ class LrtjSpaceApprovalResolverService
 {
     public function resolveFirstApprover(Ticket $ticket): User
     {
-        $response = $this->resolve($ticket);
+        $ticket->loadMissing('requester');
+        $email = $ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email');
+        $override = [];
+        if (SatsetRequesterPolicy::routesDirectlyToGa($email)) {
+            $fallback = trim((string) config('satset.portal_signatures.direct_ga_fallback_signer.email'));
+            if ($fallback === '') {
+                $this->fail('Email fallback approval Team GA belum dikonfigurasi.');
+            }
+            $override['requester_email'] = $fallback;
+        }
+        $response = $this->resolve($ticket, $override);
         $approver = $this->extractApprover($response);
 
         if (! is_array($approver) || empty($approver['email'])) {

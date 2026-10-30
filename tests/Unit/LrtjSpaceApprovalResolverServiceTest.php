@@ -84,6 +84,24 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         });
     }
 
+    public function test_team_ga_manager_is_resolved_using_azwita_email(): void
+    {
+        config([
+            'satset.approval_resolver.direct_ga_requester_emails' => ['teamga@lrtjakarta.co.id'],
+            'satset.portal_signatures.direct_ga_fallback_signer.email' => 'azwita.arifuddin@lrtjakarta.co.id',
+        ]);
+        Http::fake(['*' => Http::response(['data' => ['approver' => [
+            'email' => 'atasan@lrtjakarta.co.id', 'name' => 'Atasan',
+        ]]])]);
+        $ticket = $this->ticket('atk_rtk', 150000);
+        $ticket->requester->email = 'teamga@lrtjakarta.co.id';
+
+        $approver = app(LrtjSpaceApprovalResolverService::class)->resolveFirstApprover($ticket);
+
+        $this->assertSame('atasan@lrtjakarta.co.id', $approver->email);
+        Http::assertSent(fn ($request) => data_get(json_decode($request->body(), true), 'requester_email') === 'azwita.arifuddin@lrtjakarta.co.id');
+    }
+
     public function test_throws_clear_validation_error_for_422_response(): void
     {
         Http::fake([
@@ -434,12 +452,21 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         });
     }
 
-    public function test_requester_signature_skips_portal_for_direct_ga_account(): void
+    public function test_requester_signature_uses_fallback_for_direct_ga_account(): void
     {
         config()->set('satset.approval_resolver.direct_ga_requester_emails', [
             'teamga@lrtjakarta.co.id',
         ]);
-        Http::fake();
+        config([
+            'satset.portal_signatures.base_url' => 'https://space.test',
+            'satset.portal_signatures.endpoint' => '/api/v1/signatures',
+            'satset.portal_signatures.shared_secret' => 'test-secret',
+            'satset.portal_signatures.direct_ga_fallback_signer' => ['email' => 'azwita.arifuddin@lrtjakarta.co.id', 'name' => 'Azwita'],
+        ]);
+        Http::fake(['*' => Http::response(['data' => ['signature' => [
+            'portal_signature_id' => 'sig-ga',
+            'portal_signature_url' => 'https://space.test/verify/sig-ga',
+        ]]])]);
 
         $requester = User::forceCreate([
             'name' => 'Team GA',
@@ -457,8 +484,8 @@ class LrtjSpaceApprovalResolverServiceTest extends TestCase
         $signature = app(LrtjSpacePortalSignatureService::class)
             ->createRequesterSignature($ticket, $requester);
 
-        $this->assertNull($signature);
-        Http::assertNothingSent();
+        $this->assertSame('sig-ga', $signature['portal_signature_id']);
+        Http::assertSent(fn ($request) => data_get(json_decode($request->body(), true), 'signer.email') === 'azwita.arifuddin@lrtjakarta.co.id');
     }
 
     private function ticket(string $requestType, float $amount): Ticket

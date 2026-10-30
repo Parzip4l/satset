@@ -2431,9 +2431,6 @@ class TicketController extends Controller
         $ticket->loadMissing('requester');
         if (
             (bool) data_get($ticket->payload, 'manager_approval_skipped', false)
-            || SatsetRequesterPolicy::routesDirectlyToGa(
-                $ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email')
-            )
         ) {
             return;
         }

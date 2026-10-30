@@ -67,7 +67,7 @@ return [
         'direct_ga_fallback_signer' => [
             'id' => env('SATSET_DIRECT_GA_SIGNATURE_FALLBACK_ID'),
             'name' => env('SATSET_DIRECT_GA_SIGNATURE_FALLBACK_NAME', 'Azwita'),
-            'email' => env('SATSET_DIRECT_GA_SIGNATURE_FALLBACK_EMAIL', 'azwita@lrtjakarta.co.id'),
+            'email' => env('SATSET_DIRECT_GA_SIGNATURE_FALLBACK_EMAIL', 'azwita.arifuddin@lrtjakarta.co.id'),
         ],
     ],
 

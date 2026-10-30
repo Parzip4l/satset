@@ -42,11 +42,7 @@ class LrtjSpacePortalSignatureService
                 'status' => strtolower($status),
                 'comment' => $comment,
             ],
-            'signer' => [
-                'id' => (string) $signer->id,
-                'name' => $signer->name,
-                'email' => $signer->email,
-            ],
+            'signer' => $this->signatureSigner($signer),
             'signed_at' => now()->toIso8601String(),
         ], true);
 
@@ -60,12 +56,7 @@ class LrtjSpacePortalSignatureService
     public function createRequesterSignature(Ticket $ticket, User $requester): ?array
     {
         if (SatsetRequesterPolicy::routesDirectlyToGa($requester->email)) {
-            Log::info('Portal requester signature skipped for direct GA account.', [
-                'ticket_no' => $ticket->ticket_no,
-                'requester_email' => $requester->email,
-            ]);
-
-            return null;
+            return $this->createRequesterSignatureWithSigner($ticket, $this->signatureSigner($requester), true);
         }
 
         $signature = $this->createRequesterSignatureWithSigner($ticket, [
@@ -115,11 +106,7 @@ class LrtjSpacePortalSignatureService
                 'title' => $ticket->title,
                 'request_type' => data_get($ticket->payload, 'request_type'),
             ],
-            'signer' => [
-                'id' => (string) $signer->id,
-                'name' => $signer->name,
-                'email' => $signer->email,
-            ],
+            'signer' => $this->signatureSigner($signer),
             'signed_at' => Carbon::parse($signedAt ?: now())->toIso8601String(),
         ]);
     }
@@ -134,32 +121,7 @@ class LrtjSpacePortalSignatureService
             throw new \InvalidArgumentException('QR tindak lanjut GA hanya didukung untuk Permintaan & Temuan GA.');
         }
 
-        $signatureSigner = [
-            'id' => (string) $signer->id,
-            'name' => $signer->name,
-            'email' => $signer->email,
-        ];
-
-        if (SatsetRequesterPolicy::routesDirectlyToGa($signer->email)) {
-            $fallbackSigner = (array) config('satset.portal_signatures.direct_ga_fallback_signer', []);
-            $signatureSigner = [
-                'id' => filled($fallbackSigner['id'] ?? null) ? (string) $fallbackSigner['id'] : null,
-                'name' => (string) ($fallbackSigner['name'] ?? 'Azwita'),
-                'email' => strtolower(trim((string) ($fallbackSigner['email'] ?? 'azwita@lrtjakarta.co.id'))),
-            ];
-
-            if ($signatureSigner['email'] === '') {
-                throw ValidationException::withMessages([
-                    'portal_signature' => 'Email fallback tanda tangan Team GA belum dikonfigurasi.',
-                ]);
-            }
-
-            Log::info('Portal GA follow-up signature uses configured fallback signer.', [
-                'ticket_no' => $ticket->ticket_no,
-                'signer_email' => $signer->email,
-                'fallback_signer_email' => $signatureSigner['email'],
-            ]);
-        }
+        $signatureSigner = $this->signatureSigner($signer);
 
         return $this->createSignature([
             'module' => 'satset',
@@ -174,6 +136,37 @@ class LrtjSpacePortalSignatureService
             'signer' => $signatureSigner,
             'signed_at' => Carbon::parse($signedAt ?: now())->toIso8601String(),
         ], $throwOnFailure);
+    }
+
+    private function signatureSigner(User $signer): array
+    {
+        $signatureSigner = [
+            'id' => (string) $signer->id,
+            'name' => $signer->name,
+            'email' => $signer->email,
+        ];
+
+        if (SatsetRequesterPolicy::routesDirectlyToGa($signer->email)) {
+            $fallbackSigner = (array) config('satset.portal_signatures.direct_ga_fallback_signer', []);
+            $signatureSigner = [
+                'id' => filled($fallbackSigner['id'] ?? null) ? (string) $fallbackSigner['id'] : null,
+                'name' => (string) ($fallbackSigner['name'] ?? 'Azwita'),
+                'email' => strtolower(trim((string) ($fallbackSigner['email'] ?? 'azwita.arifuddin@lrtjakarta.co.id'))),
+            ];
+
+            if ($signatureSigner['email'] === '') {
+                throw ValidationException::withMessages([
+                    'portal_signature' => 'Email fallback tanda tangan Team GA belum dikonfigurasi.',
+                ]);
+            }
+
+            Log::info('Portal GA follow-up signature uses configured fallback signer.', [
+                'signer_email' => $signer->email,
+                'fallback_signer_email' => $signatureSigner['email'],
+            ]);
+        }
+
+        return $signatureSigner;
     }
 
     private function createRequesterSignatureWithSigner(Ticket $ticket, array $signer, bool $throwOnFailure = false): ?array

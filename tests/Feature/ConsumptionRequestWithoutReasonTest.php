@@ -277,7 +277,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_team_ga_custom_account_skips_manager_and_routes_directly_to_ga(): void
+    public function test_team_ga_requests_requiring_approval_wait_for_manager(): void
     {
         config()->set('satset.approval_resolver.direct_ga_requester_emails', [
             'teamga@lrtjakarta.co.id',
@@ -310,11 +310,10 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         ]);
 
         $resolver = $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($gaApprover): void {
-            $mock->shouldNotReceive('resolveFirstApprover');
-            $mock->shouldReceive('resolveConsumptionBumApprover')->once()->andReturn($gaApprover);
+            $mock->shouldReceive('resolveFirstApprover')->twice()->andReturn($gaApprover);
         });
         $notifications = $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('notifyApprovalRequested')->once();
+            $mock->shouldReceive('notifyApprovalRequested')->twice();
             $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
             $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
         });
@@ -336,10 +335,9 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $approval = $service->create($consumption);
 
         $this->assertNotNull($approval);
-        $this->assertSame(2, (int) $approval->level);
+        $this->assertSame(1, (int) $approval->level);
         $this->assertSame($gaApprover->id, (int) $approval->approver_id);
-        $this->assertSame('WAITING_BUM_VERIFICATION', data_get($consumption->fresh()->payload, 'workflow_status'));
-        $this->assertTrue((bool) data_get($consumption->fresh()->payload, 'manager_approval_skipped'));
+        $this->assertSame('WAITING_MANAGER_APPROVAL', data_get($consumption->fresh()->payload, 'workflow_status'));
 
         $atk = Ticket::create([
             'ticket_no' => 'ATK-TEAM-GA',
@@ -354,20 +352,8 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             ],
         ]);
 
-        $this->assertNull($service->create($atk));
-        $this->assertSame('WAITING_BUM_REVIEW', data_get($atk->fresh()->payload, 'workflow_status'));
-        $this->assertDatabaseMissing('approvals', ['request_id' => $atk->id]);
-
-        $this->actingAs($requester)
-            ->post(route('ticket.atk-rtk.bum-review', $atk), [
-                'workflow_status' => 'STOCK_CHECKED',
-                'approved_qty' => 1,
-                'notes' => 'Diproses langsung oleh Team GA.',
-            ])
-            ->assertSessionHasNoErrors()
-            ->assertSessionHas('success');
-
-        $this->assertSame('STOCK_CHECKED', data_get($atk->fresh()->payload, 'workflow_status'));
+        $this->assertSame(1, (int) $service->create($atk)->level);
+        $this->assertSame('WAITING_MANAGER_APPROVAL', data_get($atk->fresh()->payload, 'workflow_status'));
     }
 
     public function test_team_ga_public_consumption_skips_portal_requester_lookup(): void
@@ -407,9 +393,8 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             $mock->shouldReceive('createRequesterSignature')->once()->andReturnNull();
         });
         $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($gaApprover): void {
-            $mock->shouldNotReceive('resolveFirstApprover');
+            $mock->shouldReceive('resolveFirstApprover')->once()->andReturn($gaApprover);
             $mock->shouldNotReceive('resolveRequester');
-            $mock->shouldReceive('resolveConsumptionBumApprover')->once()->andReturn($gaApprover);
         });
         $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
             $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
@@ -439,12 +424,11 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             ->assertSessionHas('success');
 
         $ticket = Ticket::where('requester_id', User::where('email', 'teamga@lrtjakarta.co.id')->value('id'))->firstOrFail();
-        $this->assertSame('WAITING_BUM_VERIFICATION', data_get($ticket->payload, 'workflow_status'));
-        $this->assertTrue((bool) data_get($ticket->payload, 'manager_approval_skipped'));
+        $this->assertSame('WAITING_MANAGER_APPROVAL', data_get($ticket->payload, 'workflow_status'));
         $this->assertDatabaseHas('approvals', [
             'request_id' => $ticket->id,
             'approver_id' => $gaApprover->id,
-            'level' => 2,
+            'level' => 1,
             'status' => 'Pending',
         ]);
     }
