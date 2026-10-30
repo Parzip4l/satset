@@ -63,14 +63,18 @@ class BumItemCodeUpdateTest extends TestCase
 
         $response = $this->actingAs($ga)
             ->from(route('bum.items.show', $item))
-            ->patch(route('bum.items.code.update', $item), ['code' => 'III.25']);
+            ->patch(route('bum.items.code.update', $item), [
+                'code' => 'III.25',
+                'location' => 'Rak B-12',
+            ]);
 
         $response
             ->assertRedirect(route('bum.items.show', $item))
-            ->assertSessionHas('success', 'Kode barang berhasil diperbarui.');
+            ->assertSessionHas('success', 'Kode dan bin lokasi barang berhasil diperbarui.');
         $this->assertDatabaseHas('consumable_items', [
             'id' => $item->id,
             'code' => 'III.25',
+            'location' => 'Rak B-12',
         ]);
     }
 

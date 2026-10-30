@@ -345,13 +345,15 @@ class BumInventoryController extends Controller
     {
         $data = $request->validateWithBag('itemCode', [
             'code' => 'required|string|max:50|unique:consumable_items,code,' . $item->id,
+            'location' => 'nullable|string|max:100',
         ]);
 
         $item->update([
             'code' => trim($data['code']),
+            'location' => filled($data['location'] ?? null) ? trim($data['location']) : null,
         ]);
 
-        return back()->with('success', 'Kode barang berhasil diperbarui.');
+        return back()->with('success', 'Kode dan bin lokasi barang berhasil diperbarui.');
     }
 
     public function updateItemStatus(Request $request, ConsumableItem $item)

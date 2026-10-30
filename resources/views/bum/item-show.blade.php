@@ -173,7 +173,7 @@
             <a href="{{ route('bum.items') }}" class="btn btn-light border">Kembali</a>
             <a href="{{ route('bum.stock-card', ['item_id' => $item->id]) }}" class="btn btn-outline-primary">Stock Card</a>
             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editItemCodeModal">
-                <i class="bi bi-pencil-square me-1"></i> Edit Kode
+                <i class="bi bi-pencil-square me-1"></i> Edit Data Barang
             </button>
             <form
                 method="POST"
@@ -330,8 +330,8 @@
                 @method('PATCH')
                 <div class="modal-header align-items-start">
                     <div>
-                        <h5 class="modal-title fw-bold" id="editItemCodeModalLabel">Edit Kode Barang</h5>
-                        <div class="text-muted small">Kode dapat menggunakan angka Romawi dan titik, misalnya III.25.</div>
+                        <h5 class="modal-title fw-bold" id="editItemCodeModalLabel">Edit Data Barang</h5>
+                        <div class="text-muted small">Ubah kode barang dan posisi bin penyimpanannya.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -353,9 +353,23 @@
                     @error('code', 'itemCode')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+
+                    <label class="form-label mt-3" for="itemLocation">Bin Lokasi</label>
+                    <input
+                        id="itemLocation"
+                        name="location"
+                        class="form-control @error('location', 'itemCode') is-invalid @enderror"
+                        value="{{ old('location', $item->location) }}"
+                        maxlength="100"
+                        placeholder="Contoh: Rak A-01"
+                    >
+                    <div class="form-text">Kosongkan jika barang belum memiliki lokasi bin.</div>
+                    @error('location', 'itemCode')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="modal-footer d-flex flex-column flex-md-row gap-2">
-                    <button class="btn btn-primary flex-fill">Simpan Kode</button>
+                    <button class="btn btn-primary flex-fill">Simpan Perubahan</button>
                     <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>
                 </div>
             </form>
