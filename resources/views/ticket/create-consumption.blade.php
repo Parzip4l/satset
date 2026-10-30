@@ -250,7 +250,7 @@
                                 <label class="form-label">Jenis Konsumsi</label>
                                 <select name="payload[consumption_type]" class="form-select" required>
                                     <option value="">Pilih jenis konsumsi</option>
-                                    @foreach (['Snack', 'Makan Siang', 'Coffee Break', 'Snack + Makan', 'Snack + Makan + Coffee', 'Paket Lengkap'] as $type)
+                                    @foreach (['Snack', 'Makan Siang', 'Coffee Break', 'Snack + Makan', 'Snack + Makan + Coffee'] as $type)
                                         <option value="{{ $type }}" {{ old('payload.consumption_type') === $type ? 'selected' : '' }}>{{ $type }}</option>
                                     @endforeach
                                 </select>

@@ -67,7 +67,6 @@ class MobileSatsetTicketService
                 'Coffee Break',
                 'Snack + Makan',
                 'Snack + Makan + Coffee',
-                'Paket Lengkap',
             ],
             'consumable_items' => ConsumableItem::where('is_active', true)
                 ->orderBy('name')
