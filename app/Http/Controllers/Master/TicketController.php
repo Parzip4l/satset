@@ -30,8 +30,8 @@ use App\Services\SatsetPendingApprovalSyncService;
 use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
 use App\Support\ItAccess;
-use App\Support\ServiceDomains;
 use App\Support\SatsetRequesterPolicy;
+use App\Support\ServiceDomains;
 use App\Support\TicketAccess;
 use Carbon\Carbon;
 use Closure;
@@ -2428,6 +2428,16 @@ class TicketController extends Controller
             return;
         }
 
+        $ticket->loadMissing('requester');
+        if (
+            (bool) data_get($ticket->payload, 'manager_approval_skipped', false)
+            || SatsetRequesterPolicy::routesDirectlyToGa(
+                $ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email')
+            )
+        ) {
+            return;
+        }
+
         $estimatedAmount = (float) data_get($ticket->payload, 'total_estimated_amount', 0);
         $threshold = (float) data_get($ticket->payload, 'approval_threshold', config('bum.atk_rtk_manager_approval_threshold', 100000));
 
@@ -2436,6 +2446,7 @@ class TicketController extends Controller
         }
 
         $hasApprovedManagerApproval = $ticket->approvals()
+            ->where('level', 1)
             ->where('status', 'approved')
             ->exists();
 

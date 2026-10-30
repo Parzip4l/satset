@@ -47,6 +47,10 @@ class TicketWorkflowPresenterTest extends TestCase
                 ['request_type' => 'atk_rtk', 'workflow_status' => 'READY_TO_HANDOVER', 'total_estimated_amount' => 50000, 'approval_threshold' => 100000],
                 'Siap diserahkan', 3, 4,
             ],
+            'atk direct ga account skips manager despite high amount' => [
+                ['request_type' => 'atk_rtk', 'workflow_status' => 'WAITING_BUM_REVIEW', 'total_estimated_amount' => 150000, 'approval_threshold' => 100000, 'manager_approval_skipped' => true],
+                'Review Bagian Umum', 1, 4,
+            ],
             'ga in progress' => [
                 ['request_type' => 'ga_request_finding', 'workflow_status' => 'IN_PROGRESS'],
                 'Sedang ditindaklanjuti', 2, 3,

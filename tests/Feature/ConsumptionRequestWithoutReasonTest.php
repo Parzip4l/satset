@@ -357,6 +357,17 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertNull($service->create($atk));
         $this->assertSame('WAITING_BUM_REVIEW', data_get($atk->fresh()->payload, 'workflow_status'));
         $this->assertDatabaseMissing('approvals', ['request_id' => $atk->id]);
+
+        $this->actingAs($requester)
+            ->post(route('ticket.atk-rtk.bum-review', $atk), [
+                'workflow_status' => 'STOCK_CHECKED',
+                'approved_qty' => 1,
+                'notes' => 'Diproses langsung oleh Team GA.',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success');
+
+        $this->assertSame('STOCK_CHECKED', data_get($atk->fresh()->payload, 'workflow_status'));
     }
 
     public function test_team_ga_public_consumption_skips_portal_requester_lookup(): void

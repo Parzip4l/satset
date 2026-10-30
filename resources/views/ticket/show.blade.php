@@ -184,9 +184,13 @@
         $canUploadConsumptionEvidence = (int) $ticket->requester_id === (int) auth()->id() || $canManageGaOperations;
         $atkRtkEstimatedAmount = (float) data_get($ticket->payload, 'total_estimated_amount', 0);
         $atkRtkApprovalThreshold = (float) data_get($ticket->payload, 'approval_threshold', config('bum.atk_rtk_manager_approval_threshold', 100000));
-        $atkRtkRequiresManagerApproval = $requestType === 'atk_rtk' && $atkRtkEstimatedAmount >= $atkRtkApprovalThreshold;
-        $atkRtkManagerApproved = $ticket->approvals->where('status', 'approved')->isNotEmpty();
-        $atkRtkManagerRejected = $ticket->approvals->where('status', 'rejected')->isNotEmpty() || $workflowStatus === 'REJECTED_BY_MANAGER';
+        $atkRtkManagerApprovalSkipped = (bool) data_get($ticket->payload, 'manager_approval_skipped', false)
+            || \App\Support\SatsetRequesterPolicy::routesDirectlyToGa($ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email'));
+        $atkRtkRequiresManagerApproval = $requestType === 'atk_rtk'
+            && !$atkRtkManagerApprovalSkipped
+            && $atkRtkEstimatedAmount >= $atkRtkApprovalThreshold;
+        $atkRtkManagerApproved = $ticket->approvals->where('level', 1)->where('status', 'approved')->isNotEmpty();
+        $atkRtkManagerRejected = $ticket->approvals->where('level', 1)->where('status', 'rejected')->isNotEmpty() || $workflowStatus === 'REJECTED_BY_MANAGER';
         $canProcessAtkRtk = $canManageGaOperations && (!$atkRtkRequiresManagerApproval || $atkRtkManagerApproved);
         $isGaRequestFindingClosed = $requestType === 'ga_request_finding'
             && ($workflowStatus === 'CLOSED' || ($ticket->status->name ?? null) === 'Closed');

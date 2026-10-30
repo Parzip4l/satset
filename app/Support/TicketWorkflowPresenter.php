@@ -56,8 +56,11 @@ class TicketWorkflowPresenter
                 : 100000;
         }
         $approvalThreshold = (float) $approvalThreshold;
-        $requiresManagerApproval = $status === 'WAITING_MANAGER_APPROVAL'
-            || ($approvalThreshold > 0 && $estimatedAmount >= $approvalThreshold);
+        $managerApprovalSkipped = (bool) data_get($payload, 'manager_approval_skipped', false);
+        $requiresManagerApproval = ! $managerApprovalSkipped && (
+            $status === 'WAITING_MANAGER_APPROVAL'
+            || ($approvalThreshold > 0 && $estimatedAmount >= $approvalThreshold)
+        );
         $total = $requiresManagerApproval ? 5 : 4;
         $reviewStep = $requiresManagerApproval ? 2 : 1;
         $stockStep = $requiresManagerApproval ? 3 : 2;
