@@ -166,15 +166,16 @@
         .chart-head { padding: 1.3rem 1.4rem; border-bottom: 1px solid var(--report-line); }
         .chart-eyebrow { color: #dc2626; font-size: .7rem; letter-spacing: .08em; font-weight: 800; text-transform: uppercase; }
         .chart-title { color: #17233a; font-size: 1.05rem; font-weight: 800; margin: .35rem 0; }
-        .chart-list { max-height: 510px; overflow-y: auto; padding: .4rem 1.4rem; }
-        .chart-row { padding: .9rem 0; border-bottom: 1px solid var(--report-line); }
-        .chart-row:last-child { border-bottom: 0; }
-        .chart-label { color: #25334a; font-size: .84rem; font-weight: 700; overflow-wrap: anywhere; }
-        .chart-meta { color: #7b8794; font-size: .72rem; margin-top: .15rem; }
-        .chart-track { background: #f0f3f7; border-radius: 20px; height: 9px; overflow: hidden; }
-        .chart-bar { height: 100%; border-radius: inherit; background: #1796c2; }
+        .chart-list { overflow-x: auto; padding: 1.5rem 1.4rem 1rem; }
+        .chart-columns { display: flex; align-items: stretch; min-width: max-content; }
+        .chart-row { width: 112px; flex: 0 0 112px; text-align: center; }
+        .chart-plot { height: 245px; display: flex; justify-content: center; align-items: flex-end; gap: 8px; border-bottom: 1px solid #cbd5e1; background: repeating-linear-gradient(to top, #edf1f6 0, #edf1f6 1px, transparent 1px, transparent 25%); }
+        .chart-column { width: 30px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+        .chart-bar { width: 100%; border-radius: 5px 5px 0 0; background: #1796c2; }
         .chart-bar.out { background: #ec8a4c; }
-        .chart-value { color: #26354a; font-weight: 800; font-size: .76rem; white-space: nowrap; }
+        .chart-value { color: #26354a; font-weight: 800; font-size: .7rem; white-space: nowrap; }
+        .chart-label { color: #25334a; font-size: .74rem; font-weight: 700; line-height: 1.3; padding: .6rem .3rem 0; overflow-wrap: anywhere; }
+        .chart-meta { color: #7b8794; font-size: .68rem; margin-top: .2rem; }
         .chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; color: #718096; font-size: .74rem; font-weight: 700; }
         .chart-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: .3rem; }
         .chart-empty { padding: 3.5rem 1rem; text-align: center; color: #8993a1; }
@@ -253,18 +254,21 @@
                     <div class="muted-text small">Stok fisik hasil opname terakhir tiap barang dan gudang pada periode {{ $period }}.</div>
                 </div>
                 <div class="chart-list">
+                    <div class="chart-columns">
                     @forelse($opnameRows as $row)
                         @php($uom = $row->stock_location === 'small_warehouse' ? $row->item->small_uom : $row->item->large_uom)
-                        <div class="chart-row">
-                            <div class="d-flex justify-content-between gap-3 align-items-start mb-2">
-                                <div><div class="chart-label">{{ $row->item->name }}</div><div class="chart-meta">{{ $row->item->code }} · {{ $row->stock_location === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar' }}</div></div>
-                                <span class="chart-value">{{ number_format($row->physical_stock, 0, ',', '.') }} {{ $uom }}</span>
-                            </div>
-                            <div class="chart-track"><div class="chart-bar" style="width: {{ 100 * $row->physical_stock / $opnameMax }}%"></div></div>
+                        <div class="chart-row" title="{{ $row->item->name }} · {{ $row->stock_location === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar' }} · {{ number_format($row->physical_stock, 0, ',', '.') }} {{ $uom }}">
+                            <div class="chart-plot"><div class="chart-column">
+                                <span class="chart-value">{{ number_format($row->physical_stock, 0, ',', '.') }}</span>
+                                <div class="chart-bar" style="height: {{ 90 * $row->physical_stock / $opnameMax }}%"></div>
+                            </div></div>
+                            <div class="chart-label">{{ $row->item->name }}</div>
+                            <div class="chart-meta">{{ $row->item->code }} · {{ $uom }}<br>{{ $row->stock_location === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar' }}</div>
                         </div>
                     @empty
                         <div class="chart-empty">Belum ada stok opname yang ditutup pada bulan ini.</div>
                     @endforelse
+                    </div>
                 </div>
             </div>
             <div aria-label="Grafik pengeluaran barang">
@@ -275,16 +279,20 @@
                     <div class="chart-legend"><span><i class="chart-dot" style="background:#1796c2"></i>Saldo awal bulan</span><span><i class="chart-dot" style="background:#ec8a4c"></i>Keluar</span></div>
                 </div>
                 <div class="chart-list">
+                    <div class="chart-columns">
                     @forelse($usageChart as $row)
-                        <div class="chart-row">
+                        <div class="chart-row" title="{{ $row['name'] }} · Saldo awal: {{ $row['opening'] }} · Keluar: {{ $row['outgoing'] }} {{ $row['unit'] }}">
+                            <div class="chart-plot">
+                                <div class="chart-column"><span class="chart-value">{{ number_format($row['opening'], 0, ',', '.') }}</span><div class="chart-bar" style="height: {{ 90 * $row['opening'] / $usageMax }}%"></div></div>
+                                <div class="chart-column"><span class="chart-value">{{ number_format($row['outgoing'], 0, ',', '.') }}</span><div class="chart-bar out" style="height: {{ 90 * $row['outgoing'] / $usageMax }}%"></div></div>
+                            </div>
                             <div class="chart-label">{{ $row['name'] }}</div>
-                            <div class="chart-meta mb-2">{{ $row['code'] }} · {{ $row['unit'] }}</div>
-                            <div class="d-flex align-items-center gap-2 mb-1"><div class="chart-track flex-grow-1"><div class="chart-bar" style="width: {{ 100 * $row['opening'] / $usageMax }}%"></div></div><span class="chart-value">{{ number_format($row['opening'], 0, ',', '.') }}</span></div>
-                            <div class="d-flex align-items-center gap-2"><div class="chart-track flex-grow-1"><div class="chart-bar out" style="width: {{ 100 * $row['outgoing'] / $usageMax }}%"></div></div><span class="chart-value">{{ number_format($row['outgoing'], 0, ',', '.') }}</span></div>
+                            <div class="chart-meta">{{ $row['code'] }} · {{ $row['unit'] }}</div>
                         </div>
                     @empty
                         <div class="chart-empty">Belum ada pengeluaran barang pada bulan ini.</div>
                     @endforelse
+                    </div>
                 </div>
             </div>
     </section>
