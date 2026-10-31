@@ -655,8 +655,18 @@ class BumInventoryController extends Controller
 
     public function reports(Request $request)
     {
-        $period = $request->period ?: now()->format('Y-m');
-        $date = Carbon::createFromFormat('Y-m', $period);
+        $data = $request->validate(['period' => 'nullable|date_format:Y-m']);
+        $period = $data['period'] ?? now()->format('Y-m');
+        $date = Carbon::createFromFormat('!Y-m', $period);
+
+        $opnameRows = StockOpname::with('items.item')
+            ->where('period', $period)
+            ->where('status', 'CLOSED')
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->get()->flatMap(fn ($opname) => $opname->items->sortByDesc('id'))
+            ->filter(fn ($row) => $row->item !== null)
+            ->unique(fn ($row) => $row->item_id.':'.$row->stock_location)
+            ->values();
 
         $usage = StockMovement::with('item')
             ->where('movement_type', 'OUT')
@@ -665,6 +675,22 @@ class BumInventoryController extends Controller
             ->whereMonth('created_at', $date->month)
             ->get()
             ->groupBy('item_id');
+
+        $firstMovements = StockMovement::where('stock_location', 'small_warehouse')
+            ->whereIn('item_id', $usage->keys())
+            ->where('created_at', '>=', $date->copy()->startOfMonth())
+            ->where('created_at', '<', $date->copy()->addMonth()->startOfMonth())
+            ->orderBy('created_at')->orderBy('id')->get()->groupBy('item_id');
+        $usageChart = $usage->map(function ($rows, $itemId) use ($firstMovements) {
+            $first = $firstMovements->get($itemId)?->first();
+            return [
+                'name' => $rows->first()->item?->name ?? 'Barang tidak tersedia',
+                'code' => $rows->first()->item?->code ?? '-',
+                'unit' => $first?->balance_uom ?: ($rows->first()->item?->small_uom ?? ''),
+                'opening' => (int) ($first?->balance_before ?? 0),
+                'outgoing' => (int) $rows->sum('qty'),
+            ];
+        })->sortByDesc('outgoing')->values();
 
         $receivings = ProcurementReceiving::with('items.item')
             ->whereYear('received_date', $date->year)
@@ -678,7 +704,7 @@ class BumInventoryController extends Controller
             ->latest()
             ->get();
 
-        return view('bum.reports', compact('period', 'usage', 'receivings', 'consumptions'));
+        return view('bum.reports', compact('period', 'usage', 'usageChart', 'opnameRows', 'receivings', 'consumptions'));
     }
 
     private function nextReference(string $prefix): string
