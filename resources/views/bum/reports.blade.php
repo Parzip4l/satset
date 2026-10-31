@@ -456,24 +456,52 @@
                 const type = button.dataset.downloadChart;
                 const rows = chartData[type];
                 if (!rows.length) return;
-                const perRow = 8, panelHeight = 430, width = 1280;
+                const perRow = 8, width = 1280, chartHeight = 130, labelWidth = 135;
+                const measure = document.createElement('canvas').getContext('2d');
+                if (!measure) return;
+                measure.font = '13px sans-serif';
+                const wrap = name => {
+                    const lines = []; let line = '';
+                    String(name || '-').split(/\s+/).forEach(word => {
+                        const next = line ? line + ' ' + word : word;
+                        if (line && measure.measureText(next).width > labelWidth) { lines.push(line); line = word; }
+                        else line = next;
+                    });
+                    if (line) lines.push(line);
+                    return lines;
+                };
+                const panels = [];
+                for (let i = 0; i < rows.length; i += perRow) {
+                    const entries = rows.slice(i, i + perRow).map(row => ({ row, lines: wrap(row.name) }));
+                    const max = Math.max(1, ...entries.map(({ row }) => type === 'opname' ? row.value : Math.max(row.opening, row.outgoing)));
+                    const height = 55 + chartHeight + 26 + Math.max(...entries.map(entry => entry.lines.length)) * 16 + 55;
+                    panels.push({ entries, max, height });
+                }
                 const canvas = document.createElement('canvas');
                 canvas.width = width;
-                canvas.height = 130 + Math.ceil(rows.length / perRow) * panelHeight;
+                canvas.height = 130 + panels.reduce((sum, panel) => sum + panel.height, 0);
+                if (canvas.height > 30000) { alert('Data terlalu banyak untuk satu gambar. Pilih periode dengan data lebih sedikit.'); return; }
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return;
                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#17233a'; ctx.font = 'bold 28px sans-serif';
                 ctx.fillText(type === 'opname' ? 'Stok Opname ATK / RTK' : 'Pengeluaran ATK / RTK', 40, 50);
                 ctx.font = '16px sans-serif'; ctx.fillStyle = '#687789';
-                ctx.fillText('Periode ' + period + (type === 'usage' ? ' · Gudang Kecil · Biru: saldo awal  |  Oranye: keluar' : ' · Stok fisik terakhir per barang dan gudang'), 40, 80);
-                const max = Math.max(1, ...rows.map(row => type === 'opname' ? row.value : Math.max(row.opening, row.outgoing)));
-                rows.forEach((row, i) => {
-                    const x = 40 + (i % perRow) * 150, top = 120 + Math.floor(i / perRow) * panelHeight;
-                    const baseline = top + 210;
-                    ctx.strokeStyle = '#dce4ed'; ctx.beginPath(); ctx.moveTo(x, baseline); ctx.lineTo(x + 130, baseline); ctx.stroke();
+                ctx.fillText('Periode ' + period + ' · ' + rows.length + ' data' + (type === 'usage' ? ' · Gudang Kecil · Biru: saldo awal  |  Oranye: keluar' : ' · Stok fisik terakhir per barang dan gudang'), 40, 80);
+                let top = 115;
+                panels.forEach(panel => {
+                    const baseline = top + 45 + chartHeight;
+                    ctx.fillStyle = '#f8fafc'; ctx.fillRect(30, top, 1220, panel.height - 12);
+                    ctx.fillStyle = '#687789'; ctx.font = '12px sans-serif'; ctx.textAlign = 'left';
+                    ctx.fillText('Skala baris ini: 0 – ' + new Intl.NumberFormat('id-ID').format(panel.max), 42, top + 22);
+                    for (let line = 0; line <= 2; line++) {
+                        const y = baseline - line * chartHeight / 2;
+                        ctx.strokeStyle = '#dce4ed'; ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(1235, y); ctx.stroke();
+                    }
+                    panel.entries.forEach(({ row, lines }, index) => {
+                    const x = 40 + index * 150;
                     const bar = (value, offset, color) => {
-                        const height = value / max * 180;
+                        const height = value / panel.max * chartHeight;
                         ctx.fillStyle = color; ctx.fillRect(x + offset, baseline - height, 30, height);
                         ctx.fillStyle = '#26354a'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
                         ctx.fillText(new Intl.NumberFormat('id-ID').format(value), x + offset + 15, baseline - height - 6);
@@ -481,12 +509,13 @@
                     if (type === 'opname') bar(row.value, 50, '#1796c2');
                     else { bar(row.opening, 30, '#1796c2'); bar(row.outgoing, 70, '#ec8a4c'); }
                     ctx.textAlign = 'left'; ctx.font = '13px sans-serif'; ctx.fillStyle = '#26354a';
-                    const words = row.name.split(/\s+/); let line = '', y = baseline + 23;
-                    words.forEach(word => { const next = line ? line + ' ' + word : word; if (ctx.measureText(next).width > 135 && line) { ctx.fillText(line, x, y); y += 16; line = word; } else line = next; });
-                    if (line) { ctx.fillText(line, x, y); y += 16; }
+                    let y = baseline + 23;
+                    lines.forEach(line => { ctx.fillText(line, x, y, labelWidth); y += 16; });
                     ctx.fillStyle = '#687789'; ctx.font = '12px sans-serif';
                     ctx.fillText(row.code + ' · ' + (row.unit || ''), x, y + 4, 135);
                     if (row.warehouse) ctx.fillText(row.warehouse, x, y + 20, 135);
+                    });
+                    top += panel.height;
                 });
                 const link = document.createElement('a');
                 link.download = `laporan-${type}-${period}.png`;
