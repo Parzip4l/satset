@@ -704,7 +704,19 @@ class BumInventoryController extends Controller
             ->latest()
             ->get();
 
-        return view('bum.reports', compact('period', 'usage', 'usageChart', 'opnameRows', 'receivings', 'consumptions'));
+        $gaReports = Ticket::where('payload->request_type', 'ga_request_finding')
+            ->whereYear('created_at', $date->year)
+            ->whereMonth('created_at', $date->month)
+            ->get();
+
+        $consumptionChart = $consumptions->groupBy(fn ($ticket) => trim((string) data_get($ticket->payload, 'consumption_type')) ?: 'Tidak diketahui')
+            ->map(fn ($tickets, $name) => ['name' => $name, 'value' => $tickets->count()])
+            ->sortByDesc('value')->values();
+        $gaReportChart = $gaReports->groupBy(fn ($ticket) => trim((string) data_get($ticket->payload, 'report_type')) ?: 'Tidak diketahui')
+            ->map(fn ($tickets, $name) => ['name' => $name, 'value' => $tickets->count()])
+            ->sortByDesc('value')->values();
+
+        return view('bum.reports', compact('period', 'usage', 'usageChart', 'opnameRows', 'receivings', 'consumptions', 'consumptionChart', 'gaReportChart'));
     }
 
     private function nextReference(string $prefix): string

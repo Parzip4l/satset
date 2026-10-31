@@ -300,6 +300,36 @@
     </section>
     <p class="muted-text small mb-4">Satuan stok opname mengikuti master barang saat ini. Saldo awal diambil dari mutasi pertama dalam bulan; penerimaan dan penyesuaian selama bulan dapat memengaruhi pengeluaran.</p>
 
+    <section class="report-card chart-card mb-4" aria-label="Grafik konsumsi dan laporan GA">
+        @foreach([
+            ['key' => 'consumption', 'title' => 'Permintaan Konsumsi', 'description' => 'Jumlah tiket berdasarkan jenis konsumsi', 'rows' => $consumptionChart],
+            ['key' => 'ga-report', 'title' => 'Permintaan & Temuan GA', 'description' => 'Jumlah tiket berdasarkan jenis laporan', 'rows' => $gaReportChart],
+        ] as $chart)
+            @php($chartMax = max(1, (int) $chart['rows']->max('value'))
+            <div>
+                <div class="chart-head">
+                    <div class="chart-eyebrow">Laporan bulanan</div>
+                    <h4 class="chart-title">{{ $chart['title'] }}</h4>
+                    <div class="muted-text small">{{ $chart['description'] }} · dibuat pada periode {{ $period }}.</div>
+                    <button type="button" class="btn btn-outline-primary report-btn mt-3" data-download-chart="{{ $chart['key'] }}" @disabled($chart['rows']->isEmpty())><i class="bi bi-download me-1"></i> Download PNG</button>
+                </div>
+                <div class="chart-list"><div class="chart-columns">
+                    @forelse($chart['rows'] as $row)
+                        <div class="chart-row" title="{{ $row['name'] }}: {{ $row['value'] }} tiket">
+                            <div class="chart-plot"><div class="chart-column">
+                                <span class="chart-value">{{ number_format($row['value'], 0, ',', '.') }}</span>
+                                <div class="chart-bar" style="height: {{ 90 * $row['value'] / $chartMax }}%"></div>
+                            </div></div>
+                            <div class="chart-label">{{ $row['name'] }}</div><div class="chart-meta">tiket</div>
+                        </div>
+                    @empty
+                        <div class="chart-empty">Belum ada tiket pada bulan ini.</div>
+                    @endforelse
+                </div></div>
+            </div>
+        @endforeach
+    </section>
+
     <div class="row g-4">
         <div class="col-xl-4">
             <div class="report-card h-100" data-report-table="usage">
@@ -448,7 +478,9 @@
     document.addEventListener('DOMContentLoaded', function () {
         const chartData = {
             opname: {{ Illuminate\Support\Js::from($opnameRows->map(fn ($row) => ['name' => $row->item->name, 'code' => $row->item->code, 'unit' => $row->stock_location === 'small_warehouse' ? $row->item->small_uom : $row->item->large_uom, 'warehouse' => $row->stock_location === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar', 'value' => (int) $row->physical_stock])->values()) }},
-            usage: {{ Illuminate\Support\Js::from($usageChart) }}
+            usage: {{ Illuminate\Support\Js::from($usageChart) }},
+            consumption: {{ Illuminate\Support\Js::from($consumptionChart) }},
+            'ga-report': {{ Illuminate\Support\Js::from($gaReportChart) }}
         };
         const period = {{ Illuminate\Support\Js::from($period) }};
         document.querySelectorAll('[data-download-chart]').forEach(button => {
@@ -473,7 +505,7 @@
                 const panels = [];
                 for (let i = 0; i < rows.length; i += perRow) {
                     const entries = rows.slice(i, i + perRow).map(row => ({ row, lines: wrap(row.name) }));
-                    const max = Math.max(1, ...entries.map(({ row }) => type === 'opname' ? row.value : Math.max(row.opening, row.outgoing)));
+                    const max = Math.max(1, ...entries.map(({ row }) => type === 'usage' ? Math.max(row.opening, row.outgoing) : row.value));
                     const height = 55 + chartHeight + 26 + Math.max(...entries.map(entry => entry.lines.length)) * 16 + 55;
                     panels.push({ entries, max, height });
                 }
@@ -485,9 +517,11 @@
                 if (!ctx) return;
                 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#17233a'; ctx.font = 'bold 28px sans-serif';
-                ctx.fillText(type === 'opname' ? 'Stok Opname ATK / RTK' : 'Pengeluaran ATK / RTK', 40, 50);
+                const titles = { opname: 'Stok Opname ATK / RTK', usage: 'Pengeluaran ATK / RTK', consumption: 'Permintaan Konsumsi', 'ga-report': 'Permintaan & Temuan GA' };
+                ctx.fillText(titles[type], 40, 50);
                 ctx.font = '16px sans-serif'; ctx.fillStyle = '#687789';
-                ctx.fillText('Periode ' + period + ' · ' + rows.length + ' data' + (type === 'usage' ? ' · Gudang Kecil · Biru: saldo awal  |  Oranye: keluar' : ' · Stok fisik terakhir per barang dan gudang'), 40, 80);
+                const description = type === 'usage' ? ' · Gudang Kecil · Biru: saldo awal  |  Oranye: keluar' : type === 'opname' ? ' · Stok fisik terakhir per barang dan gudang' : ' · Jumlah tiket dibuat per kategori';
+                ctx.fillText('Periode ' + period + ' · ' + rows.length + ' kategori' + description, 40, 80);
                 let top = 115;
                 panels.forEach(panel => {
                     const baseline = top + 45 + chartHeight;
@@ -506,13 +540,13 @@
                         ctx.fillStyle = '#26354a'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
                         ctx.fillText(new Intl.NumberFormat('id-ID').format(value), x + offset + 15, baseline - height - 6);
                     };
-                    if (type === 'opname') bar(row.value, 50, '#1796c2');
+                    if (type !== 'usage') bar(row.value, 50, '#1796c2');
                     else { bar(row.opening, 30, '#1796c2'); bar(row.outgoing, 70, '#ec8a4c'); }
                     ctx.textAlign = 'left'; ctx.font = '13px sans-serif'; ctx.fillStyle = '#26354a';
                     let y = baseline + 23;
                     lines.forEach(line => { ctx.fillText(line, x, y, labelWidth); y += 16; });
                     ctx.fillStyle = '#687789'; ctx.font = '12px sans-serif';
-                    ctx.fillText(row.code + ' · ' + (row.unit || ''), x, y + 4, 135);
+                    ctx.fillText(row.code ? row.code + ' · ' + (row.unit || '') : 'tiket', x, y + 4, 135);
                     if (row.warehouse) ctx.fillText(row.warehouse, x, y + 20, 135);
                     });
                     top += panel.height;
