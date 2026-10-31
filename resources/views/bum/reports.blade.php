@@ -257,7 +257,9 @@
                 <div class="chart-list">
                     <div class="chart-columns">
                     @forelse($opnameRows as $row)
-                        @php($uom = $row->stock_location === 'small_warehouse' ? $row->item->small_uom : $row->item->large_uom)
+                        @php
+                            $uom = $row->stock_location === 'small_warehouse' ? $row->item->small_uom : $row->item->large_uom;
+                        @endphp
                         <div class="chart-row" title="{{ $row->item->name }} · {{ $row->stock_location === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar' }} · {{ number_format($row->physical_stock, 0, ',', '.') }} {{ $uom }}">
                             <div class="chart-plot"><div class="chart-column">
                                 <span class="chart-value">{{ number_format($row->physical_stock, 0, ',', '.') }}</span>
@@ -305,7 +307,9 @@
             ['key' => 'consumption', 'title' => 'Permintaan Konsumsi', 'description' => 'Jumlah tiket berdasarkan jenis konsumsi', 'rows' => $consumptionChart],
             ['key' => 'ga-report', 'title' => 'Permintaan & Temuan GA', 'description' => 'Jumlah tiket berdasarkan jenis laporan', 'rows' => $gaReportChart],
         ] as $chart)
-            @php($chartMax = max(1, (int) $chart['rows']->max('value'))
+            @php
+                $chartMax = max(1, (int) $chart['rows']->max('value'));
+            @endphp
             <div>
                 <div class="chart-head">
                     <div class="chart-eyebrow">Laporan bulanan</div>
