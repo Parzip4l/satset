@@ -315,7 +315,11 @@ class BumInventoryController extends Controller
             'stock_status' => $item->small_stock <= $item->minimum_stock ? 'LOW_STOCK_GUDANG_KECIL' : 'AMAN',
         ];
 
-        return view('bum.item-show', compact('item', 'movements', 'receivingLines', 'monthlyTrend', 'summary'));
+        $uoms = ConsumableUom::where('is_active', true)
+            ->orWhereIn('code', [$item->large_uom, $item->small_uom])
+            ->orderBy('sort_order')->orderBy('code')->get();
+
+        return view('bum.item-show', compact('item', 'movements', 'receivingLines', 'monthlyTrend', 'summary', 'uoms'));
     }
 
     public function updateItem(Request $request, ConsumableItem $item)
@@ -345,15 +349,24 @@ class BumInventoryController extends Controller
     {
         $data = $request->validateWithBag('itemCode', [
             'code' => 'required|string|max:50|unique:consumable_items,code,' . $item->id,
+            'name' => 'required|string|max:150',
+            'large_uom' => 'required|string|exists:consumable_uoms,code',
+            'small_uom' => 'required|string|exists:consumable_uoms,code',
+            'conversion_qty' => 'required|integer|min:1',
             'location' => 'nullable|string|max:100',
         ]);
 
         $item->update([
             'code' => trim($data['code']),
+            'name' => trim($data['name']),
+            'large_uom' => $data['large_uom'],
+            'small_uom' => $data['small_uom'],
+            'unit' => $data['small_uom'],
+            'conversion_qty' => $data['conversion_qty'],
             'location' => filled($data['location'] ?? null) ? trim($data['location']) : null,
         ]);
 
-        return back()->with('success', 'Kode dan bin lokasi barang berhasil diperbarui.');
+        return back()->with('success', 'Data barang berhasil diperbarui.');
     }
 
     public function updateItemStatus(Request $request, ConsumableItem $item)

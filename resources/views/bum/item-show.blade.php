@@ -323,7 +323,7 @@
 </div>
 
 <div class="modal fade adjust-modal" id="editItemCodeModal" tabindex="-1" aria-labelledby="editItemCodeModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <form method="POST" action="{{ route('bum.items.code.update', $item) }}">
                 @csrf
@@ -331,7 +331,7 @@
                 <div class="modal-header align-items-start">
                     <div>
                         <h5 class="modal-title fw-bold" id="editItemCodeModalLabel">Edit Data Barang</h5>
-                        <div class="text-muted small">Ubah kode barang dan posisi bin penyimpanannya.</div>
+                        <div class="text-muted small">Ubah informasi dan satuan barang.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -353,6 +353,25 @@
                     @error('code', 'itemCode')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+
+                    <label class="form-label mt-3" for="itemName">Nama Barang</label>
+                    <input id="itemName" name="name" class="form-control @error('name', 'itemCode') is-invalid @enderror" value="{{ old('name', $item->name) }}" maxlength="150" required>
+                    @error('name', 'itemCode')<div class="invalid-feedback">{{ $message }}</div>@enderror
+
+                    @foreach(['large_uom' => 'UOM Besar', 'small_uom' => 'UOM Kecil'] as $field => $label)
+                        <label class="form-label mt-3" for="{{ $field }}">{{ $label }}</label>
+                        <select id="{{ $field }}" name="{{ $field }}" class="form-select @error($field, 'itemCode') is-invalid @enderror" required>
+                            @foreach($uoms as $uom)
+                                <option value="{{ $uom->code }}" @selected(old($field, $item->{$field}) === $uom->code)>{{ $uom->code }} — {{ $uom->name }}{{ $uom->is_active ? '' : ' (nonaktif)' }}</option>
+                            @endforeach
+                        </select>
+                        @error($field, 'itemCode')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    @endforeach
+
+                    <label class="form-label mt-3" for="conversionQty">Jumlah UOM Kecil per UOM Besar</label>
+                    <input id="conversionQty" type="number" name="conversion_qty" min="1" step="1" class="form-control @error('conversion_qty', 'itemCode') is-invalid @enderror" value="{{ old('conversion_qty', $item->conversion_qty) }}" required>
+                    @error('conversion_qty', 'itemCode')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <div class="form-text">Perubahan satuan atau konversi tidak mengubah angka stok yang tersimpan. Pastikan nilainya sesuai dengan stok fisik.</div>
 
                     <label class="form-label mt-3" for="itemLocation">Bin Lokasi</label>
                     <input

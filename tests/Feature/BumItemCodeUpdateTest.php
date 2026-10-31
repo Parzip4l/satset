@@ -15,6 +15,7 @@ class BumItemCodeUpdateTest extends TestCase
         parent::setUp();
 
         Schema::dropIfExists('consumable_items');
+        Schema::dropIfExists('consumable_uoms');
         Schema::dropIfExists('users');
 
         Schema::create('users', function (Blueprint $table): void {
@@ -45,6 +46,14 @@ class BumItemCodeUpdateTest extends TestCase
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
+
+        Schema::create('consumable_uoms', function (Blueprint $table): void {
+            $table->id();
+            $table->string('code')->unique();
+        });
+        \Illuminate\Support\Facades\DB::table('consumable_uoms')->insert([
+            ['code' => 'box'], ['code' => 'dus'], ['code' => 'pcs'],
+        ]);
     }
 
     public function test_ga_can_update_item_code_with_roman_number_and_dot(): void
@@ -66,15 +75,24 @@ class BumItemCodeUpdateTest extends TestCase
             ->patch(route('bum.items.code.update', $item), [
                 'code' => 'III.25',
                 'location' => 'Rak B-12',
+                'name' => 'Barang baru',
+                'large_uom' => 'dus',
+                'small_uom' => 'pcs',
+                'conversion_qty' => 10,
             ]);
 
         $response
             ->assertRedirect(route('bum.items.show', $item))
-            ->assertSessionHas('success', 'Kode dan bin lokasi barang berhasil diperbarui.');
+            ->assertSessionHas('success', 'Data barang berhasil diperbarui.');
         $this->assertDatabaseHas('consumable_items', [
             'id' => $item->id,
             'code' => 'III.25',
             'location' => 'Rak B-12',
+            'name' => 'Barang baru',
+            'large_uom' => 'dus',
+            'small_uom' => 'pcs',
+            'unit' => 'pcs',
+            'conversion_qty' => 10,
         ]);
     }
 
