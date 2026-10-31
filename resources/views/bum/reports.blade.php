@@ -245,9 +245,8 @@
         $opnameMax = max(1, (int) $opnameRows->max('physical_stock'));
         $usageMax = max(1, (int) $usageChart->max(fn ($row) => max($row['opening'], $row['outgoing'])));
     @endphp
-    <div class="row g-4 mb-4">
-        <div class="col-xl-6">
-            <section class="report-card chart-card h-100" aria-label="Grafik stok opname">
+    <section class="report-card chart-card mb-4" aria-label="Grafik laporan inventori bulanan">
+            <div aria-label="Grafik stok opname">
                 <div class="chart-head">
                     <div class="chart-eyebrow">Inventori bulanan</div>
                     <h4 class="chart-title">Stok Opname ATK / RTK</h4>
@@ -267,10 +266,8 @@
                         <div class="chart-empty">Belum ada stok opname yang ditutup pada bulan ini.</div>
                     @endforelse
                 </div>
-            </section>
-        </div>
-        <div class="col-xl-6">
-            <section class="report-card chart-card h-100" aria-label="Grafik pengeluaran barang">
+            </div>
+            <div aria-label="Grafik pengeluaran barang">
                 <div class="chart-head">
                     <div class="chart-eyebrow">Pergerakan barang</div>
                     <h4 class="chart-title">Pengeluaran ATK / RTK</h4>
@@ -289,9 +286,8 @@
                         <div class="chart-empty">Belum ada pengeluaran barang pada bulan ini.</div>
                     @endforelse
                 </div>
-            </section>
-        </div>
-    </div>
+            </div>
+    </section>
     <p class="muted-text small mb-4">Satuan stok opname mengikuti master barang saat ini. Saldo awal diambil dari mutasi pertama dalam bulan; penerimaan dan penyesuaian selama bulan dapat memengaruhi pengeluaran.</p>
 
     <div class="row g-4">
