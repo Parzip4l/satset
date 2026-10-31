@@ -252,6 +252,7 @@
                     <div class="chart-eyebrow">Inventori bulanan</div>
                     <h4 class="chart-title">Stok Opname ATK / RTK</h4>
                     <div class="muted-text small">Stok fisik hasil opname terakhir tiap barang dan gudang pada periode {{ $period }}.</div>
+                    <button type="button" class="btn btn-outline-primary report-btn mt-3" data-download-chart="opname" @disabled($opnameRows->isEmpty())><i class="bi bi-download me-1"></i> Download PNG</button>
                 </div>
                 <div class="chart-list">
                     <div class="chart-columns">
@@ -277,6 +278,7 @@
                     <h4 class="chart-title">Pengeluaran ATK / RTK</h4>
                     <div class="muted-text small mb-2">Gudang Kecil · barang dengan pengeluaran pada periode {{ $period }}.</div>
                     <div class="chart-legend"><span><i class="chart-dot" style="background:#1796c2"></i>Saldo awal bulan</span><span><i class="chart-dot" style="background:#ec8a4c"></i>Keluar</span></div>
+                    <button type="button" class="btn btn-outline-primary report-btn mt-3" data-download-chart="usage" @disabled($usageChart->isEmpty())><i class="bi bi-download me-1"></i> Download PNG</button>
                 </div>
                 <div class="chart-list">
                     <div class="chart-columns">
@@ -444,6 +446,54 @@
 @section('js')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const chartData = {
+            opname: {{ Illuminate\Support\Js::from($opnameRows->map(fn ($row) => ['name' => $row->item->name, 'code' => $row->item->code, 'unit' => $row->stock_location === 'small_warehouse' ? $row->item->small_uom : $row->item->large_uom, 'warehouse' => $row->stock_location === 'small_warehouse' ? 'Gudang Kecil' : 'Gudang Besar', 'value' => (int) $row->physical_stock])->values()) }},
+            usage: {{ Illuminate\Support\Js::from($usageChart) }}
+        };
+        const period = {{ Illuminate\Support\Js::from($period) }};
+        document.querySelectorAll('[data-download-chart]').forEach(button => {
+            button.addEventListener('click', () => {
+                const type = button.dataset.downloadChart;
+                const rows = chartData[type];
+                if (!rows.length) return;
+                const perRow = 8, panelHeight = 430, width = 1280;
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = 130 + Math.ceil(rows.length / perRow) * panelHeight;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#17233a'; ctx.font = 'bold 28px sans-serif';
+                ctx.fillText(type === 'opname' ? 'Stok Opname ATK / RTK' : 'Pengeluaran ATK / RTK', 40, 50);
+                ctx.font = '16px sans-serif'; ctx.fillStyle = '#687789';
+                ctx.fillText('Periode ' + period + (type === 'usage' ? ' · Gudang Kecil · Biru: saldo awal  |  Oranye: keluar' : ' · Stok fisik terakhir per barang dan gudang'), 40, 80);
+                const max = Math.max(1, ...rows.map(row => type === 'opname' ? row.value : Math.max(row.opening, row.outgoing)));
+                rows.forEach((row, i) => {
+                    const x = 40 + (i % perRow) * 150, top = 120 + Math.floor(i / perRow) * panelHeight;
+                    const baseline = top + 210;
+                    ctx.strokeStyle = '#dce4ed'; ctx.beginPath(); ctx.moveTo(x, baseline); ctx.lineTo(x + 130, baseline); ctx.stroke();
+                    const bar = (value, offset, color) => {
+                        const height = value / max * 180;
+                        ctx.fillStyle = color; ctx.fillRect(x + offset, baseline - height, 30, height);
+                        ctx.fillStyle = '#26354a'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+                        ctx.fillText(new Intl.NumberFormat('id-ID').format(value), x + offset + 15, baseline - height - 6);
+                    };
+                    if (type === 'opname') bar(row.value, 50, '#1796c2');
+                    else { bar(row.opening, 30, '#1796c2'); bar(row.outgoing, 70, '#ec8a4c'); }
+                    ctx.textAlign = 'left'; ctx.font = '13px sans-serif'; ctx.fillStyle = '#26354a';
+                    const words = row.name.split(/\s+/); let line = '', y = baseline + 23;
+                    words.forEach(word => { const next = line ? line + ' ' + word : word; if (ctx.measureText(next).width > 135 && line) { ctx.fillText(line, x, y); y += 16; line = word; } else line = next; });
+                    if (line) { ctx.fillText(line, x, y); y += 16; }
+                    ctx.fillStyle = '#687789'; ctx.font = '12px sans-serif';
+                    ctx.fillText(row.code + ' · ' + (row.unit || ''), x, y + 4, 135);
+                    if (row.warehouse) ctx.fillText(row.warehouse, x, y + 20, 135);
+                });
+                const link = document.createElement('a');
+                link.download = `laporan-${type}-${period}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        });
         document.querySelectorAll('[data-report-table]').forEach((card) => {
             const tbody = card.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr:not([data-empty-row])'));
