@@ -373,6 +373,14 @@
                     @error('conversion_qty', 'itemCode')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     <div class="form-text">Perubahan satuan atau konversi tidak mengubah angka stok yang tersimpan. Pastikan nilainya sesuai dengan stok fisik.</div>
 
+                    <label class="form-label mt-3" for="itemUnitPrice">Harga per UOM Kecil</label>
+                    <div class="input-group">
+                        <span class="input-group-text">Rp</span>
+                        <input id="itemUnitPrice" name="unit_price" type="number" min="0" max="9999999999999.99" step="0.01" class="form-control @error('unit_price', 'itemCode') is-invalid @enderror" value="{{ old('unit_price', $item->unit_price) }}" required>
+                        @error('unit_price', 'itemCode')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="form-text">Harga untuk satu UOM kecil yang dipilih.</div>
+
                     <label class="form-label mt-3" for="itemLocation">Bin Lokasi</label>
                     <input
                         id="itemLocation"

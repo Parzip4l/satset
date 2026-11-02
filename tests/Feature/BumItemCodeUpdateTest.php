@@ -79,6 +79,7 @@ class BumItemCodeUpdateTest extends TestCase
                 'large_uom' => 'dus',
                 'small_uom' => 'pcs',
                 'conversion_qty' => 10,
+                'unit_price' => '8800.50',
             ]);
 
         $response
@@ -93,6 +94,7 @@ class BumItemCodeUpdateTest extends TestCase
             'small_uom' => 'pcs',
             'unit' => 'pcs',
             'conversion_qty' => 10,
+            'unit_price' => 8800.50,
         ]);
     }
 

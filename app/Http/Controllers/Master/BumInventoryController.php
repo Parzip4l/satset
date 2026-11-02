@@ -353,6 +353,7 @@ class BumInventoryController extends Controller
             'large_uom' => 'required|string|exists:consumable_uoms,code',
             'small_uom' => 'required|string|exists:consumable_uoms,code',
             'conversion_qty' => 'required|integer|min:1',
+            'unit_price' => 'required|numeric|min:0|max:9999999999999.99|decimal:0,2',
             'location' => 'nullable|string|max:100',
         ]);
 
@@ -363,6 +364,7 @@ class BumInventoryController extends Controller
             'small_uom' => $data['small_uom'],
             'unit' => $data['small_uom'],
             'conversion_qty' => $data['conversion_qty'],
+            'unit_price' => $data['unit_price'],
             'location' => filled($data['location'] ?? null) ? trim($data['location']) : null,
         ]);
 
