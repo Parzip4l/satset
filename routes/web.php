@@ -259,8 +259,8 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         ->name('web-push.subscriptions.store');
     Route::delete('/web-push/subscriptions', [App\Http\Controllers\WebPushSubscriptionController::class, 'destroy'])
         ->name('web-push.subscriptions.destroy');
-    Route::get('/notifications', [NotificationController::class, 'index']);
-    Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead']);
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read/{id}', [NotificationController::class, 'markAsRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     Route::delete('/notifications/clear', [NotificationController::class, 'clearAll']);
     Route::post('/laporan/reminder', [App\Http\Controllers\Report\ReportController::class, 'sendReminder'])->name('laporan.reminder');

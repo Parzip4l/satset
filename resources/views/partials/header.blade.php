@@ -34,29 +34,17 @@
                         <i class="bi bi-moon-stars"></i>
                     </button>
                 </div>
-                <div class="dropdown pe-dropdown-mega d-none d-md-block">
-                    <button class="btn header-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="dropdown pe-dropdown-mega" id="satsetNotifications" data-list-url="{{ route('notifications.index') }}" data-read-url="{{ route('notifications.read', ['id' => '__ID__']) }}">
+                    <button class="btn header-btn position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifikasi">
                         <i class="bi bi-bell"></i>
+                        <span data-notification-badge class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"></span>
                     </button>
-                    <div class="dropdown-menu dropdown-mega-md header-dropdown-menu pe-noti-dropdown-menu p-0">
+                    <div class="dropdown-menu dropdown-menu-end dropdown-mega-md header-dropdown-menu pe-noti-dropdown-menu p-0" style="width: min(400px, 92vw); max-width: 92vw;">
                         <div class="p-3 border-bottom">
-                            <h6 class="d-flex align-items-center mb-0">Notification <span class="badge bg-success rounded-circle align-middle ms-1">4</span></h6>
+                            <h6 class="d-flex align-items-center mb-0">Notifikasi <span class="badge bg-danger rounded-pill ms-2" data-notification-count>0</span></h6>
                         </div>
-                        <div class="p-3">
-                            <div class="noti-item">
-                                <img src="{{ asset('assets/images/logo-md.png') }}" alt="Logo Image" class="avatar-md">
-                                <div>
-                                    <a href="javascript:void(0)" class="stretched-link">
-                                        <h6 class="mb-1">Item Back in Stock</h6>
-                                    </a>
-                                    <p class="text-muted mb-2">Today, 02:45 PM</p>
-                                    <div class="p-2 bg-body-tertiary bg-opacity-50 rounded">
-                                        <h6 class="mb-0 lh-base">Good news! The item you wanted is back in stock. Grab it before it’s gone again!</h6>
-                                    </div>
-                                </div>
-                                <a href="javascript:void(0)" class="position-absolute top-10 end-0 fs-18 z-1 link link-danger"><i class="bi bi-x"></i></a>
-                            </div>
-                            
+                        <div data-notification-list style="max-height: 420px; overflow-y: auto;">
+                            <div class="p-3 text-muted small">Memuat notifikasi...</div>
                         </div>
                     </div>
                 </div>
@@ -112,6 +100,86 @@
     </div>
 </header>
 <!-- END Header -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('satsetNotifications');
+    if (!container) return;
+    const list = container.querySelector('[data-notification-list]');
+    const count = container.querySelector('[data-notification-count]');
+    const badge = container.querySelector('[data-notification-badge]');
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    let loading = false;
+
+    function safeUrl(value) {
+        if (!value) return null;
+        try {
+            const url = new URL(value, window.location.origin);
+            return url.origin === window.location.origin && ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+        } catch (_) { return null; }
+    }
+
+    async function refreshNotifications() {
+        if (loading) return;
+        loading = true;
+        try {
+            const response = await fetch(container.dataset.listUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Notifikasi tidak tersedia');
+            const data = await response.json();
+            const unread = Number(data.unread_count) || 0;
+            count.textContent = unread;
+            badge.textContent = unread > 99 ? '99+' : unread;
+            badge.classList.toggle('d-none', unread === 0);
+            list.replaceChildren();
+            if (!data.notifications.length) {
+                const empty = document.createElement('div');
+                empty.className = 'p-3 text-muted small';
+                empty.textContent = 'Belum ada notifikasi.';
+                list.appendChild(empty);
+            }
+            data.notifications.forEach(notification => {
+                const url = safeUrl(notification.url);
+                const item = document.createElement(url ? 'a' : 'button');
+                item.className = 'd-block w-100 text-start text-decoration-none border-0 border-bottom p-3 ' + (notification.is_read ? 'bg-white' : 'bg-light');
+                if (url) item.href = url;
+                else item.type = 'button';
+                const title = document.createElement('div');
+                title.className = 'fw-bold text-dark';
+                title.textContent = notification.title || 'Notifikasi SatSet';
+                const message = document.createElement('div');
+                message.className = 'small text-secondary mt-1';
+                message.textContent = notification.message || '';
+                const time = document.createElement('div');
+                time.className = 'small text-muted mt-1';
+                const date = new Date(notification.created_at);
+                time.textContent = Number.isNaN(date.getTime()) ? '' : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+                item.append(title, message, time);
+                item.addEventListener('click', async event => {
+                    event.preventDefault();
+                    try {
+                        await fetch(container.dataset.readUrl.replace('__ID__', encodeURIComponent(notification.id)), {
+                            method: 'POST', credentials: 'same-origin',
+                            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token || '' }
+                        });
+                    } finally {
+                        if (url) window.location.assign(url);
+                        else refreshNotifications();
+                    }
+                });
+                list.appendChild(item);
+            });
+        } catch (_) {
+            const error = document.createElement('div');
+            error.className = 'p-3 text-muted small';
+            error.textContent = 'Notifikasi belum dapat dimuat. Coba buka kembali.';
+            list.replaceChildren(error);
+        } finally { loading = false; }
+    }
+    container.querySelector('[data-bs-toggle="dropdown"]').addEventListener('click', refreshNotifications);
+    refreshNotifications();
+    window.setInterval(refreshNotifications, 60000);
+});
+</script>
 
 <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog">
