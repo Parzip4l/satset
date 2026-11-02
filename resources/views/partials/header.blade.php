@@ -8,6 +8,28 @@
         ->map(fn ($part) => strtoupper(substr($part, 0, 1)))
         ->implode('') ?: 'G';
 @endphp
+<style>
+    #satsetNotifications .satset-notifications-menu { width: min(400px, 92vw); max-width: 92vw; border: 1px solid #edf0f5; border-radius: 16px; box-shadow: 0 18px 50px rgba(15, 23, 42, .16); overflow: hidden; background: #fff; }
+    #satsetNotifications .satset-notifications-head { padding: 18px 20px 14px; border-bottom: 1px solid #edf0f5; }
+    #satsetNotifications .satset-notifications-title { font-size: 16px; font-weight: 750; color: #172033; margin: 0; }
+    #satsetNotifications .satset-notifications-subtitle { font-size: 12px; color: #8792a2; margin-top: 3px; }
+    #satsetNotifications .satset-notifications-actions { display: flex; gap: 8px; margin-top: 14px; }
+    #satsetNotifications .satset-notifications-action { background: #f4f6f9; border: 0; border-radius: 8px; color: #455468; font-size: 12px; font-weight: 700; padding: 7px 10px; }
+    #satsetNotifications .satset-notifications-action:hover { background: #e9edf3; }
+    #satsetNotifications .satset-notifications-action.clear { color: #d92d3c; background: #fff1f2; }
+    #satsetNotifications .satset-notifications-action:disabled { opacity: .45; cursor: default; }
+    #satsetNotifications .satset-notifications-list { max-height: min(420px, 55vh); overflow-y: auto; }
+    #satsetNotifications .satset-notification-item { display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; text-decoration: none; background: #fff; border: 0; border-bottom: 1px solid #f1f3f6; padding: 14px 20px; cursor: pointer; }
+    #satsetNotifications .satset-notification-item:hover { background: #f8fafc; }
+    #satsetNotifications .satset-notification-item.unread { background: #fff8f8; }
+    #satsetNotifications .satset-notification-icon { display: flex; flex: 0 0 36px; height: 36px; align-items: center; justify-content: center; border-radius: 11px; color: #e11d2e; background: #ffeded; font-size: 16px; }
+    #satsetNotifications .satset-notification-content { flex: 1; min-width: 0; }
+    #satsetNotifications .satset-notification-title { color: #243044; font-size: 13px; font-weight: 700; line-height: 1.35; }
+    #satsetNotifications .satset-notification-message { color: #617086; font-size: 12px; line-height: 1.5; margin-top: 4px; overflow-wrap: anywhere; }
+    #satsetNotifications .satset-notification-time { color: #98a2b1; font-size: 11px; margin-top: 5px; }
+    #satsetNotifications .satset-notification-dot { width: 7px; height: 7px; border-radius: 50%; background: #e11d2e; margin-top: 6px; flex: 0 0 7px; }
+    #satsetNotifications .satset-notifications-empty { text-align: center; color: #8993a1; font-size: 13px; padding: 32px 20px; }
+</style>
 <header class="app-header" id="appHeader">
     <div class="container-fluid w-100">
         <div class="d-flex align-items-center">
@@ -34,16 +56,21 @@
                         <i class="bi bi-moon-stars"></i>
                     </button>
                 </div>
-                <div class="dropdown pe-dropdown-mega" id="satsetNotifications" data-list-url="{{ route('notifications.index') }}" data-read-url="{{ route('notifications.read', ['id' => '__ID__']) }}">
-                    <button class="btn header-btn position-relative" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifikasi">
+                <div class="dropdown pe-dropdown-mega" id="satsetNotifications" data-list-url="{{ route('notifications.index') }}" data-read-url="{{ route('notifications.read', ['id' => '__ID__']) }}" data-read-all-url="{{ route('notifications.read-all') }}" data-clear-url="{{ route('notifications.clear') }}">
+                    <button class="btn header-btn position-relative" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Notifikasi">
                         <i class="bi bi-bell"></i>
                         <span data-notification-badge class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"></span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end dropdown-mega-md header-dropdown-menu pe-noti-dropdown-menu p-0" style="width: min(400px, 92vw); max-width: 92vw;">
-                        <div class="p-3 border-bottom">
-                            <h6 class="d-flex align-items-center mb-0">Notifikasi <span class="badge bg-danger rounded-pill ms-2" data-notification-count>0</span></h6>
+                    <div class="dropdown-menu dropdown-menu-end dropdown-mega-md header-dropdown-menu pe-noti-dropdown-menu satset-notifications-menu p-0" data-bs-auto-close="outside">
+                        <div class="satset-notifications-head">
+                            <h6 class="satset-notifications-title">Notifikasi <span class="badge bg-danger rounded-pill ms-1" data-notification-count>0</span></h6>
+                            <div class="satset-notifications-subtitle">10 notifikasi terbaru</div>
+                            <div class="satset-notifications-actions">
+                                <button type="button" class="satset-notifications-action" data-notification-read-all disabled><i class="bi bi-check2-all me-1"></i>Baca semua</button>
+                                <button type="button" class="satset-notifications-action clear" data-notification-clear disabled><i class="bi bi-trash3 me-1"></i>Hapus semua</button>
+                            </div>
                         </div>
-                        <div data-notification-list style="max-height: 420px; overflow-y: auto;">
+                        <div class="satset-notifications-list" data-notification-list>
                             <div class="p-3 text-muted small">Memuat notifikasi...</div>
                         </div>
                     </div>
@@ -108,8 +135,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const list = container.querySelector('[data-notification-list]');
     const count = container.querySelector('[data-notification-count]');
     const badge = container.querySelector('[data-notification-badge]');
+    const readAll = container.querySelector('[data-notification-read-all]');
+    const clearAll = container.querySelector('[data-notification-clear]');
     const token = document.querySelector('meta[name="csrf-token"]')?.content;
     let loading = false;
+    let updating = false;
+    let refreshPending = false;
 
     function safeUrl(value) {
         if (!value) return null;
@@ -120,7 +151,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function refreshNotifications() {
-        if (loading) return;
+        if (loading || updating) { refreshPending = true; return; }
         loading = true;
         try {
             const response = await fetch(container.dataset.listUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
@@ -130,30 +161,47 @@ document.addEventListener('DOMContentLoaded', function () {
             count.textContent = unread;
             badge.textContent = unread > 99 ? '99+' : unread;
             badge.classList.toggle('d-none', unread === 0);
+            readAll.disabled = unread === 0;
+            clearAll.disabled = data.notifications.length === 0;
             list.replaceChildren();
             if (!data.notifications.length) {
                 const empty = document.createElement('div');
-                empty.className = 'p-3 text-muted small';
+                empty.className = 'satset-notifications-empty';
                 empty.textContent = 'Belum ada notifikasi.';
                 list.appendChild(empty);
             }
             data.notifications.forEach(notification => {
                 const url = safeUrl(notification.url);
                 const item = document.createElement(url ? 'a' : 'button');
-                item.className = 'd-block w-100 text-start text-decoration-none border-0 border-bottom p-3 ' + (notification.is_read ? 'bg-white' : 'bg-light');
+                item.className = 'satset-notification-item' + (notification.is_read ? '' : ' unread');
                 if (url) item.href = url;
                 else item.type = 'button';
                 const title = document.createElement('div');
-                title.className = 'fw-bold text-dark';
+                title.className = 'satset-notification-title';
                 title.textContent = notification.title || 'Notifikasi SatSet';
                 const message = document.createElement('div');
-                message.className = 'small text-secondary mt-1';
+                message.className = 'satset-notification-message';
                 message.textContent = notification.message || '';
                 const time = document.createElement('div');
-                time.className = 'small text-muted mt-1';
+                time.className = 'satset-notification-time';
                 const date = new Date(notification.created_at);
                 time.textContent = Number.isNaN(date.getTime()) ? '' : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-                item.append(title, message, time);
+                const icon = document.createElement('span');
+                icon.className = 'satset-notification-icon';
+                icon.setAttribute('aria-hidden', 'true');
+                const iconSymbol = document.createElement('i');
+                iconSymbol.className = 'bi bi-bell';
+                icon.appendChild(iconSymbol);
+                const content = document.createElement('div');
+                content.className = 'satset-notification-content';
+                content.append(title, message, time);
+                item.append(icon, content);
+                if (!notification.is_read) {
+                    const dot = document.createElement('span');
+                    dot.className = 'satset-notification-dot';
+                    dot.setAttribute('aria-label', 'Belum dibaca');
+                    item.appendChild(dot);
+                }
                 item.addEventListener('click', async event => {
                     event.preventDefault();
                     try {
@@ -173,8 +221,37 @@ document.addEventListener('DOMContentLoaded', function () {
             error.className = 'p-3 text-muted small';
             error.textContent = 'Notifikasi belum dapat dimuat. Coba buka kembali.';
             list.replaceChildren(error);
-        } finally { loading = false; }
+        } finally {
+            loading = false;
+            if (refreshPending && !updating) { refreshPending = false; refreshNotifications(); }
+        }
     }
+    async function updateAll(url, method) {
+        if (updating) return;
+        updating = true;
+        readAll.disabled = true;
+        clearAll.disabled = true;
+        try {
+            const response = await fetch(url, { method, credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': token || '' } });
+            if (!response.ok) throw new Error('Gagal memperbarui notifikasi');
+        } catch (_) {
+            window.alert('Gagal memperbarui notifikasi. Silakan coba lagi.');
+        } finally {
+            updating = false;
+            refreshNotifications();
+        }
+    }
+    readAll.addEventListener('click', event => {
+        event.stopPropagation();
+        updateAll(container.dataset.readAllUrl, 'POST');
+    });
+    clearAll.addEventListener('click', async event => {
+        event.stopPropagation();
+        const confirmed = window.Swal
+            ? (await Swal.fire({ title: 'Hapus semua notifikasi?', text: 'Seluruh riwayat notifikasi akun Anda akan dihapus.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, hapus semua', cancelButtonText: 'Batal', confirmButtonColor: '#e11d2e' })).isConfirmed
+            : window.confirm('Hapus seluruh riwayat notifikasi akun Anda?');
+        if (confirmed) updateAll(container.dataset.clearUrl, 'DELETE');
+    });
     container.querySelector('[data-bs-toggle="dropdown"]').addEventListener('click', refreshNotifications);
     refreshNotifications();
     window.setInterval(refreshNotifications, 60000);

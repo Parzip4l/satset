@@ -52,4 +52,20 @@ class WebNotificationMenuTest extends TestCase
         $this->assertDatabaseHas('notifications', ['id' => $theirs->id, 'is_read' => false]);
         $this->getJson(route('notifications.index'))->assertJsonPath('unread_count', 0);
     }
+
+    public function test_bulk_read_and_clear_only_affect_current_user(): void
+    {
+        $user = User::create(['name' => 'Pemohon', 'email' => 'user@example.test', 'password' => 'secret']);
+        $other = User::create(['name' => 'Lain', 'email' => 'other@example.test', 'password' => 'secret']);
+        $mine = Notification::create(['user_id' => $user->id, 'message' => 'Tiket saya']);
+        $theirs = Notification::create(['user_id' => $other->id, 'message' => 'Tiket lain']);
+
+        $this->actingAs($user)->postJson(route('notifications.read-all'))->assertOk();
+        $this->assertDatabaseHas('notifications', ['id' => $mine->id, 'is_read' => true]);
+        $this->assertDatabaseHas('notifications', ['id' => $theirs->id, 'is_read' => false]);
+
+        $this->deleteJson(route('notifications.clear'))->assertOk();
+        $this->assertDatabaseMissing('notifications', ['id' => $mine->id]);
+        $this->assertDatabaseHas('notifications', ['id' => $theirs->id, 'is_read' => false]);
+    }
 }
