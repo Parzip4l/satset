@@ -192,7 +192,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
                 'activity_name' => 'Meeting Evaluasi',
                 'event_type' => 'Meeting',
                 'event_date' => now()->addDay()->format('Y-m-d'),
-                'event_end_date' => now()->addDays(7)->format('Y-m-d'),
+                'event_end_date' => now()->addMonth()->addDay()->format('Y-m-d'),
                 'start_time' => '09:00',
                 'end_time' => '11:00',
                 'location' => 'Ruang Rapat Utama',
@@ -214,20 +214,18 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             ]);
         $this->assertSame(0, DB::table('requests')->count());
 
-        $tooLongResponse = $this->from(route('public.ticket.konsumsi.create'))
+        $invalidDateResponse = $this->from(route('public.ticket.konsumsi.create'))
             ->post(route('public.ticket.konsumsi.store'), [
                 ...$requestData,
                 'submission_token' => (string) Str::uuid(),
                 'payload' => [
                     ...$requestData['payload'],
-                    'event_end_date' => now()->addDays(8)->format('Y-m-d'),
+                    'event_end_date' => now()->format('Y-m-d'),
                 ],
             ]);
 
-        $tooLongResponse->assertRedirect(route('public.ticket.konsumsi.create'))
-            ->assertSessionHasErrors([
-                'payload.event_end_date' => 'Rentang tanggal kegiatan maksimal 7 hari kalender.',
-            ]);
+        $invalidDateResponse->assertRedirect(route('public.ticket.konsumsi.create'))
+            ->assertSessionHasErrors(['payload.event_end_date']);
         $this->assertSame(0, DB::table('requests')->count());
 
         $response = $this->post(route('public.ticket.konsumsi.store'), $requestData);

@@ -100,18 +100,6 @@ class TicketController extends Controller
             'required',
             'date',
             'after_or_equal:payload.event_date',
-            function (string $attribute, mixed $value, Closure $fail) use ($request): void {
-                try {
-                    $startDate = Carbon::parse($request->input('payload.event_date'))->startOfDay();
-                    $endDate = Carbon::parse($value)->startOfDay();
-                } catch (\Throwable) {
-                    return;
-                }
-
-                if ($endDate->greaterThan($startDate->copy()->addDays(6))) {
-                    $fail('Rentang tanggal kegiatan maksimal 7 hari kalender.');
-                }
-            },
         ];
     }
 

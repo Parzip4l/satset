@@ -211,7 +211,7 @@
                             <div class="col-md-3">
                                 <label class="form-label">Tanggal Selesai</label>
                                 <input type="date" id="eventEndDate" name="payload[event_end_date]" class="form-control" value="{{ old('payload.event_end_date', old('payload.event_date')) }}" required>
-                                <div class="text-muted small mt-1">Maksimal 7 hari kalender.</div>
+                                <div class="text-muted small mt-1">Tanggal selesai harus sama dengan atau setelah tanggal mulai.</div>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Waktu Mulai</label>
@@ -404,18 +404,9 @@
             return;
         }
 
-        const maximumDate = new Date(`${eventDate.value}T00:00:00`);
-        maximumDate.setDate(maximumDate.getDate() + 6);
-        const maximumValue = [
-            maximumDate.getFullYear(),
-            String(maximumDate.getMonth() + 1).padStart(2, '0'),
-            String(maximumDate.getDate()).padStart(2, '0')
-        ].join('-');
-
         eventEndDate.min = eventDate.value;
-        eventEndDate.max = maximumValue;
 
-        if (!eventEndDate.value || eventEndDate.value < eventDate.value || eventEndDate.value > maximumValue) {
+        if (!eventEndDate.value || eventEndDate.value < eventDate.value) {
             eventEndDate.value = eventDate.value;
         }
     }

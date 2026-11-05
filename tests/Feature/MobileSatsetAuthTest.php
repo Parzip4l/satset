@@ -98,7 +98,7 @@ class MobileSatsetAuthTest extends TestCase
         }
     }
 
-    public function test_mobile_consumption_rejects_an_event_longer_than_seven_days(): void
+    public function test_mobile_consumption_rejects_end_date_before_start(): void
     {
         $token = $this->exchangeToken();
 
@@ -106,7 +106,7 @@ class MobileSatsetAuthTest extends TestCase
             ->postJson('/api/mobile/v1/satset/tickets/consumption', [
                 'payload' => $this->consumptionPayload([
                     'event_date' => '2026-10-22',
-                    'event_end_date' => '2026-10-29',
+                    'event_end_date' => '2026-10-21',
                 ]),
             ])
             ->assertUnprocessable()
