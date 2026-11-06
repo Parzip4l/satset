@@ -47,22 +47,22 @@
         return false;
     };
 
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('input[type="file"][data-max-file-size-mb]').forEach((input) => {
-            input.addEventListener('change', () => validateFileInput(input));
-        });
-
-        document.querySelectorAll('form').forEach((form) => {
-            form.addEventListener('submit', (event) => {
-                const fileInputs = form.querySelectorAll('input[type="file"][data-max-file-size-mb]');
-                for (const input of fileInputs) {
-                    if (!validateFileInput(input)) {
-                        event.preventDefault();
-                        event.stopImmediatePropagation();
-                        return;
-                    }
-                }
-            });
-        });
+    document.addEventListener('change', (event) => {
+        const input = event.target;
+        if (input instanceof HTMLInputElement && input.matches('input[type="file"][data-max-file-size-mb]')) {
+            validateFileInput(input);
+        }
     });
+
+    document.addEventListener('submit', (event) => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        for (const input of form.querySelectorAll('input[type="file"][data-max-file-size-mb]')) {
+            if (!validateFileInput(input)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return;
+            }
+        }
+    }, true);
 })();
