@@ -123,8 +123,6 @@
     }
 
     async function showUnsupported(message) {
-        if (sessionStorage.getItem('satset-push-unsupported-shown')) return;
-        sessionStorage.setItem('satset-push-unsupported-shown', '1');
         const Swal = await waitForSwal();
         if (!Swal) return;
         await waitUntilNoAlert(Swal);
@@ -138,9 +136,6 @@
     }
 
     async function showIosInstallGuide() {
-        const lastShown = Number(localStorage.getItem('satset-ios-push-guide') || 0);
-        if (Date.now() - lastShown < 86400000) return;
-        localStorage.setItem('satset-ios-push-guide', String(Date.now()));
         const Swal = await waitForSwal();
         if (!Swal) return;
         await waitUntilNoAlert(Swal);
@@ -150,39 +145,20 @@
             html: 'Agar notifikasi tetap masuk saat Safari tidak dibuka, tekan <b>Share</b>, pilih <b>Add to Home Screen</b>, lalu buka SatSet dari ikon tersebut.',
             confirmButtonText: 'Saya mengerti',
             confirmButtonColor: '#e31b23',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
         });
     }
 
-    async function showBlocked(registration) {
+    async function showBlocked() {
         const Swal = await waitForSwal();
         if (!Swal) return;
         await waitUntilNoAlert(Swal);
 
-        while (Notification.permission !== 'granted') {
-            const result = await Swal.fire({
+        await Swal.fire({
                 icon: 'warning',
                 title: 'Notifikasi SatSet diblokir',
-                html: `Izin notifikasi di <b>${browserName()}</b> sedang diblokir. Buka pengaturan situs pada ikon di samping alamat website, ubah <b>Notifications</b> menjadi <b>Allow/Izinkan</b>, lalu tekan tombol di bawah.`,
-                confirmButtonText: 'Cek ulang izin',
+                html: `Jika ingin menerima notifikasi, buka pengaturan situs di <b>${browserName()}</b> dan ubah <b>Notifications</b> menjadi <b>Allow/Izinkan</b>.`,
+                confirmButtonText: 'Mengerti',
                 confirmButtonColor: '#e31b23',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-            });
-            if (!result.isConfirmed) return;
-            if (Notification.permission !== 'granted') {
-                await new Promise(resolve => setTimeout(resolve, 300));
-            }
-        }
-
-        await ensureSubscription(registration);
-        await Swal.fire({
-            icon: 'success',
-            title: 'Notifikasi aktif',
-            text: 'Notifikasi SatSet akan tetap masuk meskipun tab tidak sedang aktif.',
-            timer: 1800,
-            showConfirmButton: false,
         });
     }
 
@@ -194,11 +170,11 @@
         const result = await Swal.fire({
             icon: 'info',
             title: 'Aktifkan notifikasi SatSet',
-            html: 'Notifikasi wajib diaktifkan agar permintaan, perubahan status, penugasan, dan approval tidak terlewat meskipun tab SatSet tidak aktif.',
+            html: 'Aktifkan notifikasi browser untuk menerima pembaruan permintaan, status, penugasan, dan approval.',
             confirmButtonText: 'Aktifkan sekarang',
             confirmButtonColor: '#e31b23',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
+            showCancelButton: true,
+            cancelButtonText: 'Nanti saja',
             showLoaderOnConfirm: true,
             preConfirm: async () => {
                 try {
@@ -224,25 +200,27 @@
                 showConfirmButton: false,
             });
         } else if (Notification.permission === 'denied') {
-            await showBlocked(registration);
+            await showBlocked();
         }
     }
 
-    async function initialize() {
+    async function initialize(userRequested = false) {
         if (!window.isSecureContext && location.hostname !== 'localhost') {
-            await showUnsupported('Web Push hanya dapat berjalan melalui koneksi HTTPS.');
+            if (userRequested) await showUnsupported('Web Push hanya dapat berjalan melalui koneksi HTTPS.');
             return;
         }
 
         if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-            await showUnsupported(`Versi ${browserName()} ini belum mendukung Web Push. Gunakan Chrome, Edge, Firefox, atau Safari versi terbaru.`);
+            if (userRequested) await showUnsupported(`Versi ${browserName()} ini belum mendukung Web Push. Gunakan Chrome, Edge, Firefox, atau Safari versi terbaru.`);
             return;
         }
 
         if (isIos() && !isStandalone()) {
-            await showIosInstallGuide();
+            if (userRequested) await showIosInstallGuide();
             return;
         }
+
+        if (!userRequested && Notification.permission !== 'granted') return;
 
         const registration = await navigator.serviceWorker.register(config.serviceWorkerUrl, { scope: '/' });
         await navigator.serviceWorker.ready;
@@ -253,16 +231,26 @@
                 await showActivationNotification(registration);
             }
         } else if (Notification.permission === 'denied') {
-            await showBlocked(registration);
-        } else {
+            if (userRequested) await showBlocked();
+        } else if (userRequested) {
             await requestPermission(registration);
         }
     }
 
     window.addEventListener('load', () => {
+        const enableButton = document.querySelector('[data-enable-web-push]');
+        if (enableButton) {
+            enableButton.classList.remove('d-none');
+            enableButton.addEventListener('click', event => {
+                event.stopPropagation();
+                initialize(true).catch(error => {
+                    console.error('SatSet Web Push initialization failed:', error);
+                    showUnsupported('Notifikasi belum dapat diaktifkan. Muat ulang halaman atau hubungi administrator SatSet.');
+                });
+            });
+        }
         setTimeout(() => initialize().catch(async error => {
             console.error('SatSet Web Push initialization failed:', error);
-            await showUnsupported('Notifikasi belum dapat diaktifkan. Muat ulang halaman atau hubungi administrator SatSet.');
         }), 800);
     });
 })();

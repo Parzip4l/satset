@@ -69,6 +69,7 @@
                                 <button type="button" class="satset-notifications-action" data-notification-read-all disabled><i class="bi bi-check2-all me-1"></i>Baca semua</button>
                                 <button type="button" class="satset-notifications-action clear" data-notification-clear disabled><i class="bi bi-trash3 me-1"></i>Hapus semua</button>
                             </div>
+                            <button type="button" class="satset-notifications-action mt-2 d-none" data-enable-web-push><i class="bi bi-bell me-1"></i>Aktifkan notifikasi browser</button>
                         </div>
                         <div class="satset-notifications-list" data-notification-list>
                             <div class="p-3 text-muted small">Memuat notifikasi...</div>
