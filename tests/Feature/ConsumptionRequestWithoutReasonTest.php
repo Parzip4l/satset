@@ -197,7 +197,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
                 'end_time' => '11:00',
                 'location' => 'Ruang Rapat Utama',
                 'participant_count' => 12,
-                'consumption_type' => 'Snack',
+                'consumption_type' => 'Makan + Coffee',
             ],
         ];
 
