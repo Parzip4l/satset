@@ -21,6 +21,7 @@ use App\Http\Controllers\Master\BumInventoryController;
 use App\Http\Controllers\Master\BumAnalyticsController;
 use App\Http\Controllers\Master\ExecutiveSummaryController;
 use App\Http\Controllers\Setting\TicketDataController;
+use App\Http\Controllers\SppdController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -91,6 +92,17 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
 
     // Page
     Route::get('dashboard', [dashboardController::class, 'index'])->name('dashboard.index');
+
+    Route::prefix('sppd')->name('sppd.')->controller(SppdController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/ajukan', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{ticket}', 'show')->name('show');
+        Route::get('/{ticket}/revisi', 'edit')->name('edit');
+        Route::put('/{ticket}', 'update')->name('update');
+        Route::post('/{ticket}/persetujuan/{approval}', 'decide')->name('decide');
+        Route::get('/{ticket}/pdf', 'download')->name('pdf');
+    });
 
     Route::prefix('it/configuration')->name('it.configuration.')->group(function () {
         Route::get('/pilot', \App\Http\Controllers\It\PilotController::class)->name('pilot');

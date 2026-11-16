@@ -55,6 +55,7 @@ class SatsetApprovalController extends Controller
         ]);
 
         $approval->load(['request.requester', 'request.status', 'approver', 'audits']);
+        abort_if($approval->request && \App\Support\Sppd::is($approval->request), 404);
         $this->ensureApproverEmail($approval, $validated['approver_email']);
 
         return response()->json([
@@ -85,6 +86,7 @@ class SatsetApprovalController extends Controller
         if (! $ticket instanceof Ticket) {
             abort(404, 'Ticket Satset untuk approval ini tidak ditemukan.');
         }
+        abort_if(\App\Support\Sppd::is($ticket), 404);
 
         $actor = $this->authorizedActor($approval, $validated['approver']);
 

@@ -156,20 +156,21 @@ class TicketController extends Controller
     {
         $user = auth()->user();
         $statusFilter = $request->get('approval_status', 'Pending');
-
-        $approvals = Approval::query()
-            ->with(['request.requester', 'request.status', 'request.priority', 'approver'])
-            ->when(! \App\Support\AccountAccess::isAdmin($user), fn ($query) => $query->where('approver_id', $user->id))
-            ->when($statusFilter !== 'all', fn ($query) => $query->where('status', $statusFilter))
+        $visible = Approval::query()
             ->whereHas('request', fn ($tickets) => ItAccess::constrainVisible($tickets, $user))
+            ->when(\App\Support\AccountAccess::isAdmin($user),
+                fn ($query) => $query->where(fn ($approvals) => $approvals->where('approver_id', $user->id)
+                    ->orWhereHas('request', fn ($tickets) => \App\Support\Sppd::excludeFrom($tickets))),
+                fn ($query) => $query->where('approver_id', $user->id),
+            );
+
+        $approvals = (clone $visible)
+            ->with(['request.requester', 'request.status', 'request.priority', 'approver'])
+            ->when($statusFilter !== 'all', fn ($query) => $query->where('status', $statusFilter))
             ->latest()
             ->paginate(10);
 
-        $pendingCount = Approval::query()
-            ->whereHas('request', fn ($tickets) => ItAccess::constrainVisible($tickets, $user))
-            ->when(! \App\Support\AccountAccess::isAdmin($user), fn ($query) => $query->where('approver_id', $user->id))
-            ->where('status', 'Pending')
-            ->count();
+        $pendingCount = $visible->where('status', 'Pending')->count();
 
         return view('ticket.approvals', compact('approvals', 'pendingCount', 'statusFilter'));
     }
@@ -188,6 +189,7 @@ class TicketController extends Controller
         $departmentId = $request->get('department_id');
 
         $tickets = ItAccess::constrainVisible(Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency']), $user)
+            ->tap(fn ($query) => \App\Support\Sppd::excludeFrom($query))
             ->when(! $isAdmin, fn ($query) => $query->where(function ($visible) use ($user) {
                 $visible->where('requester_id', $user->id)
                     ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
@@ -1411,6 +1413,10 @@ class TicketController extends Controller
             'Anda tidak memiliki akses untuk melihat detail tiket ini.'
         );
 
+        if (\App\Support\Sppd::is($ticket)) {
+            return redirect()->route('sppd.show', $ticket);
+        }
+
         if (is_numeric($request->route()->originalParameter('ticket'))) {
             return redirect()->route('ticket.show', $ticket);
         }
@@ -1454,6 +1460,7 @@ class TicketController extends Controller
     public function update(Request $request, $id)
     {
         $ticket = Ticket::findOrFail($id);
+        abort_if(\App\Support\Sppd::is($ticket) || $request->input('payload.request_type') === \App\Support\Sppd::TYPE, 404);
 
         $ticket->update($request->all());
 
@@ -1470,6 +1477,7 @@ class TicketController extends Controller
     public function destroy($id)
     {
         $ticket = Ticket::findOrFail($id);
+        abort_if(\App\Support\Sppd::is($ticket), 404);
         $ticket->delete();
 
         return response()->json([
@@ -1504,6 +1512,7 @@ class TicketController extends Controller
 
     public function updateStatus(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
         $this->ensureAdminAccess();
 
         $request->validate([
@@ -1567,6 +1576,7 @@ class TicketController extends Controller
 
     public function assign(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
         $this->ensureAdminAccess();
 
         $request->validate([
@@ -1610,6 +1620,7 @@ class TicketController extends Controller
 
     public function comment(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
         $request->validate([
             'message' => 'required|string',
         ]);
@@ -1637,6 +1648,8 @@ class TicketController extends Controller
 
     public function approve(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
+
         $request->validate([
             'approval_id' => 'required|exists:approvals,id',
             'status' => 'required|in:approved,rejected',
@@ -1672,6 +1685,7 @@ class TicketController extends Controller
         Ticket $ticket,
         SatsetPendingApprovalSyncService $approvalSync,
     ) {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
         $user = $request->user();
         $canSync = (int) $ticket->requester_id === (int) $user?->id
             || GaAccess::allowed($user)
@@ -1859,6 +1873,7 @@ class TicketController extends Controller
 
     public function updateConsumptionFlow(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
         $this->ensureGaOperationAccess();
 
         $data = $request->validate([
@@ -2155,6 +2170,8 @@ class TicketController extends Controller
 
     public function uploadConsumptionEvidence(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
+
         if ((int) $ticket->requester_id !== (int) $request->user()?->id && ! GaAccess::allowed($request->user())) {
             abort(403, 'Pertanggungjawaban hanya dapat diupload oleh requester atau tim GA.');
         }
@@ -2412,6 +2429,7 @@ class TicketController extends Controller
 
     private function ensureAtkRtkManagerApprovalCleared(Ticket $ticket): void
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
         if (data_get($ticket->payload, 'request_type') !== 'atk_rtk') {
             return;
         }

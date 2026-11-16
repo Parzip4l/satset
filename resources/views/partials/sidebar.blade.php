@@ -120,6 +120,8 @@
             </li>
             @endif
 
+            @include('partials.sppd-menu-item')
+
             <li class="pe-menu-title">Layanan IT</li>
             <li class="pe-slide">
                 <a href="{{ route(\App\Support\ServiceDomains::itActive() ? 'it.index' : 'it.request') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show', 'it.request') ? 'active' : '' }}">

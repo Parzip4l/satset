@@ -28,6 +28,8 @@ class SatsetApprovalDecisionService
         ?string $externalReferenceId = null,
         ?array $portalSignature = null,
     ): Ticket {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
+
         $normalizedStatus = strtolower($status);
         $bumApprover = null;
 

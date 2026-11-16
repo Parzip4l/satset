@@ -102,6 +102,8 @@
         </li>
         @endif
 
+        @include('partials.sppd-menu-item')
+
         @php
             $bumMenuActive = request()->routeIs('bum.*')
                 || request()->routeIs('ticket.ga-requests')

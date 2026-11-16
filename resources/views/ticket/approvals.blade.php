@@ -47,6 +47,7 @@
                                     <option value="Pending" @selected($statusFilter === 'Pending')>Pending</option>
                                     <option value="approved" @selected($statusFilter === 'approved')>Approved</option>
                                     <option value="rejected" @selected($statusFilter === 'rejected')>Rejected</option>
+                                    <option value="revision_requested" @selected($statusFilter === 'revision_requested')>Perlu Revisi</option>
                                     <option value="all" @selected($statusFilter === 'all')>Semua Approval</option>
                                 </select>
                             </div>
@@ -76,7 +77,8 @@
                                 @forelse($approvals as $approval)
                                     @php
                                         $ticket = $approval->request;
-                                        $workflowStatus = data_get($ticket->payload, 'workflow_status', '-');
+                                        $isSppd = \App\Support\Sppd::is($ticket);
+                                        $workflowStatus = $isSppd ? \App\Support\Sppd::label($ticket) : data_get($ticket->payload, 'workflow_status', '-');
                                         $approvalColor = match($approval->status) {
                                             'approved' => 'success',
                                             'rejected' => 'danger',
@@ -114,7 +116,11 @@
                                             </div>
                                         </td>
                                         <td class="text-end pe-4">
-                                            @if($approval->status === 'Pending')
+                                            @if($isSppd)
+                                                <a href="{{ route('sppd.show', $ticket) }}" class="btn btn-sm btn-outline-primary">
+                                                    {{ $approval->status === 'Pending' ? 'Tinjau SPPD' : 'Lihat SPPD' }}
+                                                </a>
+                                            @elseif($approval->status === 'Pending')
                                                 <form action="{{ route('ticket.approve', $ticket) }}" method="POST" class="d-flex flex-column gap-2 align-items-end">
                                                     @csrf
                                                     <input type="hidden" name="approval_id" value="{{ $approval->id }}">

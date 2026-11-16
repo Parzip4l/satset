@@ -6,6 +6,7 @@ use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use App\Support\SatsetRequesterPolicy;
+use App\Support\Sppd;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -14,6 +15,30 @@ use Illuminate\Validation\ValidationException;
 
 class LrtjSpacePortalSignatureService
 {
+    public function createSppdSignature(Ticket $ticket, User $signer, int $stage): array
+    {
+        $signature = $this->createSignature([
+            'module' => 'satset',
+            'signature_type' => $stage === 0 ? 'requester_submission' : 'approval_decision',
+            'role' => Sppd::STAGES[$stage][2],
+            'ticket' => [
+                'id' => (string) $ticket->id,
+                'ticket_no' => Sppd::reference($ticket),
+                'title' => $ticket->title,
+                'request_type' => Sppd::TYPE,
+            ],
+            'signer' => ['email' => $signer->email],
+            'signed_at' => now()->toIso8601String(),
+        ], true);
+
+        $url = $signature['portal_signature_url'] ?? data_get($signature, 'portal_qr_payload.verification_url');
+        if (! is_string($url) || ! filter_var($url, FILTER_VALIDATE_URL) || parse_url($url, PHP_URL_SCHEME) !== 'https') {
+            $this->fail('Portal belum mengembalikan URL verifikasi HTTPS untuk tanda tangan SPPD.');
+        }
+
+        return array_replace($signature, ['portal_signature_url' => $url]);
+    }
+
     public function createApprovalSignature(
         Ticket $ticket,
         Approval $approval,
@@ -302,7 +327,7 @@ class LrtjSpacePortalSignatureService
             'portal_signature_id' => $signatureId ? (string) $signatureId : null,
             'portal_signature_url' => $verifyUrl ? (string) $verifyUrl : null,
             'portal_qr_url' => $qrUrl ? (string) $qrUrl : null,
-            'portal_qr_payload' => $source['qr_payload'] ?? $source['payload'] ?? null,
+            'portal_qr_payload' => $source['qr_payload'] ?? $source['portal_qr_payload'] ?? $source['payload'] ?? null,
         ], fn ($value) => $value !== null);
     }
 

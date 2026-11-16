@@ -61,6 +61,7 @@ class TicketApiController extends Controller
         $tickets = Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department'])
             
             ->whereNot(fn ($it) => \App\Support\ItAccess::constrainIt($it))
+            ->tap(fn ($query) => \App\Support\Sppd::excludeFrom($query))
             ->where('requester_id', $user->id)
 
             // --- FILTER LOGIC ---
@@ -118,6 +119,7 @@ class TicketApiController extends Controller
                 'urgency', 
                 'department'
             ])
+            ->tap(fn ($query) => \App\Support\Sppd::excludeFrom($query))
             ->find($id);
 
         if (!$ticket) {
@@ -155,7 +157,7 @@ class TicketApiController extends Controller
         }
 
         // 2. CARI TIKET
-        $ticket = Ticket::find($id);
+        $ticket = \App\Support\Sppd::excludeFrom(Ticket::query())->find($id);
 
         if (!$ticket) {
             return response()->json(['success' => false, 'message' => 'Ticket tidak ditemukan.'], 404);
@@ -308,7 +310,7 @@ class TicketApiController extends Controller
         }
 
         // 2. CEK TIKET
-        $ticket = Ticket::find($id);
+        $ticket = \App\Support\Sppd::excludeFrom(Ticket::query())->find($id);
         if (!$ticket) {
             return response()->json(['success' => false, 'message' => 'Ticket tidak ditemukan.'], 404);
         }

@@ -116,6 +116,38 @@ class LrtjSpaceApprovalResolverService
         return $requester;
     }
 
+    public function resolveSppdParticipants(Ticket $ticket): array
+    {
+        $response = $this->resolve($ticket);
+        $requester = data_get($response, 'data.requester', []);
+        $directManager = $this->extractApprover($response);
+        $approvers = [1 => $this->sppdApprover($ticket, $directManager, 'Atasan Langsung')];
+
+        foreach (config('satset.sppd.positions') as $level => $position) {
+            $response = $this->resolve($ticket, [
+                'target_position' => $position,
+                'metadata' => ['purpose' => 'position_lookup'],
+            ]);
+            $holder = data_get($response, 'data.position_holder');
+            $approvers[$level] = $this->sppdApprover($ticket, $this->normalizeApprover($holder), $position);
+        }
+
+        return ['requester' => $requester, 'approvers' => $approvers];
+    }
+
+    private function sppdApprover(Ticket $ticket, ?array $approver, string $label): int
+    {
+        $email = trim((string) ($approver['email'] ?? ''));
+        if ($email === '' || strcasecmp($email, (string) $ticket->requester?->email) === 0) {
+            $this->fail("Approver SPPD untuk {$label} harus aktif di Portal dan berbeda dari pemohon.");
+        }
+
+        // Portal user IDs and Satset user IDs belong to separate directories.
+        unset($approver['id']);
+
+        return $this->findOrCreateApprover($approver)->id;
+    }
+
     private function resolve(Ticket $ticket, array $extraPayload = []): array
     {
         $secret = (string) config('satset.approval_resolver.shared_secret');

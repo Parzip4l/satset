@@ -58,6 +58,13 @@ return [
         ))),
     ],
 
+    'sppd' => [
+        'positions' => [
+            2 => env('SATSET_SPPD_HR_POSITION', 'Kepala Divisi SDM & Bagian Umum'),
+            3 => env('SATSET_SPPD_DIRECTOR_POSITION', 'Direktur Keuangan dan Dukungan Bisnis'),
+        ],
+    ],
+
     'portal_signatures' => [
         'base_url' => rtrim(env('LRTJ_SPACE_BASE_URL', 'https://portal.lrtjakarta.co.id'), '/'),
         'endpoint' => env('LRTJ_SPACE_SIGNATURE_ENDPOINT', '/api/v1/signatures'),

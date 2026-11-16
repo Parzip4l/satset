@@ -45,6 +45,7 @@ class MobileSatsetTicketController extends Controller
     {
         $user = $request->user();
         $query = ItAccess::constrainVisible(Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency', 'department']), $user)
+            ->tap(fn ($query) => \App\Support\Sppd::excludeFrom($query))
             ->when(! GaAccess::allowed($user), function ($builder) use ($user) {
                 $builder->where(function ($visible) use ($user) {
                     $visible->where('requester_id', $user->id)
@@ -220,6 +221,8 @@ class MobileSatsetTicketController extends Controller
 
     private function authorizeTicket(Request $request, Ticket $ticket): void
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
+
         if (! $this->tickets->canAccess($request->user(), $ticket)) {
             abort(403, 'User tidak memiliki akses ke ticket ini.');
         }

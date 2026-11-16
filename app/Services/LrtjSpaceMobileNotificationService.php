@@ -102,6 +102,9 @@ class LrtjSpaceMobileNotificationService
         $body = "{$ticket->ticket_no} membutuhkan approval Anda.";
 
         $this->recordWebNotification($approver, $title, $body, $ticket);
+        if (\App\Support\Sppd::is($ticket)) {
+            return;
+        }
 
         $payload = [
             'event_type' => 'ticket_approval_requested',
@@ -133,6 +136,12 @@ class LrtjSpaceMobileNotificationService
         if (! $this->acquireDedupe('ticket_approval_decided', $requester->email, $ticket->id, $approval->id, $normalizedStatus)) {
             return;
         }
+        if (\App\Support\Sppd::is($ticket)) {
+            $this->recordWebNotification($requester, 'Status Pengajuan SPPD', "{$ticket->ticket_no} · ".\App\Support\Sppd::label($ticket), $ticket);
+
+            return;
+        }
+
         $decisionLabel = $normalizedStatus === 'approved' ? 'disetujui' : 'ditolak';
         $title = 'Approval SatSet '.$decisionLabel;
         $body = "{$ticket->ticket_no} telah {$decisionLabel} oleh {$actor->name}.";
@@ -252,7 +261,7 @@ class LrtjSpaceMobileNotificationService
             return;
         }
 
-        $url = route('ticket.show', $ticket);
+        $url = route(\App\Support\Sppd::is($ticket) ? 'sppd.show' : 'ticket.show', $ticket);
 
         if (Schema::hasTable('notifications')) {
             WebNotification::create([

@@ -13,6 +13,11 @@ final class TicketAccess
             return false;
         }
 
+        if (Sppd::is($ticket)) {
+            return (int) $ticket->requester_id === (int) $user->id
+                || $ticket->approvals()->where('approver_id', $user->id)->exists();
+        }
+
         if (ItAccess::isIt($ticket)) {
             return ItAccess::canRead($user, $ticket);
         }
