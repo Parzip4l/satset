@@ -40,7 +40,9 @@
         <div class="container-fluid">
 
             {{-- Breadcrumb / Judul Halaman Otomatis --}}
-            @include('partials.page-title')
+            @section('page-heading')
+                @include('partials.page-title')
+            @show
 
             {{-- Konten Utama --}}
             @yield('content')
