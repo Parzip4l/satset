@@ -5,10 +5,22 @@
 
 @section('content')
 <div class="container-fluid">
+    @unless($acceptingRequests)
+        <div class="alert alert-light border" role="status">
+            <strong>Pengajuan SPPD baru sedang ditutup.</strong> Pengajuan yang sudah tercatat dapat dipantau dari halaman ini.
+        </div>
+    @endunless
     <div class="card">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h4 class="mb-0">Pengajuan SPPD Saya</h4>
-            <a href="{{ route('sppd.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Ajukan SPPD</a>
+            <div class="d-flex flex-wrap gap-2">
+                @if(\App\Support\AccountAccess::isAdmin(auth()->user()))
+                    <a href="{{ route('settings.sppd-service.index') }}" class="btn btn-outline-secondary">Status SPPD</a>
+                @endif
+                @if($acceptingRequests)
+                    <a href="{{ route('sppd.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Ajukan SPPD</a>
+                @endif
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table align-middle mb-0">

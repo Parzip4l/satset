@@ -75,7 +75,7 @@
                         @php
                             $parentActive = $visibleChildren->contains(function ($child) {
                                 return $child->url && $child->url !== '#' && request()->routeIs($child->url);
-                            }) || ($isAdminSettingsMenu && request()->routeIs('settings.ticket-data.*', 'settings.it-service.*'));
+                            }) || ($isAdminSettingsMenu && request()->routeIs('settings.ticket-data.*', 'settings.it-service.*', 'settings.sppd-service.*'));
                         @endphp
                         <li class="pe-slide pe-has-sub">
                             <a href="#collapseSide{{ $menu->id }}" class="pe-nav-link {{ $parentActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $parentActive ? 'true' : 'false' }}" aria-controls="collapseSide{{ $menu->id }}">
@@ -99,6 +99,7 @@
                                         <a href="{{ route('settings.ticket-data.index') }}" class="pe-nav-link {{ request()->routeIs('settings.ticket-data.*') ? 'active' : '' }}">Backup & Data Tiket</a>
                                     </li>
                                     <li class="pe-slide-item"><a href="{{ route('settings.it-service.index') }}" class="pe-nav-link {{ request()->routeIs('settings.it-service.*') ? 'active' : '' }}">Status Layanan IT</a></li>
+                                    <li class="pe-slide-item"><a href="{{ route('settings.sppd-service.index') }}" class="pe-nav-link {{ request()->routeIs('settings.sppd-service.*') ? 'active' : '' }}">Status SPPD</a></li>
                                 @endif
                             </ul>
                         </li>

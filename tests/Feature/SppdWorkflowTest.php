@@ -75,7 +75,7 @@ class SppdWorkflowTest extends TestCase
         ]);
     }
 
-    public function test_revised_sppd_issues_a_pdf_with_four_portal_verification_links(): void
+    public function test_existing_sppd_can_be_revised_approved_and_downloaded_when_new_requests_are_closed(): void
     {
         $owner = $this->createUser('owner');
         $data = $this->input();
@@ -89,6 +89,12 @@ class SppdWorkflowTest extends TestCase
         $this->assertSame(4500000, data_get($ticket->payload, 'sppd.employee_cents'));
         $this->assertSame(2, data_get($ticket->payload, 'sppd.days'));
         $this->assertSame('001234', data_get($ticket->payload, 'sppd.profile.nik'));
+
+        $admin = $this->createUser('admin');
+        $admin->update(['role' => 'admin']);
+        $this->actingAs($admin)->put(route('settings.sppd-service.update'), ['is_active' => '0'])->assertRedirect();
+        $this->actingAs($owner)->get(route('sppd.index'))->assertOk()
+            ->assertSee('Pengajuan SPPD baru sedang ditutup.')->assertSee('Bandung');
 
         $first = $ticket->approvals()->sole();
         $this->post(route('sppd.decide', [$ticket, $first]), ['decision' => 'approved'])->assertForbidden();
@@ -124,6 +130,38 @@ class SppdWorkflowTest extends TestCase
         $unrelated = $this->createUser('unrelated');
         $this->actingAs($unrelated)->get(route('sppd.pdf', $ticket))->assertForbidden();
         $this->actingAs($owner)->patch(route('ticket.update', $ticket->id), ['title' => 'Ubah lewat tiket'])->assertNotFound();
+    }
+
+    public function test_only_admin_can_toggle_new_sppd_submissions(): void
+    {
+        $admin = $this->createUser('admin');
+        $admin->update(['role' => 'admin']);
+        $employee = $this->createUser('employee');
+        $settings = route('settings.sppd-service.index');
+        $update = route('settings.sppd-service.update');
+
+        $this->actingAs($employee)->get($settings)->assertForbidden();
+        $this->put($update, ['is_active' => '0'])->assertForbidden();
+        $this->assertDatabaseHas('service_domains', ['code' => 'sppd', 'is_active' => true]);
+
+        $this->actingAs($admin)->get(route('sppd.index'))->assertSee($settings);
+        $this->get($settings)->assertOk()->assertSee('Nonaktifkan Pengajuan Baru');
+        $this->put($update, ['is_active' => '0'])->assertRedirect($settings);
+        $this->get($settings)->assertOk()->assertSee('Aktifkan Pengajuan Baru');
+        $this->assertDatabaseHas('service_domains', ['code' => 'sppd', 'is_active' => false]);
+
+        $this->actingAs($employee)->get(route('sppd.index'))->assertOk()
+            ->assertSee('Pengajuan SPPD baru sedang ditutup.')->assertDontSee('Ajukan SPPD');
+        $this->get(route('sppd.create'))->assertRedirect(route('sppd.index'));
+        $this->post(route('sppd.store'), $this->input())->assertRedirect(route('sppd.index'));
+        $this->postJson(route('sppd.store'), $this->input())->assertStatus(423);
+        $this->assertDatabaseCount('requests', 0);
+        Http::assertNothingSent();
+
+        $this->actingAs($admin)->put($update, ['is_active' => '1'])->assertRedirect($settings);
+        $this->actingAs($employee)->get(route('sppd.create'))->assertOk()->assertSee('Kirim Pengajuan');
+        $this->post(route('sppd.store'), $this->input())->assertRedirect();
+        $this->assertDatabaseCount('requests', 1);
     }
 
     public function test_a_portal_failure_leaves_submission_or_approval_available_for_retry(): void

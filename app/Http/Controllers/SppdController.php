@@ -6,6 +6,7 @@ use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Services\SppdPdf;
 use App\Services\SppdWorkflow;
+use App\Support\ServiceDomains;
 use App\Support\Sppd;
 use App\Support\TicketAccess;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class SppdController extends Controller
             ->latest()
             ->paginate(15);
 
-        return view('sppd.index', compact('requests'));
+        return view('sppd.index', ['requests' => $requests, 'acceptingRequests' => ServiceDomains::sppdActive()]);
     }
 
     public function create(Request $request)

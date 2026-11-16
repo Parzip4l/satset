@@ -21,7 +21,9 @@ use App\Http\Controllers\Master\BumInventoryController;
 use App\Http\Controllers\Master\BumAnalyticsController;
 use App\Http\Controllers\Master\ExecutiveSummaryController;
 use App\Http\Controllers\Setting\TicketDataController;
+use App\Http\Controllers\Setting\SppdServiceController;
 use App\Http\Controllers\SppdController;
+use App\Http\Middleware\EnsureSppdAcceptingRequests;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -81,6 +83,11 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::resource('role', App\Http\Controllers\Setting\RoleController::class);
     Route::get('settings/it-service', [\App\Http\Controllers\Setting\ItServiceController::class, 'index'])->middleware('admin.only')->name('settings.it-service.index');
     Route::put('settings/it-service', [\App\Http\Controllers\Setting\ItServiceController::class, 'update'])->middleware('admin.only')->name('settings.it-service.update');
+    Route::prefix('settings/sppd-service')->name('settings.sppd-service.')->middleware('admin.only')
+        ->controller(SppdServiceController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::put('/', 'update')->name('update');
+        });
     Route::prefix('settings/ticket-data')->name('settings.ticket-data.')->middleware('admin.only')->group(function () {
         Route::get('/', [TicketDataController::class, 'index'])->name('index');
         Route::post('/backup', [TicketDataController::class, 'backup'])->name('backup');
@@ -95,8 +102,10 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
 
     Route::prefix('sppd')->name('sppd.')->controller(SppdController::class)->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::get('/ajukan', 'create')->name('create');
-        Route::post('/', 'store')->name('store');
+        Route::middleware(EnsureSppdAcceptingRequests::class)->group(function () {
+            Route::get('/ajukan', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+        });
         Route::get('/{ticket}', 'show')->name('show');
         Route::get('/{ticket}/revisi', 'edit')->name('edit');
         Route::put('/{ticket}', 'update')->name('update');
