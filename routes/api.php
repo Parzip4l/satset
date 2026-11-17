@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\BumAnalyticsApiController;
 use App\Http\Controllers\Api\V1\MasterApiController;
 use App\Http\Controllers\Api\V1\TicketApiController;
 use App\Http\Controllers\Master\TicketFormSchemaController;
+use App\Http\Middleware\RestrictSppdOperator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -40,10 +41,10 @@ Route::prefix('/bum/analytics')->group(function () {
 Route::prefix('mobile/v1/satset')->group(function () {
     Route::post('/auth/sso-exchange', [MobileSatsetAuthController::class, 'exchange']);
 
-    Route::middleware('satset.mobile')->group(function () {
-        Route::post('/auth/logout', [MobileSatsetAuthController::class, 'logout']);
-        Route::get('/me', [MobileSatsetTicketController::class, 'me']);
-        Route::get('/bootstrap', [MobileSatsetTicketController::class, 'bootstrap']);
+    Route::middleware(['satset.mobile', RestrictSppdOperator::class])->group(function () {
+        Route::post('/auth/logout', [MobileSatsetAuthController::class, 'logout'])->name('mobile.satset.logout');
+        Route::get('/me', [MobileSatsetTicketController::class, 'me'])->name('mobile.satset.me');
+        Route::get('/bootstrap', [MobileSatsetTicketController::class, 'bootstrap'])->name('mobile.satset.bootstrap');
         Route::post('/it/configuration/versions/{version}/sla-preview', \App\Http\Controllers\It\SlaPreviewController::class);
         Route::post('/it/configuration/versions/{version}/preview', [\App\Http\Controllers\It\ConfigurationController::class, 'preview']);
         Route::prefix('it')->controller(\App\Http\Controllers\It\WorkflowController::class)->group(function () {
@@ -54,31 +55,31 @@ Route::prefix('mobile/v1/satset')->group(function () {
             Route::get('/operations', [\App\Http\Controllers\It\OperationsController::class,'index']);
             Route::get('/operations/health', [\App\Http\Controllers\It\OperationsController::class,'health']);
             Route::post('/operations/notifications/{notification}/read', [\App\Http\Controllers\It\OperationsController::class,'read']);
-            Route::get('/tickets', 'index');
-            Route::get('/catalog', 'create');
-            Route::post('/form', 'form');
-            Route::post('/tickets', 'store');
-            Route::get('/tickets/{ticket}', 'show');
-            Route::post('/tickets/{ticket}/form', 'reviseForm');
-            Route::post('/tickets/{ticket}/actions/{action}', 'action');
-            Route::get('/tickets/{ticket}/attachments/{attachment}', 'attachment');
+            Route::get('/tickets', 'index')->name('mobile.satset.requests.it.index');
+            Route::get('/catalog', 'create')->name('mobile.satset.requests.it.create');
+            Route::post('/form', 'form')->name('mobile.satset.requests.it.form');
+            Route::post('/tickets', 'store')->name('mobile.satset.requests.it.store');
+            Route::get('/tickets/{ticket}', 'show')->name('mobile.satset.requests.it.show');
+            Route::post('/tickets/{ticket}/form', 'reviseForm')->name('mobile.satset.requests.it.revise');
+            Route::post('/tickets/{ticket}/actions/{action}', 'action')->name('mobile.satset.requests.it.action');
+            Route::get('/tickets/{ticket}/attachments/{attachment}', 'attachment')->name('mobile.satset.requests.it.attachment');
             Route::get('/approvals', 'approvals');
             Route::get('/approvals/{approval}', 'approval');
             Route::post('/approvals/{approval}/decision', 'decide');
-            Route::get('/notifications', 'notifications');
-            Route::post('/notifications/{notification}/read', 'readNotification');
+            Route::get('/notifications', 'notifications')->name('mobile.satset.requests.it.notifications');
+            Route::post('/notifications/{notification}/read', 'readNotification')->name('mobile.satset.requests.it.notifications.read');
         });
-        Route::get('/tickets', [MobileSatsetTicketController::class, 'index']);
-        Route::get('/tickets/{ticket}', [MobileSatsetTicketController::class, 'show']);
-        Route::get('/tickets/{ticket}/history', [MobileSatsetTicketController::class, 'history']);
-        Route::post('/tickets/general', [MobileSatsetTicketController::class, 'storeGeneral']);
+        Route::get('/tickets', [MobileSatsetTicketController::class, 'index'])->name('mobile.satset.requests.index');
+        Route::get('/tickets/{ticket}', [MobileSatsetTicketController::class, 'show'])->name('mobile.satset.requests.show');
+        Route::get('/tickets/{ticket}/history', [MobileSatsetTicketController::class, 'history'])->name('mobile.satset.requests.history');
+        Route::post('/tickets/general', [MobileSatsetTicketController::class, 'storeGeneral'])->name('mobile.satset.requests.general');
         Route::post('/tickets/consumption', [MobileSatsetTicketController::class, 'storeConsumption'])
-            ->middleware(\App\Http\Middleware\TraceGaSubmission::class.':consumption');
+            ->middleware(\App\Http\Middleware\TraceGaSubmission::class.':consumption')->name('mobile.satset.requests.consumption');
         Route::post('/tickets/atk-rtk', [MobileSatsetTicketController::class, 'storeAtkRtk'])
-            ->middleware(\App\Http\Middleware\TraceGaSubmission::class.':atk_rtk');
-        Route::post('/tickets/ga-request-finding', [MobileSatsetTicketController::class, 'storeGaRequestFinding']);
-        Route::post('/tickets/{ticket}/comments', [MobileSatsetTicketController::class, 'comment']);
-        Route::post('/tickets/{ticket}/attachments', [MobileSatsetTicketController::class, 'uploadAttachment']);
+            ->middleware(\App\Http\Middleware\TraceGaSubmission::class.':atk_rtk')->name('mobile.satset.requests.atk-rtk');
+        Route::post('/tickets/ga-request-finding', [MobileSatsetTicketController::class, 'storeGaRequestFinding'])->name('mobile.satset.requests.ga-request-finding');
+        Route::post('/tickets/{ticket}/comments', [MobileSatsetTicketController::class, 'comment'])->name('mobile.satset.requests.comment');
+        Route::post('/tickets/{ticket}/attachments', [MobileSatsetTicketController::class, 'uploadAttachment'])->name('mobile.satset.requests.attachments');
         Route::post('/tickets/{ticket}/approvals/{approval}', [MobileSatsetTicketController::class, 'approve']);
     });
 });

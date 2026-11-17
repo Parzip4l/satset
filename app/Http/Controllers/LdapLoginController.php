@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\SppdAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -100,7 +101,8 @@ class LdapLoginController extends Controller
             Auth::login($user);
             $request->session()->regenerate();
 
-            return redirect()->route('dashboard.index')->with('success', 'Berhasil login (LDAP) sebagai '.$user->name);
+            return redirect()->route(SppdAccess::isOperator($user) ? 'sppd.index' : 'dashboard.index')
+                ->with('success', 'Berhasil login (LDAP) sebagai '.$user->name);
 
         } catch (BindException) {
             return $this->attemptLocalLogin($email, $password, 'Gagal login: email atau password salah.');
@@ -126,7 +128,8 @@ class LdapLoginController extends Controller
             Auth::login($user);
             request()->session()->regenerate();
 
-            return redirect()->route('dashboard.index')->with('success', 'Berhasil login (lokal) sebagai '.$user->name);
+            return redirect()->route(SppdAccess::isOperator($user) ? 'sppd.index' : 'dashboard.index')
+                ->with('success', 'Berhasil login (lokal) sebagai '.$user->name);
         }
 
         return back()->withErrors(['login' => $failureMessage])->withInput(['email' => $email]);

@@ -14,8 +14,13 @@ final class TicketAccess
         }
 
         if (Sppd::is($ticket)) {
-            return (int) $ticket->requester_id === (int) $user->id
+            return SppdAccess::isOperator($user)
+                || (int) $ticket->requester_id === (int) $user->id
                 || $ticket->approvals()->where('approver_id', $user->id)->exists();
+        }
+
+        if (SppdAccess::isOperator($user)) {
+            return (int) $ticket->requester_id === (int) $user->id;
         }
 
         if (ItAccess::isIt($ticket)) {

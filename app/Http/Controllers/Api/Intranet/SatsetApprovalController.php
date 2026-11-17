@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\LrtjSpacePortalSignatureService;
 use App\Services\MobileSatsetTicketService;
 use App\Services\SatsetApprovalDecisionService;
+use App\Support\SppdAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -38,7 +39,8 @@ class SatsetApprovalController extends Controller
             ->with(['request.requester', 'request.status', 'approver', 'audits'])
             ->whereHas('request', fn ($query) => $query->whereIn('payload->request_type', ['atk_rtk', 'consumption']))
             ->when($status !== 'all', fn ($query) => $query->whereRaw('LOWER(status) = ?', [$status]))
-            ->whereHas('approver', fn ($approver) => $approver->where('email', $approverEmail))
+            ->whereHas('approver', fn ($approver) => $approver->where('email', $approverEmail)
+                ->whereRaw("LOWER(TRIM(COALESCE(role, ''))) <> ?", [SppdAccess::ROLE]))
             ->latest()
             ->paginate((int) $request->query('per_page', 25));
 
@@ -126,6 +128,7 @@ class SatsetApprovalController extends Controller
         $name = trim((string) ($actor['name'] ?? '')) ?: $email;
         $externalId = $actor['id'] ?? null;
         $approver = $approval->approver;
+        abort_if(SppdAccess::isOperator($approver), 403, 'Akun Pengelola SPPD hanya dapat memproses persetujuan SPPD.');
 
         $matchesEmail = $approver?->email && strcasecmp($approver->email, $email) === 0;
         $matchesId = $externalId !== null && (string) $approver?->id === (string) $externalId;
@@ -144,6 +147,7 @@ class SatsetApprovalController extends Controller
 
     private function ensureApproverEmail(Approval $approval, string $email): void
     {
+        abort_if(SppdAccess::isOperator($approval->approver), 403, 'Akun Pengelola SPPD hanya dapat mengakses layanan SPPD.');
         if (! $approval->approver?->email || strcasecmp($approval->approver->email, $email) !== 0) {
             abort(403, 'User Portal tidak berwenang melihat approval Satset ini.');
         }

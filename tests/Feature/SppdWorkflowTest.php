@@ -2,15 +2,22 @@
 
 namespace Tests\Feature;
 
+use App\Models\Master\ConsumableItem;
+use App\Models\Master\ProblemCategory;
+use App\Models\Master\Status;
 use App\Models\Master\Ticket;
+use App\Models\MobileSatsetToken;
 use App\Models\User;
 use App\Support\Sppd;
+use App\Support\SppdAccess;
 use Database\Seeders\TicketMasterSeeder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -219,7 +226,14 @@ class SppdWorkflowTest extends TestCase
         $this->put($update, ['is_active' => '0'])->assertForbidden();
         $this->assertDatabaseHas('service_domains', ['code' => 'sppd', 'is_active' => true]);
 
-        $this->actingAs($admin)->get(route('sppd.index'))->assertSee($settings);
+        Schema::create('roles', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+        });
+        $this->actingAs($admin)->get(route('user.create'))->assertOk()
+            ->assertSee('value="'.SppdAccess::ROLE.'"', false)
+            ->assertSee(SppdAccess::LABEL);
+        $this->get(route('sppd.index'))->assertSee($settings);
         $this->get($settings)->assertOk()->assertSee('Nonaktifkan Pengajuan Baru');
         $this->put($update, ['is_active' => '0'])->assertRedirect($settings);
         $this->get($settings)->assertOk()->assertSee('Aktifkan Pengajuan Baru');
@@ -238,6 +252,119 @@ class SppdWorkflowTest extends TestCase
         $this->actingAs($employee)->get(route('sppd.create'))->assertOk()->assertSee('Pratinjau PDF');
         $this->post(route('sppd.store'), $this->withPreview($this->input()))->assertRedirect();
         $this->assertDatabaseCount('requests', 1);
+    }
+
+    public function test_sppd_operator_can_manage_sppd_and_only_approve_when_assigned(): void
+    {
+        $owner = $this->createUser('owner');
+        $operator = $this->createUser('operator');
+        $operator->update(['role' => SppdAccess::ROLE]);
+        $this->actingAs($owner)->post(route('sppd.store'), $this->withPreview($this->input()))->assertRedirect();
+        $ticket = Ticket::sole();
+        $first = $ticket->approvals()->sole();
+
+        $this->actingAs($operator)->get(route('dashboard.index'))->assertRedirect(route('sppd.index'));
+        $this->get(route('sppd.index'))->assertOk()
+            ->assertSee('Semua Pengajuan SPPD')
+            ->assertSee('Pemohon Contoh')
+            ->assertSee('Status SPPD')
+            ->assertDontSee('Operasional GA')
+            ->assertDontSee('Layanan IT');
+        $this->get(route('sppd.show', $ticket))->assertOk()
+            ->assertDontSee('Konfirmasi Mengetahui');
+        $this->get(route('sppd.edit', $ticket))->assertForbidden();
+        $this->post(route('sppd.decide', [$ticket, $first]), ['decision' => 'approved'])->assertForbidden();
+        $this->get(route('settings.sppd-service.index'))->assertOk();
+        $this->put(route('settings.sppd-service.update'), ['is_active' => '0'])->assertRedirect();
+        $this->assertDatabaseHas('service_domains', ['code' => 'sppd', 'is_active' => false]);
+
+        foreach (['ticket.approvals', 'bum.dashboard', 'user.index', 'settings.it-service.index'] as $route) {
+            $this->get(route($route))->assertForbidden();
+        }
+        $this->put(route('ticket.update', $ticket), ['title' => 'Lewat tiket umum'])->assertForbidden();
+
+        $first->approver->update(['role' => SppdAccess::ROLE]);
+        foreach ([1, 2, 3] as $level) {
+            $approval = $ticket->approvals()->where('status', 'Pending')->sole();
+            $this->assertSame($level, (int) $approval->level);
+            $this->actingAs($approval->approver)
+                ->post(route('sppd.decide', [$ticket, $approval]), ['decision' => 'approved'])
+                ->assertRedirect(route('sppd.show', $ticket));
+        }
+        $this->actingAs($operator)->get(route('sppd.pdf', $ticket))
+            ->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->post(route('logout'))->assertRedirect();
+        $this->assertGuest();
+    }
+
+    public function test_sppd_operator_can_submit_ga_requests_and_only_track_their_own(): void
+    {
+        $this->freezeTime();
+        Storage::fake('public');
+        $operator = $this->createUser('operator');
+        $operator->update(['role' => SppdAccess::ROLE]);
+        $other = $this->createUser('other');
+        $category = ProblemCategory::create(['code' => 'ATKRTK', 'name' => 'Permintaan ATK/RTK']);
+        $item = ConsumableItem::forceCreate([
+            'code' => 'ATK-1', 'name' => 'Pulpen', 'category' => 'ATK', 'unit' => 'pcs', 'unit_price' => 1000,
+        ]);
+        $dateKey = now()->format('mdy');
+        $otherTicket = Ticket::withoutEvents(fn () => Ticket::create([
+            'ticket_no' => "TCK-ATKRTK-{$dateKey}-0001", 'requester_id' => $other->id, 'category_id' => $category->id,
+            'status_id' => Status::where('name', 'Open')->value('id'),
+            'title' => 'Permintaan Rahasia Orang Lain', 'payload' => ['request_type' => 'atk_rtk'],
+        ]));
+        $otherTicket->approvals()->create(['approver_id' => $operator->id, 'level' => 1, 'status' => 'Pending']);
+
+        $this->actingAs($operator)->get(route('sppd.index'))->assertOk()->assertSee(route('ticket.index'));
+        $this->get(route('ticket.index'))->assertOk()->assertSee(route('ticket.atk-rtk.create'))
+            ->assertSee(route('ticket.konsumsi.create'))->assertSee(route('ticket.ga-permintaan-temuan.create'));
+        foreach (['ticket.atk-rtk.create', 'ticket.konsumsi.create', 'ticket.ga-permintaan-temuan.create'] as $route) {
+            $this->get(route($route))->assertOk();
+        }
+
+        $atk = [
+            'request_subject' => 'Pulpen untuk operasional', 'item_type' => 'ATK',
+            'items' => [['item_id' => $item->id, 'quantity' => 1]],
+            'needed_date' => now()->addDay()->toDateString(),
+            'delivery_location' => 'Kantor',
+        ];
+        $base = ['category_id' => $category->id];
+        $response = $this->postJson(route('ticket.store'), $base + ['request_type' => 'atk_rtk', 'payload' => $atk])
+            ->assertCreated();
+        $ticket = Ticket::where('ticket_no', $response->json('ticket_no'))->sole();
+        $this->get(route('ticket.show', $ticket))->assertOk()->assertSee('Pulpen untuk operasional');
+        $this->get(route('ticket.mine'))->assertOk()->assertSee($ticket->ticket_no)
+            ->assertDontSee('Permintaan Rahasia Orang Lain');
+        $this->get(route('ticket.show', $otherTicket))->assertForbidden();
+        $this->post(route('ticket.comment', $otherTicket), ['message' => 'Akses tidak sah'])->assertForbidden();
+        $this->get(route('ticket.atk-rtk.goods-issue', $otherTicket))->assertForbidden();
+        $this->post(route('ticket.atk-rtk.bum-review', $ticket), ['workflow_status' => 'STOCK_CHECKED'])->assertForbidden();
+
+        $eventDate = now()->addDay()->toDateString();
+        $this->post(route('ticket.store'), $base + ['request_type' => 'consumption', 'payload' => [
+            'activity_name' => 'Rapat Operasional', 'event_type' => 'Rapat', 'event_date' => $eventDate,
+            'event_end_date' => $eventDate, 'start_time' => '09:00', 'end_time' => '10:00',
+            'location' => 'Kantor', 'participant_count' => 4, 'consumption_type' => 'Snack',
+        ]])->assertRedirect(route('ticket.konsumsi.create'))->assertSessionHasNoErrors();
+
+        $this->post(route('ticket.store'), $base + [
+            'request_type' => 'ga_request_finding',
+            'payload' => ['report_type' => 'Temuan', 'location' => 'Kantor', 'description' => 'Lampu rusak'],
+            'evidence_file' => UploadedFile::fake()->create('evidence.pdf', 10, 'application/pdf'),
+        ])->assertRedirect(route('ticket.ga-permintaan-temuan.create'))->assertSessionHasNoErrors();
+        $this->assertSame(3, Ticket::where('requester_id', $operator->id)->count());
+        $consumption = Ticket::where('requester_id', $operator->id)->where('payload->request_type', 'consumption')->sole();
+        $this->assertSame('Pending', $consumption->approvals()->sole()->status);
+
+        $token = Str::random(80);
+        MobileSatsetToken::create(['user_id' => $operator->id, 'token_hash' => hash('sha256', $token)]);
+        $headers = ['Authorization' => 'Bearer '.$token];
+        $this->getJson(route('mobile.satset.requests.index'), $headers)->assertOk()
+            ->assertJsonCount(3, 'data.data');
+        $this->getJson(route('mobile.satset.requests.show', $otherTicket), $headers)->assertForbidden();
+        $this->postJson(route('mobile.satset.requests.atk-rtk'), ['payload' => $atk], $headers)
+            ->assertCreated()->assertJsonPath('data.ticket_no', "TCK-ATKRTK-{$dateKey}-0003");
     }
 
     public function test_a_portal_failure_leaves_submission_or_approval_available_for_retry(): void

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\SppdAccess;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +23,7 @@ class LdapLoginTest extends TestCase
             $table->string('username')->nullable();
             $table->string('phone')->nullable();
             $table->string('password');
+            $table->string('role')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
@@ -66,6 +68,25 @@ class LdapLoginTest extends TestCase
         ]);
 
         $response->assertRedirect(route('dashboard.index'));
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_sppd_operator_lands_on_sppd_after_local_login(): void
+    {
+        config([
+            'ldap.default' => 'default',
+            'ldap.connections.default.hosts' => [null],
+            'ldap.connections.default.base_dn' => '',
+        ]);
+        $user = User::create([
+            'name' => 'Pengelola SPPD',
+            'email' => 'sppd@lrtjakarta.co.id',
+            'role' => SppdAccess::ROLE,
+            'password' => Hash::make('local-password'),
+        ]);
+
+        $this->post(route('login.attempt'), ['email' => $user->email, 'password' => 'local-password'])
+            ->assertRedirect(route('sppd.index'));
         $this->assertAuthenticatedAs($user);
     }
 }

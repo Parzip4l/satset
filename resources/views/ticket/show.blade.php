@@ -173,6 +173,9 @@
         $isBumRequest = in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true);
         $canManageGaOperations = \App\Support\GaAccess::allowed(auth()->user());
         $isRequester = (int) $ticket->requester_id === (int) auth()->id();
+        $managerApprovalSetup = $requestType === 'atk_rtk' && $workflowStatus === 'WAITING_MANAGER_APPROVAL'
+            ? data_get($ticket->payload, 'manager_approval_setup')
+            : null;
         $pendingApprovalIsRequester = $pendingApproval
             && (string) $pendingApproval->approver_id === (string) $ticket->requester_id;
         $canActOnPendingApproval = $pendingApproval
@@ -555,7 +558,23 @@
                             <span class="meta-label">Status Proses</span>
                             <span class="badge bg-light text-dark border px-3 py-2">{{ $workflowStatus }}</span>
                         </div>
-                        @if($pendingApproval)
+                        @if($managerApprovalSetup)
+                        @php
+                            $approvalProgress = \App\Support\TicketWorkflowPresenter::make($ticket->payload);
+                        @endphp
+                        <div class="col-12">
+                            <div class="alert alert-{{ $approvalProgress['color'] }} mb-0 small">
+                                <div class="fw-bold mb-1">{{ $approvalProgress['label'] }}</div>
+                                <div>{{ $approvalProgress['description'] }}</div>
+                                @if($managerApprovalSetup === \App\Services\SatsetInitialApprovalService::FAILED && ($isRequester || $canManageGaOperations))
+                                    <form action="{{ route('ticket.approvals.sync-manager', $ticket) }}" method="POST" class="mt-2">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-outline-dark">Cari ulang atasan</button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+                        @elseif($pendingApproval)
                         <div class="col-12">
                             <span class="meta-label">Menunggu Approval</span>
                             <div class="border rounded-3 p-3 bg-light bg-opacity-50">

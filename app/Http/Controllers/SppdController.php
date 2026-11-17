@@ -8,6 +8,7 @@ use App\Services\SppdPdf;
 use App\Services\SppdWorkflow;
 use App\Support\ServiceDomains;
 use App\Support\Sppd;
+use App\Support\SppdAccess;
 use App\Support\TicketAccess;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
@@ -24,12 +25,17 @@ class SppdController extends Controller
 
     public function index(Request $request)
     {
+        $isOperator = SppdAccess::isOperator($request->user());
         $requests = Ticket::where('payload->request_type', Sppd::TYPE)
-            ->where('requester_id', $request->user()->id)
+            ->when(! $isOperator, fn ($query) => $query->where('requester_id', $request->user()->id))
             ->latest()
             ->paginate(15);
 
-        return view('sppd.index', ['requests' => $requests, 'acceptingRequests' => ServiceDomains::sppdActive()]);
+        return view('sppd.index', [
+            'requests' => $requests,
+            'acceptingRequests' => ServiceDomains::sppdActive(),
+            'isOperator' => $isOperator,
+        ]);
     }
 
     public function create(Request $request)

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\General;
 use App\Http\Controllers\Controller;
 use App\Models\Setting\Role;
 use App\Models\User;
+use App\Support\AccountAccess;
+use App\Support\SppdAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -41,6 +43,7 @@ class userController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(AccountAccess::isAdmin($request->user()), 403);
         abort_if(strtolower(trim((string) $request->input('role'))) === 'superadmin' && ! \App\Support\AccountAccess::isSuperadmin($request->user()), 403);
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
@@ -81,7 +84,8 @@ class userController extends Controller
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
-        $isAdmin = \App\Support\AccountAccess::isAdmin(Auth::user());
+        $isAdmin = AccountAccess::isAdmin($request->user());
+        abort_unless($isAdmin || $request->user()?->is($user), 403);
         abort_if(! \App\Support\AccountAccess::isSuperadmin(Auth::user()) && (\App\Support\AccountAccess::isSuperadmin($user) || strtolower(trim((string) $request->input('role'))) === 'superadmin'), 403);
 
         if ($request->has('name')) {
@@ -161,7 +165,7 @@ class userController extends Controller
             : Role::query()->where('name', 'pelapor')->pluck('name');
 
         if (\App\Support\AccountAccess::isAdmin($user)) {
-            $roles = $roles->merge(['admin', 'pelapor', 'ga']);
+            $roles = $roles->merge(['admin', 'pelapor', 'ga', SppdAccess::ROLE]);
         }
         $roles = \App\Support\AccountAccess::isSuperadmin($user) ? $roles->push('superadmin') : $roles->reject(fn ($role) => strtolower(trim((string) $role)) === 'superadmin');
 
@@ -174,6 +178,9 @@ class userController extends Controller
             ->unique()
             ->sort()
             ->values()
-            ->map(fn ($name) => (object) ['name' => $name]);
+            ->map(fn ($name) => (object) [
+                'name' => $name,
+                'label' => $name === SppdAccess::ROLE ? SppdAccess::LABEL : $name,
+            ]);
     }
 }

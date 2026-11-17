@@ -8,6 +8,7 @@ use App\Models\Master\Ticket;
 use App\Services\MobileSatsetTicketService;
 use App\Support\GaAccess;
 use App\Support\ItAccess;
+use App\Support\SppdAccess;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -49,8 +50,9 @@ class MobileSatsetTicketController extends Controller
             ->when(! GaAccess::allowed($user), function ($builder) use ($user) {
                 $builder->where(function ($visible) use ($user) {
                     $visible->where('requester_id', $user->id)
-                        ->orWhere('assigned_user_id', $user->id)
-                        ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
+                        ->when(! SppdAccess::isOperator($user), fn ($query) => $query
+                            ->orWhere('assigned_user_id', $user->id)
+                            ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id)));
                 });
             })
             ->when($request->query('service'), fn ($builder, $code) => \App\Support\TicketServiceDomain::filter($builder, $code))

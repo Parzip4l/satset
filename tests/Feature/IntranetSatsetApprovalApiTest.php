@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\MobileSatsetTicketService;
 use App\Services\SatsetApprovalDecisionService;
+use App\Support\SppdAccess;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
@@ -145,6 +146,23 @@ class IntranetSatsetApprovalApiTest extends TestCase
             ->assertJsonPath('data.data.0.module', 'satset')
             ->assertJsonPath('data.data.0.ticket.ticket_no', 'TCK-ATKRTK-0001')
             ->assertJsonPath('data.data.0.approver.email', 'manager@lrtjakarta.co.id');
+    }
+
+    public function test_sppd_operator_cannot_review_a_legacy_ga_approval_from_portal(): void
+    {
+        $approval = $this->approvalFixture();
+        $operator = $approval->approver;
+        $operator->update(['role' => SppdAccess::ROLE]);
+        $base = '/api/intranet/v1/satset/approvals';
+        $query = '?approver_email='.urlencode($operator->email);
+
+        $this->signedCall('GET', $base.$query)->assertOk()->assertJsonCount(0, 'data.data');
+        $this->signedCall('GET', $base.'/'.$approval->id.$query)->assertForbidden();
+        $this->signedCall('POST', $base.'/'.$approval->id.'/decision', [
+            'status' => 'approved',
+            'approver' => ['id' => $operator->id, 'email' => $operator->email],
+        ])->assertForbidden();
+        $this->assertSame('Pending', $approval->fresh()->status);
     }
 
     public function test_admin_and_ga_can_access_every_ticket_while_regular_user_cannot(): void

@@ -9,7 +9,7 @@ class GaAccess
 {
     public static function allowed(?User $user): bool
     {
-        if (!$user) {
+        if (!$user || SppdAccess::isOperator($user)) {
             return false;
         }
 

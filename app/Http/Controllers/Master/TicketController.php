@@ -27,6 +27,7 @@ use App\Services\GaRequestFindingReportService;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\LrtjSpacePortalSignatureService;
 use App\Services\SatsetApprovalDecisionService;
+use App\Services\SatsetInitialApprovalService;
 use App\Services\SatsetPendingApprovalSyncService;
 use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
@@ -34,6 +35,7 @@ use App\Support\GaSubmissionDelivery;
 use App\Support\ItAccess;
 use App\Support\SatsetRequesterPolicy;
 use App\Support\ServiceDomains;
+use App\Support\SppdAccess;
 use App\Support\TicketAccess;
 use Carbon\Carbon;
 use Closure;
@@ -132,11 +134,13 @@ class TicketController extends Controller
     {
         $user = auth()->user();
         $isAdmin = \App\Support\AccountAccess::isAdmin($user);
+        $isSppdOperator = SppdAccess::isOperator($user);
 
         $baseQuery = ItAccess::constrainVisible(Ticket::query(), $user)
-            ->when(! $isAdmin, fn ($query) => $query->where(function ($visible) use ($user) {
+            ->when(! $isAdmin, fn ($query) => $query->where(function ($visible) use ($user, $isSppdOperator) {
                 $visible->where('requester_id', $user->id)
-                    ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
+                    ->when(! $isSppdOperator, fn ($query) => $query
+                        ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id)));
             }));
 
         $stats = [
@@ -146,7 +150,10 @@ class TicketController extends Controller
             'completed' => (clone $baseQuery)->whereHas('status', fn ($query) => $query->whereIn('name', ['Resolved', 'Closed']))->count(),
             'pending_approvals' => Approval::query()
                 ->whereHas('request', fn ($tickets) => ItAccess::constrainVisible($tickets, $user))
-                ->when(! $isAdmin, fn ($query) => $query->where('approver_id', $user->id))
+                ->when($isSppdOperator,
+                    fn ($query) => $query->whereHas('request', fn ($tickets) => $tickets->where('requester_id', $user->id)),
+                    fn ($query) => $query->when(! $isAdmin, fn ($approvals) => $approvals->where('approver_id', $user->id)),
+                )
                 ->where('status', 'Pending')
                 ->count(),
         ];
@@ -184,6 +191,7 @@ class TicketController extends Controller
     {
         $user = auth()->user();
         $isAdmin = \App\Support\AccountAccess::isAdmin($user);
+        $isSppdOperator = SppdAccess::isOperator($user);
         $search = $request->get('search');
         $statusId = $request->get('status_id');
         $priorityId = $request->get('priority_id');
@@ -192,9 +200,10 @@ class TicketController extends Controller
 
         $tickets = ItAccess::constrainVisible(Ticket::with(['requester', 'category', 'priority', 'status', 'impact', 'urgency']), $user)
             ->tap(fn ($query) => \App\Support\Sppd::excludeFrom($query))
-            ->when(! $isAdmin, fn ($query) => $query->where(function ($visible) use ($user) {
+            ->when(! $isAdmin, fn ($query) => $query->where(function ($visible) use ($user, $isSppdOperator) {
                 $visible->where('requester_id', $user->id)
-                    ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
+                    ->when(! $isSppdOperator, fn ($query) => $query
+                        ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id)));
             }))
             ->when($search, function ($query, $searchValue) {
                 $query->where(function ($builder) use ($searchValue) {
@@ -224,7 +233,7 @@ class TicketController extends Controller
         $pageTitle = $isAdmin ? 'Semua Tiket' : 'Tiket Saya';
         $pageSubtitle = $isAdmin
             ? 'Pantau seluruh tiket dari semua requester dan semua jenis permintaan.'
-            : 'Pantau tiket yang pernah Anda ajukan atau yang pernah Anda proses sebagai approver.';
+            : ($isSppdOperator ? 'Pantau tiket yang Anda ajukan.' : 'Pantau tiket yang pernah Anda ajukan atau yang pernah Anda proses sebagai approver.');
         $resetRoute = route($indexRoute);
         $createButtonLabel = 'Buat Permintaan';
         $createActions = [
@@ -666,6 +675,7 @@ class TicketController extends Controller
         ]);
 
         if ($requestType === 'atk_rtk') {
+            unset($payload['manager_approval_setup']);
             $total = array_sum(array_map(fn ($item) => (float) ($item['line_total'] ?? 0), $payload['items'] ?? []));
             $totalQty = array_sum(array_map(fn ($item) => (int) ($item['quantity'] ?? 0), $payload['items'] ?? []));
             if ($total <= 0) {
@@ -1034,7 +1044,7 @@ class TicketController extends Controller
                 }
 
                 if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
-                    $this->createManagerApproval($ticket);
+                    app(SatsetInitialApprovalService::class)->start($ticket);
                 }
 
                 return $ticket;
@@ -1330,7 +1340,7 @@ class TicketController extends Controller
                 }
 
                 if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
-                    $this->createManagerApproval($ticket);
+                    app(SatsetInitialApprovalService::class)->start($ticket);
                 }
 
                 return $ticket;
@@ -1493,6 +1503,7 @@ class TicketController extends Controller
         $lastTicket = Ticket::whereDate('created_at', Carbon::today())
             ->where('category_id', $categoryId)
             ->orderBy('created_at', 'desc')
+            ->orderByDesc('id')
             ->first();
 
         if ($lastTicket) {
@@ -1680,6 +1691,7 @@ class TicketController extends Controller
         Request $request,
         Ticket $ticket,
         SatsetPendingApprovalSyncService $approvalSync,
+        SatsetInitialApprovalService $initialApproval,
     ) {
         abort_if(\App\Support\Sppd::is($ticket), 404);
         $user = $request->user();
@@ -1692,6 +1704,15 @@ class TicketController extends Controller
                 ->exists();
 
         abort_unless($canSync, 403, 'Anda tidak berwenang menyinkronkan approver ticket ini.');
+
+        $setup = data_get($ticket->payload, 'manager_approval_setup');
+        if (in_array($setup, [SatsetInitialApprovalService::FAILED, SatsetInitialApprovalService::QUEUED], true)) {
+            $retried = $setup === SatsetInitialApprovalService::FAILED
+                && $initialApproval->retryFailedResolution($ticket);
+
+            return redirect()->route('ticket.show', $ticket)
+                ->with('success', $retried ? 'Pencarian atasan dari Portal dijadwalkan ulang.' : 'Status pencarian atasan diperbarui.');
+        }
 
         $result = $approvalSync->syncManagerApprover($ticket, $user);
         $approverName = $result['approver']->name ?: $result['approver']->email;
@@ -2355,16 +2376,16 @@ class TicketController extends Controller
         $ticket->loadMissing(['requester', 'status', 'attachments', 'histories.user']);
     }
 
-    private function createManagerApproval(Ticket $ticket): void
-    {
-        app(\App\Services\SatsetInitialApprovalService::class)->create($ticket);
-    }
-
     private function atkRtkSubmissionResponse(Request $request, Ticket $ticket, bool $duplicate, bool $public = false)
     {
         $message = $duplicate
             ? 'Permintaan ATK/RTK sudah tercatat sebelumnya.'
-            : 'Permintaan ATK/RTK berhasil dikirim.';
+            : 'Permintaan ATK/RTK berhasil disimpan.';
+        $message .= match (data_get($ticket->payload, 'manager_approval_setup')) {
+            SatsetInitialApprovalService::QUEUED => ' Satset sedang mencari atasan dari Portal.',
+            SatsetInitialApprovalService::FAILED => ' Pencarian atasan belum berhasil. Hubungi tim GA dengan nomor tiket ini.',
+            default => '',
+        };
         if ($request->expectsJson()) {
             return response()->json([
                 'message' => $message,

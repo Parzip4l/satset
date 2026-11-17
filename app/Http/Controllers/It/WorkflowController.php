@@ -9,6 +9,7 @@ use App\Services\It\FormEngine;
 use App\Services\It\TicketWorkflow;
 use App\Support\ItAccess;
 use App\Support\ServiceDomains;
+use App\Support\SppdAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -32,7 +33,7 @@ class WorkflowController extends Controller
         if ($r->filled('priority')) {
             $q->whereHas('itDetail', fn ($d) => $d->where('priority', $r->priority));
         }
-        if ($r->scope === 'mine') {
+        if ($r->scope === 'mine' || SppdAccess::isOperator($r->user())) {
             $q->where('requester_id', $r->user()->id);
         }
         if ($r->scope === 'assigned') {

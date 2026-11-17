@@ -9,6 +9,11 @@
         </div> 
 
     <nav class="pe-app-sidebar-menu nav nav-pills" data-simplebar id="sidebar-simplebar">
+        @if(\App\Support\SppdAccess::isOperator(auth()->user()))
+            <ul class="pe-main-menu list-unstyled">
+                @include('partials.sppd-menu-item')
+            </ul>
+        @else
         @php
             if (auth()->check()) {
                 $roles = auth()->user()->role; 
@@ -141,6 +146,7 @@
             @endif
 
         </ul>
+        @endif
     </nav>
 </aside>
 <div class="sidebar-backdrop" id="sidebar-backdrop"></div>

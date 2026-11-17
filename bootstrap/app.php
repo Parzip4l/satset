@@ -3,6 +3,7 @@
 use App\Http\Middleware\AuthenticateMobileSatset;
 use App\Http\Middleware\EnsureGaTeam;
 use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\RestrictSppdOperator;
 use App\Http\Middleware\VerifyIntranetSatsetSignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -30,11 +31,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'ga.team' => EnsureGaTeam::class,
             'satset.intranet' => VerifyIntranetSatsetSignature::class,
         ]);
-        $middleware->web(append: [\App\Http\Middleware\ProtectItTickets::class]);
+        $middleware->web(append: [RestrictSppdOperator::class, \App\Http\Middleware\ProtectItTickets::class]);
         $middleware->api(append: [\App\Http\Middleware\ProtectItTickets::class]);
         $middleware->appendToPriorityList(\Illuminate\Routing\Middleware\SubstituteBindings::class, AuthenticateMobileSatset::class);
         $middleware->appendToPriorityList(AuthenticateMobileSatset::class, VerifyIntranetSatsetSignature::class);
         $middleware->appendToPriorityList(VerifyIntranetSatsetSignature::class, \App\Http\Middleware\ProtectItTickets::class);
+        $middleware->appendToPriorityList(AuthenticateMobileSatset::class, RestrictSppdOperator::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

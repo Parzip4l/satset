@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Mobile\Satset;
 use App\Http\Controllers\Controller;
 use App\Models\MobileSatsetToken;
 use App\Models\User;
+use App\Support\AccountAccess;
+use App\Support\SppdAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -48,9 +50,10 @@ class MobileSatsetAuthController extends Controller
         $user->name = $user->name ?: $data['name'];
         $user->username = $user->username ?: ($data['username'] ?? Str::before($email, '@'));
         $user->phone = $user->phone ?: ($data['phone'] ?? null);
-        if (array_key_exists('role', $data) && Schema::hasColumn('users', 'role') && ! \App\Support\AccountAccess::isSuperadmin($user)) {
+        if (array_key_exists('role', $data) && Schema::hasColumn('users', 'role')
+            && ! AccountAccess::isSuperadmin($user) && ! SppdAccess::isOperator($user)) {
             $portalRole = filled($data['role']) ? Str::lower(trim($data['role'])) : 'pelapor';
-            $user->role = $portalRole === 'superadmin' ? ($user->role ?: 'pelapor') : $portalRole;
+            $user->role = in_array($portalRole, ['superadmin', SppdAccess::ROLE], true) ? ($user->role ?: 'pelapor') : $portalRole;
         }
         if (! $user->exists) {
             $user->password = Hash::make(Str::random(40));

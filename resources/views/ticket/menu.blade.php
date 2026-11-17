@@ -467,6 +467,7 @@
                 <h2>Layanan</h2>
                 <p>Pilih jenis permintaan yang sesuai.</p>
             </div>
+            @if(! \App\Support\SppdAccess::isOperator(auth()->user()))
             <a href="{{ route('ticket.approvals') }}" class="requests-approval-link">
                 <i class="bi bi-check2-square" aria-hidden="true"></i>
                 Persetujuan Saya
@@ -474,6 +475,7 @@
                     <span class="requests-approval-count">{{ number_format($stats['pending_approvals']) }}</span>
                 @endif
             </a>
+            @endif
         </div>
 
         <div class="request-services">

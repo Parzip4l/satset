@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Services\SatsetInitialApprovalService;
+
 class TicketWorkflowPresenter
 {
     /**
@@ -65,6 +67,16 @@ class TicketWorkflowPresenter
         $reviewStep = $requiresManagerApproval ? 2 : 1;
         $stockStep = $requiresManagerApproval ? 3 : 2;
         $handoverReadyStep = $requiresManagerApproval ? 4 : 3;
+
+        if ($status === 'WAITING_MANAGER_APPROVAL') {
+            $setup = data_get($payload, 'manager_approval_setup');
+            if ($setup === SatsetInitialApprovalService::QUEUED) {
+                return self::result('Mencari atasan di Portal', 'Permintaan sudah tersimpan. Satset sedang menentukan atasan yang perlu menyetujui.', 1, $total, 'info', 'bi-hourglass-split');
+            }
+            if ($setup === SatsetInitialApprovalService::FAILED) {
+                return self::result('Pencarian atasan belum berhasil', 'Permintaan sudah tersimpan. Coba cari ulang atasan dari Portal.', 1, $total, 'warning', 'bi-exclamation-circle');
+            }
+        }
 
         [$label, $description, $step, $color, $icon] = match ($status) {
             'SUBMITTED', 'WAITING_MANAGER_APPROVAL' => ['Menunggu approval atasan', 'Pengajuan ATK/RTK sedang diperiksa oleh atasan.', 1, 'warning', 'bi-person-check'],

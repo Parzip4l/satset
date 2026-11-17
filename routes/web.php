@@ -84,7 +84,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::resource('role', App\Http\Controllers\Setting\RoleController::class);
     Route::get('settings/it-service', [\App\Http\Controllers\Setting\ItServiceController::class, 'index'])->middleware('admin.only')->name('settings.it-service.index');
     Route::put('settings/it-service', [\App\Http\Controllers\Setting\ItServiceController::class, 'update'])->middleware('admin.only')->name('settings.it-service.update');
-    Route::prefix('settings/sppd-service')->name('settings.sppd-service.')->middleware('admin.only')
+    Route::prefix('settings/sppd-service')->name('settings.sppd-service.')->middleware('can:configure-sppd')
         ->controller(SppdServiceController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::put('/', 'update')->name('update');
@@ -242,7 +242,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         return TicketFormSchema::where('ticket_category_id', $category)
             ->firstOrFail()
             ->schema;
-    });
+    })->name('ticket.form-schema');
 
     Route::resource('form-schema', TicketFormSchemaController::class);
 

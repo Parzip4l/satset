@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Models\Master\Divisions;
+use App\Support\SppdAccess;
 
 class PicController extends Controller
 {
@@ -49,9 +50,10 @@ class PicController extends Controller
             'divisi' => 'required|exists:divisions,id',
         ]);
 
-        try {
-            $user = User::findOrFail($request->name);
+        $user = User::findOrFail($request->name);
+        abort_if(SppdAccess::isOperator($user), 403, 'Ubah role Pengelola SPPD melalui pengelolaan user.');
 
+        try {
             $user->division_id = $request->divisi;
             $user->is_pic = 1;
             $user->role = 'pic';
@@ -107,9 +109,10 @@ class PicController extends Controller
             'divisi' => 'required|exists:divisions,id',
         ]);
 
-        try {
-            $user = User::findOrFail($request->name);
+        $user = User::findOrFail($request->name);
+        abort_if(SppdAccess::isOperator($user), 403, 'Ubah role Pengelola SPPD melalui pengelolaan user.');
 
+        try {
             $user->division_id = $request->divisi;
             $user->is_pic = 1;
             $user->role = 'pic';

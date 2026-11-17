@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\SppdAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -93,7 +94,12 @@ class MicrosoftSsoController extends Controller
             Auth::login($user, true);
             $request->session()->regenerate();
 
-            return redirect()->intended(route('dashboard.index'))
+            $isSppdOperator = SppdAccess::isOperator($user);
+            if ($isSppdOperator) {
+                $request->session()->forget('url.intended');
+            }
+
+            return redirect()->intended(route($isSppdOperator ? 'sppd.index' : 'dashboard.index'))
                 ->with('success', 'Berhasil login dengan Microsoft sebagai ' . $user->name);
         } catch (\Throwable $e) {
             Log::error('Microsoft SSO login failed.', [

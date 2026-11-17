@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\Master\Ticket;
 use App\Observers\TicketObserver;
 use App\Support\ItAccess;
+use App\Support\SppdAccess;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
@@ -29,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
         foreach (ItAccess::CAPABILITIES as $capability) {
             Gate::define($capability, fn (User $user) => ItAccess::can($user, $capability));
         }
+        Gate::define('configure-sppd', SppdAccess::canConfigure(...));
 
         if (app()->environment('production') || (bool) env('APP_FORCE_HTTPS', false)) {
             URL::forceScheme('https');

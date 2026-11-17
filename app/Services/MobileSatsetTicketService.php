@@ -155,7 +155,7 @@ class MobileSatsetTicketService
                 }
 
                 if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
-                    $this->createManagerApproval($ticket);
+                    $this->initialApproval->start($ticket);
                 }
 
                 $this->storeRequestFiles($request, $ticket, $user, $requestType);
@@ -501,6 +501,7 @@ class MobileSatsetTicketService
         ]);
 
         if ($requestType === 'atk_rtk') {
+            unset($payload['manager_approval_setup']);
             $total = array_sum(array_map(fn ($item) => (float) ($item['line_total'] ?? 0), $payload['items'] ?? []));
             $totalQty = array_sum(array_map(fn ($item) => (int) ($item['quantity'] ?? 0), $payload['items'] ?? []));
             $threshold = config('bum.atk_rtk_manager_approval_threshold', 100000);
@@ -592,17 +593,16 @@ class MobileSatsetTicketService
         return $query->first();
     }
 
-    private function createManagerApproval(Ticket $ticket): void
-    {
-        $this->initialApproval->create($ticket);
-    }
-
     private function generateTicketNo(int $categoryId): string
     {
         $category = ProblemCategory::find($categoryId);
         $categoryCode = $category ? strtoupper($category->code) : 'GEN';
         $datePart = Carbon::now()->format('mdy');
-        $lastTicket = Ticket::whereDate('created_at', Carbon::today())->where('category_id', $categoryId)->latest()->first();
+        $lastTicket = Ticket::whereDate('created_at', Carbon::today())
+            ->where('category_id', $categoryId)
+            ->latest()
+            ->orderByDesc('id')
+            ->first();
         $runningNumber = $lastTicket ? str_pad(((int) substr($lastTicket->ticket_no, -4)) + 1, 4, '0', STR_PAD_LEFT) : '0001';
 
         return "TCK-{$categoryCode}-{$datePart}-{$runningNumber}";

@@ -473,7 +473,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         ]);
     }
 
-    public function test_atk_submission_returns_ticket_number_before_the_requester_qr_is_created(): void
+    public function test_atk_submission_returns_ticket_number_before_portal_approval_and_requester_qr(): void
     {
         config(['satset.portal_signatures.shared_secret' => 'atk-qr-test']);
         if (! Schema::hasTable('jobs')) {
@@ -527,7 +527,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
                 'portal_signature_url' => 'https://portal.example.test/verify/atk-requester',
             ]);
         });
-        $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($approver): void {
+        $resolver = $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($approver): void {
             $mock->shouldReceive('resolveFirstApprover')->once()->andReturn($approver);
         });
         $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
@@ -573,8 +573,12 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             'reporter_email' => $requester->email,
         ]))->assertCreated()->assertJsonPath('detail_url', null);
         $publicTicket = Ticket::where('ticket_no', $public->json('ticket_no'))->firstOrFail();
-        $this->assertDatabaseHas('approvals', ['request_id' => $publicTicket->id, 'status' => 'Pending']);
-        $this->assertDatabaseCount('jobs', 2);
+        $public->assertJsonPath('message', 'Permintaan ATK/RTK berhasil disimpan. Satset sedang mencari atasan dari Portal.');
+        $this->assertSame(SatsetInitialApprovalService::QUEUED, data_get($publicTicket->payload, 'manager_approval_setup'));
+        $this->assertDatabaseMissing('approvals', ['request_id' => $publicTicket->id]);
+        $this->assertDatabaseCount('jobs', 3);
+        $this->assertStringNotContainsString('portal_approval', $public->headers->get('Server-Timing'));
+        $resolver->shouldNotHaveReceived('resolveFirstApprover');
         $signatures->shouldNotHaveReceived('createRequesterSignature');
 
         $ticket->updateQuietly(['payload' => array_replace($ticket->payload, ['bum_note' => 'Perubahan setelah submit'])]);
@@ -586,10 +590,58 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         ])->assertSuccessful();
         $this->assertDatabaseCount('jobs', 0);
         $this->assertDatabaseCount('failed_jobs', 0);
+        $this->assertDatabaseHas('approvals', ['request_id' => $publicTicket->id, 'approver_id' => $approver->id, 'status' => 'Pending']);
+        $this->assertNull(data_get($publicTicket->fresh()->payload, 'manager_approval_setup'));
         $this->assertSame('Perubahan setelah submit', data_get($ticket->fresh()->payload, 'bum_note'));
         foreach ([$ticket, $publicTicket] as $created) {
             $this->assertSame('atk-requester-qr', data_get($created->fresh()->payload, 'portal_signatures.requester.portal_signature_id'));
         }
+    }
+
+    public function test_atk_approval_lookup_can_be_retried_without_resubmitting_the_ticket(): void
+    {
+        if (! Schema::hasTable('jobs')) {
+            (require database_path('migrations/0001_01_01_000002_create_jobs_table.php'))->up();
+        }
+
+        $requester = User::create(['name' => 'Pemohon', 'email' => 'pemohon@example.test', 'password' => 'secret']);
+        $approver = User::create(['name' => 'Atasan', 'email' => 'atasan@example.test', 'password' => 'secret']);
+        $ticket = Ticket::withoutEvents(fn () => Ticket::create([
+            'ticket_no' => 'ATKRTK-RETRY',
+            'requester_id' => $requester->id,
+            'category_id' => 1,
+            'title' => 'Permintaan ATK/RTK',
+            'payload' => ['request_type' => 'atk_rtk', 'workflow_status' => 'WAITING_MANAGER_APPROVAL'],
+        ]));
+        $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($approver): void {
+            $mock->shouldReceive('resolveFirstApprover')->once()->andReturn($approver);
+        });
+        $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('notifyApprovalRequested')->once();
+            $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
+        });
+
+        DB::transaction(fn () => app(SatsetInitialApprovalService::class)->start($ticket));
+        $job = app('queue')->connection(GaSubmissionDelivery::CONNECTION)->pop(GaSubmissionDelivery::QUEUE);
+        $job->fail(new \RuntimeException('Portal tidak dapat dihubungi.'));
+        $this->assertSame(SatsetInitialApprovalService::FAILED, data_get($ticket->fresh()->payload, 'manager_approval_setup'));
+
+        $url = route('ticket.approvals.sync-manager', $ticket);
+        $this->actingAs($approver)->post($url)->assertForbidden();
+        $this->actingAs($requester)->post($url)->assertRedirect(route('ticket.show', $ticket))
+            ->assertSessionHas('success', 'Pencarian atasan dari Portal dijadwalkan ulang.');
+        $this->assertDatabaseCount('jobs', 1);
+        $this->assertSame(SatsetInitialApprovalService::QUEUED, data_get($ticket->fresh()->payload, 'manager_approval_setup'));
+
+        $this->artisan('queue:work', [
+            'connection' => GaSubmissionDelivery::CONNECTION,
+            '--queue' => GaSubmissionDelivery::QUEUE,
+            '--sleep' => 0,
+            '--stop-when-empty' => true,
+        ])->assertSuccessful();
+        $this->assertDatabaseHas('approvals', ['request_id' => $ticket->id, 'approver_id' => $approver->id]);
+        $this->assertDatabaseCount('requests', 1);
+        $this->assertNull(data_get($ticket->fresh()->payload, 'manager_approval_setup'));
     }
 
     public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void

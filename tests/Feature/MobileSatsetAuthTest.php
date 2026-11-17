@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Support\SppdAccess;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -95,6 +96,30 @@ class MobileSatsetAuthTest extends TestCase
                 'HTTP_X_SATSET_SIGNATURE' => hash_hmac('sha256', $timestamp.'.'.$body, 'test-shared-secret'),
             ], $body)->assertOk();
             $this->assertDatabaseHas('users', ['email' => $email, 'role' => $expected]);
+        }
+    }
+
+    public function test_sso_preserves_the_local_sppd_role_and_allows_mobile_request_submission(): void
+    {
+        config(['satset.mobile_sso.shared_secret' => 'test-shared-secret']);
+        \App\Models\User::create(['name' => 'Operator', 'email' => 'sppd@example.test', 'role' => SppdAccess::ROLE, 'password' => 'password']);
+        foreach ([['sppd@example.test', 'ga', SppdAccess::ROLE], ['new@example.test', SppdAccess::ROLE, 'pelapor']] as [$email, $role, $expected]) {
+            $body = json_encode(['email' => $email, 'name' => 'User', 'role' => $role]);
+            $timestamp = now()->timestamp;
+            $response = $this->call('POST', '/api/mobile/v1/satset/auth/sso-exchange', [], [], [], [
+                'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json',
+                'HTTP_X_SATSET_TIMESTAMP' => $timestamp,
+                'HTTP_X_SATSET_SIGNATURE' => hash_hmac('sha256', $timestamp.'.'.$body, 'test-shared-secret'),
+            ], $body)->assertOk()->assertJsonPath('data.user.role', $expected);
+            $this->assertDatabaseHas('users', ['email' => $email, 'role' => $expected]);
+
+            if ($expected === SppdAccess::ROLE) {
+                $headers = ['Authorization' => 'Bearer '.$response->json('data.access_token')];
+                $this->postJson('/api/mobile/v1/satset/tickets/consumption', [], $headers)
+                    ->assertUnprocessable()->assertJsonValidationErrors('payload.activity_name');
+                $this->getJson('/api/mobile/v1/satset/it/operations', $headers)->assertForbidden();
+                $this->postJson('/api/mobile/v1/satset/auth/logout', [], $headers)->assertOk();
+            }
         }
     }
 

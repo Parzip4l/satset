@@ -7,7 +7,7 @@
 <div class="container-fluid">
     <div class="d-flex flex-wrap gap-2 mb-3">
         <a href="{{ route('sppd.index') }}" class="btn btn-light border">Perjalanan Dinas</a>
-        @if($approvals->contains(fn ($approval) => (int) $approval->approver_id === (int) auth()->id()))
+        @if(! \App\Support\SppdAccess::isOperator(auth()->user()) && $approvals->contains(fn ($approval) => (int) $approval->approver_id === (int) auth()->id()))
             <a href="{{ route('ticket.approvals') }}" class="btn btn-light border">Approval Saya</a>
         @endif
     </div>

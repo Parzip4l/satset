@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\SppdAccess;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -67,6 +68,20 @@ class AdminCanRenameUserTest extends TestCase
         $this->post(route('user.store'), ['name' => 'New', 'email' => 'new@lrtjakarta.co.id', 'role' => 'superadmin', 'password' => 'password'])->assertForbidden();
         $this->actingAs($super)->put(route('user.update', $target), ['role' => 'superadmin'])->assertRedirect();
         $this->assertDatabaseHas('users', ['id' => $target->id, 'role' => 'superadmin']);
+    }
+
+    public function test_only_admin_can_assign_sppd_role_or_modify_its_accounts(): void
+    {
+        $admin = $this->user('Admin', 'admin@lrtjakarta.co.id', 'admin');
+        $employee = $this->user('User Biasa', 'regular@lrtjakarta.co.id', 'pelapor');
+        $target = $this->user('Operator', 'sppd@lrtjakarta.co.id', 'pelapor');
+        $this->actingAs($admin)->put(route('user.update', $target), ['role' => SppdAccess::ROLE])->assertRedirect();
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'role' => SppdAccess::ROLE]);
+
+        $this->actingAs($employee)->put(route('user.update', $target), ['password' => 'newpassword', 'password_confirmation' => 'newpassword'])
+            ->assertForbidden();
+        $this->post(route('user.store'), ['name' => 'Operator Baru', 'email' => 'new@lrtjakarta.co.id', 'role' => SppdAccess::ROLE, 'password' => 'password'])
+            ->assertForbidden();
     }
 
     private function user(string $name, string $email, string $role): User

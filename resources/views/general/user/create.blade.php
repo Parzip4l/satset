@@ -164,7 +164,7 @@
                                 <select name="role" class="form-select select2-single" data-placeholder="Pilih Role...">
                                     <option value=""></option>
                                     @foreach($role as $data)
-                                        <option value="{{$data->name}}" {{ old('role') == $data->name ? 'selected' : '' }}>{{$data->name}}</option>
+                                        <option value="{{$data->name}}" {{ old('role') == $data->name ? 'selected' : '' }}>{{$data->label}}</option>
                                     @endforeach
                                 </select>
                             </div>

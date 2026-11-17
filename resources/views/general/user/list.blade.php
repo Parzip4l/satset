@@ -81,7 +81,7 @@
                                         <td><span class="text-muted">{{ $data->email }}</span></td>
                                         <td>
                                             <span class="badge bg-light text-dark border fw-normal">
-                                                {{ $data->role ?? 'No Role' }}
+                                                {{ \App\Support\SppdAccess::isOperator($data) ? \App\Support\SppdAccess::LABEL : ($data->role ?? 'No Role') }}
                                             </span>
                                         </td>
                                         <td class="text-end pe-4">
@@ -207,7 +207,7 @@
                         <select name="role" class="form-select">
                             @foreach($role as $roleData)
                                 <option value="{{ $roleData->name }}" {{ ($data->role ?? '') === $roleData->name ? 'selected' : '' }}>
-                                    {{ $roleData->name }}
+                                    {{ $roleData->label }}
                                 </option>
                             @endforeach
                         </select>
