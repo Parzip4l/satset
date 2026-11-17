@@ -163,43 +163,59 @@ class SppdWorkflow
         });
     }
 
-    private function startVersion(Ticket $ticket, User $user, array $data, int $version): Ticket
+    public function preview(User $user, array $data, ?Ticket $ticket): array
+    {
+        $sppd = $this->documentData($data, (int) ($data['version'] ?? 0) + 1);
+        $draft = new Ticket([
+            'ticket_no' => $ticket?->ticket_no,
+            'payload' => ['request_type' => Sppd::TYPE, 'total_estimated_amount' => $sppd['total_cents'] / 100],
+        ]);
+        $draft->setRelation('requester', $user);
+        $sppd['profile'] = $this->documentProfile($user, $data, $this->resolver->resolveSppdRequester($draft));
+
+        return $sppd;
+    }
+
+    private function documentData(array $data, int $version): array
     {
         $costs = [];
-        foreach (Sppd::COSTS as $row => $cost) {
+        foreach (array_keys(Sppd::COSTS) as $row) {
             $costs[$row] = [
                 'cents' => (int) round(((float) ($data['costs'][$row]['amount'] ?? 0)) * 100),
-                'note' => $data['costs'][$row]['note'] ?? $cost[2],
+                'note' => $data['costs'][$row]['note'] ?? null,
             ];
         }
 
-        $total = array_sum(array_column($costs, 'cents'));
+        $otherCosts = array_map(fn (array $row) => [
+            'label' => $row['label'],
+            'cents' => (int) round((float) $row['amount'] * 100),
+            'note' => $row['note'] ?? null,
+        ], array_values($data['other_costs'] ?? []));
+
+        $total = array_sum(array_column($costs, 'cents')) + array_sum(array_column($otherCosts, 'cents'));
         $paidToEmployee = array_sum(array_column(array_intersect_key($costs, array_flip(Sppd::EMPLOYEE_COST_ROWS)), 'cents'));
-        $payload = [
-            'request_type' => Sppd::TYPE,
-            'request_label' => 'SPPD',
-            'workflow_status' => self::WAITING[1],
-            'total_estimated_amount' => $total / 100,
-            'sppd' => [
-                'version' => $version,
-                'category' => $data['category'],
-                'origin' => $data['origin'],
-                'destination' => $data['destination'],
-                'depart_on' => $data['depart_on'],
-                'return_on' => $data['return_on'],
-                'days' => (int) CarbonImmutable::parse($data['depart_on'])->diffInDays(CarbonImmutable::parse($data['return_on'])) + 1,
-                'purpose' => $data['purpose'],
-                'costs' => $costs,
-                'total_cents' => $total,
-                'employee_cents' => $paidToEmployee,
-                'notes' => $data['notes'] ?? null,
-                'bank' => $data['bank'] ?? [],
-            ],
+
+        return [
+            'version' => $version,
+            'category' => $data['category'],
+            'origin' => $data['origin'],
+            'destination' => $data['destination'],
+            'depart_on' => $data['depart_on'],
+            'return_on' => $data['return_on'],
+            'days' => (int) CarbonImmutable::parse($data['depart_on'])->diffInDays(CarbonImmutable::parse($data['return_on'])) + 1,
+            'purpose' => $data['purpose'],
+            'costs' => $costs,
+            'other_costs' => $otherCosts,
+            'total_cents' => $total,
+            'employee_cents' => $paidToEmployee,
+            'notes' => $data['notes'] ?? null,
+            'bank' => $data['bank'] ?? [],
         ];
-        $ticket->payload = $payload;
-        $participants = $this->resolver->resolveSppdParticipants($ticket);
+    }
+
+    private function documentProfile(User $user, array $data, array $portal): array
+    {
         $local = $this->profile($user);
-        $portal = $participants['requester'];
         $profile = [
             'name' => data_get($portal, 'name') ?: $local['name'],
             'nik' => data_get($portal, 'employee_number') ?: ($local['nik'] ?: ($data['nik'] ?? null)),
@@ -218,7 +234,22 @@ class SppdWorkflow
             ));
         }
 
-        $payload['sppd']['profile'] = $profile;
+        return $profile;
+    }
+
+    private function startVersion(Ticket $ticket, User $user, array $data, int $version): Ticket
+    {
+        $sppd = $this->documentData($data, $version);
+        $payload = [
+            'request_type' => Sppd::TYPE,
+            'request_label' => 'SPPD',
+            'workflow_status' => self::WAITING[1],
+            'total_estimated_amount' => $sppd['total_cents'] / 100,
+            'sppd' => $sppd,
+        ];
+        $ticket->payload = $payload;
+        $participants = $this->resolver->resolveSppdParticipants($ticket);
+        $payload['sppd']['profile'] = $this->documentProfile($user, $data, $participants['requester']);
         $payload['sppd']['approvers'] = $participants['approvers'];
         $payload['sppd']['requester_signature'] = $this->signatures->createSppdSignature($ticket, $user, 0);
         $payload['sppd']['submitted_at'] = now()->toIso8601String();

@@ -79,7 +79,13 @@ class SppdWorkflowTest extends TestCase
     {
         $owner = $this->createUser('owner');
         $data = $this->input();
-        $this->actingAs($owner)->get(route('sppd.create'))->assertOk()->assertSee('Kategori Perjalanan Dinas');
+        $this->actingAs($owner)->get(route('sppd.create'))->assertOk()
+            ->assertSee('Kategori Perjalanan Dinas')
+            ->assertSeeInOrder(['No.', 'Penginapan', 'Uang Makan', 'Lain-lain', 'Tambah Baris'])
+            ->assertDontSee('Supported by GA')->assertDontSee('Bantuan Perlengkapan Musim Dingin');
+        $this->postJson(route('sppd.store'), array_replace($data, ['other_costs' => [['amount' => '-5']]]))
+            ->assertUnprocessable()->assertJsonValidationErrors(['other_costs.0.label', 'other_costs.0.amount']);
+        $data = $this->withPreview($data);
         $this->post(route('sppd.store'), $data)->assertRedirect();
         $ticket = Ticket::sole();
         $this->post(route('sppd.store'), $data)->assertRedirect(route('sppd.show', $ticket));
@@ -87,6 +93,8 @@ class SppdWorkflowTest extends TestCase
         $this->get(route('sppd.index'))->assertOk()->assertSee('Bandung');
         $this->assertSame(60000100, data_get($ticket->payload, 'sppd.total_cents'));
         $this->assertSame(4500000, data_get($ticket->payload, 'sppd.employee_cents'));
+        $this->assertNull(data_get($ticket->payload, 'sppd.costs.30.note'));
+        $this->assertSame('Biaya parkir', data_get($ticket->payload, 'sppd.other_costs.0.label'));
         $this->assertSame(2, data_get($ticket->payload, 'sppd.days'));
         $this->assertSame('001234', data_get($ticket->payload, 'sppd.profile.nik'));
 
@@ -106,10 +114,18 @@ class SppdWorkflowTest extends TestCase
         $this->post(route('sppd.decide', [$ticket, $first]), ['decision' => 'revision_requested', 'note' => 'Lengkapi agenda.'])
             ->assertRedirect(route('sppd.show', $ticket));
 
-        $this->actingAs($owner)->get(route('sppd.edit', $ticket))->assertOk()->assertSee('Ajukan Ulang');
-        $this->put(route('sppd.update', $ticket), array_replace($data, ['purpose' => 'Koordinasi lapangan dan pembahasan agenda', 'version' => 1]))
-            ->assertRedirect(route('sppd.show', $ticket));
-        $this->assertSame(2, data_get($ticket->fresh()->payload, 'sppd.version'));
+        $this->actingAs($owner)->get(route('sppd.edit', $ticket))->assertOk()
+            ->assertSee('Ajukan Ulang')->assertSee('Biaya parkir')->assertSee('Bagasi tambahan');
+        $revision = array_replace($data, [
+            'purpose' => 'Koordinasi lapangan dan pembahasan agenda',
+            'version' => 1,
+            'other_costs' => [1 => ['label' => 'Bagasi tambahan', 'amount' => '15000.25', 'note' => 'Peralatan kerja']],
+        ]);
+        $this->put(route('sppd.update', $ticket), $this->withPreview($revision, $ticket))->assertRedirect(route('sppd.show', $ticket));
+        $this->assertSame(2, data_get($ticket->refresh()->payload, 'sppd.version'));
+        $this->assertSame(57500125, data_get($ticket->payload, 'sppd.total_cents'));
+        $this->assertSame(4500000, data_get($ticket->payload, 'sppd.employee_cents'));
+        $this->assertSame([['label' => 'Bagasi tambahan', 'cents' => 1500025, 'note' => 'Peralatan kerja']], data_get($ticket->payload, 'sppd.other_costs'));
         $this->actingAs($manager)->post(route('sppd.decide', [$ticket, $first]), ['decision' => 'approved'])->assertConflict();
 
         foreach ([1, 2, 3] as $level) {
@@ -121,7 +137,9 @@ class SppdWorkflowTest extends TestCase
         }
         $this->assertSame('Terbit', Sppd::label($ticket->refresh()));
         $this->assertDatabaseCount('approval_audits', 4);
-        $this->actingAs($owner)->get(route('sppd.show', $ticket))->assertOk()->assertSee('Unduh PDF SPPD');
+        $this->actingAs($owner)->get(route('sppd.show', $ticket))->assertOk()->assertSee('Unduh PDF SPPD')
+            ->assertSeeInOrder(['Lain-lain', '6.1', 'Bagasi tambahan', '15.000,25', 'Peralatan kerja', 'Rp575.001,25'])
+            ->assertDontSee('Biaya parkir');
         $response = $this->get(route('sppd.pdf', $ticket))->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $this->assertStringStartsWith('%PDF-', $response->getContent());
         foreach (Sppd::STAGES as [, , $role]) {
@@ -130,6 +148,41 @@ class SppdWorkflowTest extends TestCase
         $unrelated = $this->createUser('unrelated');
         $this->actingAs($unrelated)->get(route('sppd.pdf', $ticket))->assertForbidden();
         $this->actingAs($owner)->patch(route('ticket.update', $ticket->id), ['title' => 'Ubah lewat tiket'])->assertNotFound();
+    }
+
+    public function test_old_other_cost_can_be_removed_on_revision_without_reappearing_after_validation(): void
+    {
+        $owner = $this->createUser('owner');
+        $data = $this->input();
+        unset($data['other_costs']);
+        $this->actingAs($owner);
+        $this->post(route('sppd.store'), $this->withPreview($data))->assertRedirect();
+        $ticket = Ticket::sole();
+        $payload = $ticket->payload;
+        unset($payload['sppd']['other_costs']);
+        $payload['sppd']['costs'][38] = ['cents' => 4000000, 'note' => 'Catatan lama'];
+        $payload['sppd']['total_cents'] = 60000100;
+        $ticket->update(['payload' => $payload]);
+        $this->get(route('sppd.show', $ticket))->assertOk()
+            ->assertSeeInOrder(['Lain-lain', '6.1', 'Bantuan Perlengkapan Musim Dingin', '40.000', 'Catatan lama']);
+
+        $approval = $ticket->approvals()->sole();
+        $this->actingAs($approval->approver)->post(route('sppd.decide', [$ticket, $approval]), [
+            'decision' => 'revision_requested',
+            'note' => 'Periksa biaya tambahan.',
+        ])->assertRedirect();
+
+        $edit = route('sppd.edit', $ticket);
+        $this->actingAs($owner)->get($edit)->assertOk()
+            ->assertSee('Bantuan Perlengkapan Musim Dingin')->assertSee('Catatan lama');
+        $this->from($edit)->put(route('sppd.update', $ticket), array_replace($data, [
+            '_token' => 'test-token', 'purpose' => '', 'version' => 1,
+        ]))->assertRedirect($edit)->assertSessionHasErrors('purpose');
+        $this->get($edit)->assertOk()->assertDontSee('Bantuan Perlengkapan Musim Dingin');
+
+        $this->put(route('sppd.update', $ticket), $this->withPreview($data + ['version' => 1], $ticket))->assertRedirect();
+        $this->assertSame([], data_get($ticket->refresh()->payload, 'sppd.other_costs'));
+        $this->assertSame(56000100, data_get($ticket->payload, 'sppd.total_cents'));
     }
 
     public function test_only_admin_can_toggle_new_sppd_submissions(): void
@@ -153,14 +206,15 @@ class SppdWorkflowTest extends TestCase
         $this->actingAs($employee)->get(route('sppd.index'))->assertOk()
             ->assertSee('Pengajuan SPPD baru sedang ditutup.')->assertDontSee('Ajukan SPPD');
         $this->get(route('sppd.create'))->assertRedirect(route('sppd.index'));
+        $this->postJson(route('sppd.preview'), $this->input())->assertStatus(423);
         $this->post(route('sppd.store'), $this->input())->assertRedirect(route('sppd.index'));
         $this->postJson(route('sppd.store'), $this->input())->assertStatus(423);
         $this->assertDatabaseCount('requests', 0);
         Http::assertNothingSent();
 
         $this->actingAs($admin)->put($update, ['is_active' => '1'])->assertRedirect($settings);
-        $this->actingAs($employee)->get(route('sppd.create'))->assertOk()->assertSee('Kirim Pengajuan');
-        $this->post(route('sppd.store'), $this->input())->assertRedirect();
+        $this->actingAs($employee)->get(route('sppd.create'))->assertOk()->assertSee('Pratinjau PDF');
+        $this->post(route('sppd.store'), $this->withPreview($this->input()))->assertRedirect();
         $this->assertDatabaseCount('requests', 1);
     }
 
@@ -169,7 +223,9 @@ class SppdWorkflowTest extends TestCase
         $owner = $this->createUser('owner');
         $data = $this->input();
         $this->signatureUnavailable = true;
-        $this->actingAs($owner)->postJson(route('sppd.store'), $data)
+        $this->actingAs($owner);
+        $data = $this->withPreview($data);
+        $this->postJson(route('sppd.store'), $data)
             ->assertUnprocessable()->assertJsonValidationErrors('portal_signature');
         $this->assertDatabaseCount('requests', 0);
         $this->assertDatabaseCount('approvals', 0);
@@ -188,6 +244,40 @@ class SppdWorkflowTest extends TestCase
             ->assertRedirect(route('sppd.show', $ticket));
         $this->assertSame('Ditolak', Sppd::label($ticket->fresh()));
         $this->get(route('sppd.pdf', $ticket))->assertNotFound();
+    }
+
+    public function test_submission_requires_a_preview_of_the_same_data_by_the_requester(): void
+    {
+        $owner = $this->createUser('owner');
+        $data = $this->input();
+        $this->actingAs($owner)->postJson(route('sppd.store'), $data)
+            ->assertUnprocessable()->assertJsonValidationErrors('preview_token');
+
+        $reviewed = $this->withPreview($data);
+        $this->assertDatabaseCount('requests', 0);
+        $this->assertDatabaseCount('approvals', 0);
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $request) => data_get($request->data(), 'metadata.purpose') === 'organization_sync');
+
+        $changed = $reviewed;
+        $changed['other_costs'][0]['amount'] = '25000';
+        $this->postJson(route('sppd.store'), $changed)->assertUnprocessable()->assertJsonValidationErrors('preview_token');
+        $this->actingAs($this->createUser('unrelated'))->postJson(route('sppd.store'), $reviewed)
+            ->assertUnprocessable()->assertJsonValidationErrors('preview_token');
+        $this->assertDatabaseCount('requests', 0);
+
+        $this->actingAs($owner)->post(route('sppd.store'), $reviewed)->assertRedirect();
+        $this->assertDatabaseCount('requests', 1);
+    }
+
+    private function withPreview(array $data, ?Ticket $ticket = null): array
+    {
+        $response = $this->postJson($ticket ? route('sppd.preview-revision', $ticket) : route('sppd.preview'), $data)
+            ->assertOk()->assertHeader('Content-Type', 'application/pdf')->assertHeader('X-Sppd-Preview-Token');
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+        $this->assertStringNotContainsString('https://portal.example.test/verify/', $response->getContent());
+
+        return ['preview_token' => $response->headers->get('X-Sppd-Preview-Token')] + $data;
     }
 
     private function person(string $role): array
@@ -224,7 +314,10 @@ class SppdWorkflowTest extends TestCase
                 34 => ['amount' => '20000'],
                 35 => ['amount' => '10000'],
                 36 => ['amount' => '5000'],
-                38 => ['amount' => '40000'],
+            ],
+            'other_costs' => [
+                ['label' => 'Biaya parkir', 'amount' => '24000'],
+                ['label' => 'Bagasi tambahan', 'amount' => '16000'],
             ],
             'bank' => ['name' => 'Bank DKI', 'account' => '0012345678', 'holder' => 'Pemohon Contoh'],
         ];

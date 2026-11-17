@@ -104,10 +104,12 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::get('/', 'index')->name('index');
         Route::middleware(EnsureSppdAcceptingRequests::class)->group(function () {
             Route::get('/ajukan', 'create')->name('create');
+            Route::post('/pratinjau', 'preview')->name('preview');
             Route::post('/', 'store')->name('store');
         });
         Route::get('/{ticket}', 'show')->name('show');
         Route::get('/{ticket}/revisi', 'edit')->name('edit');
+        Route::post('/{ticket}/revisi/pratinjau', 'previewRevision')->name('preview-revision');
         Route::put('/{ticket}', 'update')->name('update');
         Route::post('/{ticket}/persetujuan/{approval}', 'decide')->name('decide');
         Route::get('/{ticket}/pdf', 'download')->name('pdf');

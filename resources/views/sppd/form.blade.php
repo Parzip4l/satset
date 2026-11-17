@@ -4,7 +4,7 @@
 @section('page-heading', '')
 
 @section('css')
-    <link rel="stylesheet" href="{{ asset('assets/css/sppd-form.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/sppd-form.css') }}?v={{ filemtime(public_path('assets/css/sppd-form.css')) }}">
 @endsection
 
 @section('content')
@@ -19,8 +19,10 @@
 
     @include('sppd.messages')
 
-    <form class="sppd-form-layout" id="sppd-form" method="POST" action="{{ $ticket ? route('sppd.update', $ticket) : route('sppd.store') }}">
+    <form class="sppd-form-layout" id="sppd-form" method="POST" action="{{ $ticket ? route('sppd.update', $ticket) : route('sppd.store') }}"
+        data-preview-url="{{ $ticket ? route('sppd.preview-revision', $ticket) : route('sppd.preview') }}">
         @csrf
+        <input type="hidden" name="preview_token" value="">
         @if($ticket)
             @method('PUT')
             <input type="hidden" name="version" value="{{ $sppd['version'] }}">
@@ -85,27 +87,45 @@
                 </header>
                 <div class="sppd-expenses" id="sppd-costs">
                     <div class="sppd-expense-head" aria-hidden="true">
-                        <span>Pengeluaran</span><span>Biaya</span><span>Keterangan</span>
+                        <span>No.</span><span>Pengeluaran</span><span>Biaya</span><span>Keterangan</span>
                     </div>
-                    @foreach(\App\Support\Sppd::COSTS as $row => [, $label, $note])
+                    @foreach(\App\Support\Sppd::COSTS as $row => [$number, $label])
                         <div class="sppd-expense">
+                            <span class="sppd-expense-number">{{ $number }}</span>
                             <label class="sppd-expense-name" for="amount-{{ $row }}">
                                 {{ $label }}
-                                @if(in_array($row, [34, 36], true))
-                                    <span class="sppd-row-reference">Baris {{ $row }}</span>
-                                @endif
-                                <span class="visually-hidden">, biaya dalam rupiah</span>
+                                <span class="visually-hidden">nomor {{ $number }}, biaya dalam rupiah</span>
                             </label>
                             <div class="sppd-money">
                                 <span aria-hidden="true">Rp</span>
                                 <input class="form-control" id="amount-{{ $row }}" name="costs[{{ $row }}][amount]" type="number" inputmode="decimal"
-                                    min="0" max="9999999999.99" step="0.01" data-cost="{{ $row }}" placeholder="0"
+                                    min="0" max="9999999999.99" step="0.01" data-cost="{{ $row }}" data-budget-amount placeholder="0"
                                     value="{{ old("costs.{$row}.amount", isset($sppd['costs'][$row]) ? number_format($sppd['costs'][$row]['cents'] / 100, 2, '.', '') : '') }}">
                             </div>
-                            <input class="form-control" aria-label="Keterangan {{ $label }} baris {{ $row }}" name="costs[{{ $row }}][note]" maxlength="90"
-                                placeholder="Opsional" value="{{ old("costs.{$row}.note", data_get($sppd, "costs.{$row}.note", $note)) }}">
+                            <input class="form-control sppd-expense-note" aria-label="Keterangan {{ $label }} nomor {{ $number }}" name="costs[{{ $row }}][note]" maxlength="90"
+                                value="{{ old("costs.{$row}.note", data_get($sppd, "costs.{$row}.note")) }}">
                         </div>
                     @endforeach
+                    <div class="sppd-expense sppd-other-heading">
+                        <span class="sppd-expense-number">{{ \App\Support\Sppd::OTHER_COST_NUMBER }}</span>
+                        <h3 id="sppd-other-title">Lain-lain</h3>
+                        <button class="btn btn-outline-primary sppd-add-expense" id="sppd-add-cost" type="button" aria-controls="sppd-other-costs">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i> Tambah Baris
+                        </button>
+                    </div>
+                    @php
+                        $otherCosts = session()->hasOldInput('_token')
+                            ? old('other_costs', [])
+                            : array_map(fn ($expense) => ['amount' => number_format($expense['cents'] / 100, 2, '.', '')] + $expense, \App\Support\Sppd::otherCosts($sppd));
+                    @endphp
+                    <div id="sppd-other-costs" data-group-number="{{ \App\Support\Sppd::OTHER_COST_NUMBER }}" aria-labelledby="sppd-other-title" role="group">
+                        @foreach(array_values(is_array($otherCosts) ? $otherCosts : []) as $index => $expense)
+                            @include('sppd.other-cost-row', ['index' => $index, 'expense' => is_array($expense) ? array_filter($expense, 'is_scalar') : []])
+                        @endforeach
+                    </div>
+                    <template id="sppd-other-cost-template">
+                        @include('sppd.other-cost-row', ['index' => 0, 'expense' => []])
+                    </template>
                 </div>
             </section>
 
@@ -157,11 +177,30 @@
                     </div>
                 </div>
                 <button class="btn btn-primary sppd-submit" type="submit">
-                    <i class="bi bi-send" aria-hidden="true"></i> {{ $ticket ? 'Ajukan Ulang' : 'Kirim Pengajuan' }}
+                    <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Pratinjau PDF
                 </button>
             </div>
         </aside>
     </form>
+
+    <dialog class="sppd-preview" id="sppd-preview" aria-labelledby="sppd-preview-title">
+        <header class="sppd-preview-header">
+            <h2 id="sppd-preview-title">Pratinjau PDF SPPD</h2>
+            <a class="btn btn-outline-primary" data-open-pdf target="_blank" rel="noopener" hidden>
+                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Buka PDF
+            </a>
+        </header>
+        <div class="sppd-preview-body">
+            <p data-preview-status role="status"></p>
+            <iframe data-preview-frame title="Draf PDF SPPD" hidden></iframe>
+        </div>
+        <footer class="sppd-preview-actions">
+            <button class="btn btn-light border" data-close-preview type="button">Kembali Edit</button>
+            <button class="btn btn-primary" data-confirm-preview form="sppd-form" type="submit" disabled>
+                <i class="bi bi-send me-1" aria-hidden="true"></i> {{ $ticket ? 'Ajukan Ulang' : 'Kirim Pengajuan' }}
+            </button>
+        </footer>
+    </dialog>
 </div>
 @endsection
 
@@ -169,7 +208,18 @@
 <script>
     (() => {
         const form = document.getElementById('sppd-form');
-        const amounts = form.querySelectorAll('[data-cost]');
+        const preview = document.getElementById('sppd-preview');
+        const previewStatus = preview.querySelector('[data-preview-status]');
+        const previewFrame = preview.querySelector('[data-preview-frame]');
+        const openPdf = preview.querySelector('[data-open-pdf]');
+        const confirmPreview = preview.querySelector('[data-confirm-preview]');
+        const previewToken = form.elements.preview_token;
+        let previewRequest;
+        let pdfUrl;
+        const budget = form.querySelector('#sppd-costs');
+        const otherCosts = form.querySelector('#sppd-other-costs');
+        const otherCostTemplate = form.querySelector('#sppd-other-cost-template');
+        const addCost = form.querySelector('#sppd-add-cost');
         const employeeRows = @json(\App\Support\Sppd::EMPLOYEE_COST_ROWS);
         const currency = new Intl.NumberFormat('id-ID', {
             style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 2
@@ -183,7 +233,7 @@
         function updateTotals() {
             let total = 0;
             let paid = 0;
-            for (const input of amounts) {
+            for (const input of budget.querySelectorAll('[data-budget-amount]')) {
                 const cents = Math.round((Number(input.value) || 0) * 100);
                 total += cents;
                 if (employeeRows.includes(Number(input.dataset.cost))) paid += cents;
@@ -197,7 +247,106 @@
             duration.value = daysBetween >= 0 ? `${daysBetween + 1} hari` : '—';
         }
 
-        amounts.forEach(input => input.addEventListener('input', updateTotals));
+        function updateOtherRows() {
+            Array.from(otherCosts.children).forEach((row, index) => {
+                const number = `${otherCosts.dataset.groupNumber}.${index + 1}`;
+                row.querySelector('.sppd-expense-number').textContent = number;
+                row.setAttribute('aria-label', `Pengeluaran ${number}`);
+                row.querySelectorAll('[data-other-cost-field]').forEach(input => {
+                    input.name = `other_costs[${index}][${input.dataset.otherCostField}]`;
+                });
+            });
+            updateTotals();
+        }
+
+        async function showPreview() {
+            if (preview.open) return;
+
+            const data = new FormData(form);
+            data.delete('_method');
+            data.delete('preview_token');
+            previewStatus.textContent = 'Menyiapkan pratinjau PDF…';
+            previewStatus.hidden = false;
+            previewRequest = new AbortController();
+            const { signal } = previewRequest;
+            preview.showModal();
+
+            try {
+                const response = await fetch(form.dataset.previewUrl, {
+                    method: 'POST', body: data, signal, headers: { Accept: 'application/json' }
+                });
+                if (!response.ok) {
+                    const failure = await response.json().catch(() => ({}));
+                    throw new Error(Object.values(failure.errors || {}).flat()[0]
+                        || failure.message || 'Pratinjau gagal dimuat. Coba lagi.');
+                }
+                const token = response.headers.get('X-Sppd-Preview-Token');
+                if (!token || !response.headers.get('Content-Type')?.startsWith('application/pdf')) {
+                    throw new Error('Pratinjau gagal dimuat. Coba lagi.');
+                }
+                const blob = await response.blob();
+                if (signal.aborted) return;
+
+                pdfUrl = URL.createObjectURL(blob);
+                previewFrame.src = pdfUrl;
+                previewFrame.hidden = false;
+                openPdf.href = pdfUrl;
+                openPdf.hidden = false;
+                previewStatus.hidden = true;
+                previewToken.value = token;
+                confirmPreview.disabled = false;
+            } catch (error) {
+                if (!signal.aborted) previewStatus.textContent = error.message || 'Pratinjau gagal dimuat. Coba lagi.';
+            }
+        }
+
+        form.addEventListener('submit', event => {
+            if (event.submitter === confirmPreview && preview.open && previewToken.value) {
+                confirmPreview.disabled = true;
+                return;
+            }
+
+            event.preventDefault();
+            showPreview();
+        });
+        function closePreview() {
+            previewRequest?.abort();
+            previewFrame.hidden = true;
+            previewFrame.removeAttribute('src');
+            openPdf.hidden = true;
+            openPdf.removeAttribute('href');
+            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+            pdfUrl = null;
+            previewToken.value = '';
+            confirmPreview.disabled = true;
+            preview.close();
+        }
+
+        preview.querySelector('[data-close-preview]').addEventListener('click', closePreview);
+        preview.addEventListener('cancel', event => {
+            event.preventDefault();
+            closePreview();
+        });
+
+        addCost.addEventListener('click', () => {
+            const row = otherCostTemplate.content.firstElementChild.cloneNode(true);
+            otherCosts.append(row);
+            updateOtherRows();
+            row.querySelector('[data-other-cost-field="label"]').focus();
+        });
+        otherCosts.addEventListener('click', event => {
+            const remove = event.target.closest('[data-remove-other-cost]');
+            if (!remove) return;
+
+            const row = remove.closest('.sppd-other-expense');
+            const neighbor = row.nextElementSibling || row.previousElementSibling;
+            row.remove();
+            updateOtherRows();
+            (neighbor?.querySelector('[data-other-cost-field="label"]') || addCost).focus();
+        });
+        budget.addEventListener('input', event => {
+            if (event.target.matches('[data-budget-amount]')) updateTotals();
+        });
         [departure, returnDate].forEach(input => input.addEventListener('input', updateDuration));
         updateTotals();
         updateDuration();

@@ -35,9 +35,21 @@ class SppdPdf
             ];
         }
 
+        return $this->render($sppd, Sppd::reference($ticket), $signatures);
+    }
+
+    public function preview(array $sppd): string
+    {
+        $signatures = array_map(fn (array $stage) => ['action' => $stage[0], 'role' => $stage[1]], Sppd::STAGES);
+
+        return $this->render($sppd, null, $signatures);
+    }
+
+    private function render(array $sppd, ?string $reference, array $signatures): string
+    {
         return Pdf::loadView('sppd.pdf', [
             'sppd' => $sppd,
-            'reference' => Sppd::reference($ticket),
+            'reference' => $reference,
             'logo' => 'data:image/png;base64,'.base64_encode(file_get_contents(public_path('logo-lrtj.png'))),
             'signatures' => $signatures,
         ])->setPaper('a4', 'portrait')->output();

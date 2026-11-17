@@ -135,6 +135,11 @@ class LrtjSpaceApprovalResolverService
         return ['requester' => $requester, 'approvers' => $approvers];
     }
 
+    public function resolveSppdRequester(Ticket $ticket): array
+    {
+        return data_get($this->resolve($ticket, ['metadata' => ['purpose' => 'organization_sync']]), 'data.requester', []);
+    }
+
     private function sppdApprover(Ticket $ticket, ?array $approver, string $label): int
     {
         $email = trim((string) ($approver['email'] ?? ''));

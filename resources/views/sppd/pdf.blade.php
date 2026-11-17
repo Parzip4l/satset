@@ -2,13 +2,14 @@
 <html lang="id">
 <head>
     <meta charset="utf-8">
-    <title>SPPD {{ $reference }}</title>
+    <title>{{ $reference ? 'SPPD '.$reference : 'Pratinjau SPPD' }}</title>
     <style>
         @page { margin: 28pt 32pt; }
         body { color: #141414; font: 9pt/1.2 'DejaVu Sans', sans-serif; }
         .logo { width: 95pt; max-height: 29pt; }
         h1 { font-size: 12pt; margin: 8pt 0 2pt; text-align: center; }
         .reference { text-align: center; margin: 0 0 8pt; }
+        .draft { font-weight: bold; color: #616161; }
         h2 { font-size: 9pt; margin: 7pt 0 4pt; }
         table { border-collapse: collapse; table-layout: fixed; width: 100%; }
         .profile td { padding: 2pt 4pt 2pt 0; vertical-align: top; word-wrap: break-word; }
@@ -21,22 +22,22 @@
         .budget { font-size: 8pt; table-layout: auto; }
         .budget th, .budget td { padding-top: 2pt; padding-bottom: 2pt; }
         .budget td:first-child { text-align: center; }
+        .budget th[scope="row"] { text-align: left; }
         .amount { text-align: right; }
-        .notes, .footnote { font-size: 8pt; }
-        .footnote { margin-top: 3pt; }
-        .notes { word-wrap: break-word; }
+        .notes { font-size: 8pt; word-wrap: break-word; }
         .signatures { margin-top: 12pt; page-break-inside: avoid; }
         .signatures td { text-align: center; padding: 1pt 4pt; word-wrap: break-word; vertical-align: top; }
         .signature-role { font-size: 8pt; }
         .signatures img { width: 66pt; height: 66pt; }
         .signature-name { font-size: 8pt; font-weight: bold; }
         .signature-meta { font-size: 7pt; }
+        .signature-space { height: 66pt; }
     </style>
 </head>
 <body>
     <img class="logo" src="{{ $logo }}" alt="LRT Jakarta">
     <h1>PENGAJUAN SURAT PERMOHONAN PERJALANAN DINAS (SPPD)</h1>
-    <div class="reference">{{ $reference }}</div>
+    <div @class(['reference', 'draft' => $reference === null])>{{ $reference ?? 'DRAF · PRATINJAU' }}</div>
 
     <h2>A. PELAKSANA PERJALANAN DINAS</h2>
     <table class="profile">
@@ -76,7 +77,6 @@
 
     <h2>D. RENCANA ANGGARAN BIAYA PERJALANAN DINAS</h2>
     @include('sppd.budget', ['tableClass' => 'grid budget'])
-    <div class="footnote">* Bila Ada</div>
 
     <h2>E. CATATAN TAMBAHAN</h2>
     <div class="notes">
@@ -94,18 +94,24 @@
         </tr>
         <tr>
             @foreach($signatures as $signature)
-                <td><a href="{{ $signature['url'] }}"><img src="{{ $signature['qr'] }}" alt="QR verifikasi {{ $signature['role'] }}"></a></td>
+                @if($reference)
+                    <td><a href="{{ $signature['url'] }}"><img src="{{ $signature['qr'] }}" alt="QR verifikasi {{ $signature['role'] }}"></a></td>
+                @else
+                    <td class="signature-space"></td>
+                @endif
             @endforeach
         </tr>
-        <tr>
-            @foreach($signatures as $signature)
-                <td>
-                    <div class="signature-name">{{ $signature['name'] }}</div>
-                    <div class="signature-meta">{{ $signature['position'] }}</div>
-                    <div class="signature-meta">{{ $signature['date'] }} WIB</div>
-                </td>
-            @endforeach
-        </tr>
+        @if($reference)
+            <tr>
+                @foreach($signatures as $signature)
+                    <td>
+                        <div class="signature-name">{{ $signature['name'] }}</div>
+                        <div class="signature-meta">{{ $signature['position'] }}</div>
+                        <div class="signature-meta">{{ $signature['date'] }} WIB</div>
+                    </td>
+                @endforeach
+            </tr>
+        @endif
     </table>
 </body>
 </html>

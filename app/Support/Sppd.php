@@ -17,15 +17,16 @@ final class Sppd
 
     // The keys follow the source Excel rows and its two total formulas.
     public const COSTS = [
-        30 => ['1', 'Penginapan', 'Supported by GA'],
-        31 => ['2', 'Transportasi', 'Supported by GA'],
-        32 => ['', 'a. Tiket Pesawat', ''],
-        33 => ['', 'b. Ke / Dari Terminal/Lokasi', ''],
-        34 => ['3', 'Uang Makan', ''],
-        35 => ['3', 'Uang Saku', ''],
-        36 => ['4', 'Uang Makan', ''],
-        38 => ['', 'a. Bantuan Perlengkapan Musim Dingin', ''],
+        30 => ['1', 'Penginapan'],
+        31 => ['2', 'Transportasi'],
+        32 => ['a.', 'Tiket Pesawat'],
+        33 => ['b.', 'Ke / Dari Terminal/Lokasi'],
+        34 => ['3', 'Uang Makan'],
+        35 => ['4', 'Uang Saku'],
+        36 => ['5', 'Uang Makan'],
     ];
+
+    public const OTHER_COST_NUMBER = '6';
 
     public const EMPLOYEE_COST_ROWS = [33, 34, 35, 36];
 
@@ -64,6 +65,24 @@ final class Sppd
     public static function reference(Ticket $ticket): string
     {
         return $ticket->ticket_no.'/R'.data_get($ticket->payload, 'sppd.version', 1);
+    }
+
+    public static function otherCosts(array $sppd): array
+    {
+        if (isset($sppd['other_costs'])) {
+            return $sppd['other_costs'];
+        }
+
+        $legacy = $sppd['costs'][38] ?? [];
+        if (empty($legacy['cents']) && blank($legacy['note'] ?? null)) {
+            return [];
+        }
+
+        return [[
+            'label' => 'Bantuan Perlengkapan Musim Dingin',
+            'cents' => (int) ($legacy['cents'] ?? 0),
+            'note' => $legacy['note'] ?? null,
+        ]];
     }
 
     public static function rupiah(int $cents): string

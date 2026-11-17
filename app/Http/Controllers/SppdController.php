@@ -9,12 +9,17 @@ use App\Services\SppdWorkflow;
 use App\Support\ServiceDomains;
 use App\Support\Sppd;
 use App\Support\TicketAccess;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class SppdController extends Controller
 {
+    private const COST_AMOUNT = 'regex:/^[0-9]{1,10}(\.[0-9]{1,2})?$/D';
+
     public function __construct(private readonly SppdWorkflow $workflow) {}
 
     public function index(Request $request)
@@ -39,9 +44,9 @@ class SppdController extends Controller
 
     public function store(Request $request)
     {
-        $ticket = $this->workflow->submit($request->user(), $request->validate(
-            $this->rules() + ['submission_token' => ['required', 'uuid']],
-        ));
+        $data = $this->formData($request);
+        $this->requirePreview($request, $data);
+        $ticket = $this->workflow->submit($request->user(), $data);
 
         return redirect()->route('sppd.show', $ticket)->with('success', 'SPPD berhasil diajukan.');
     }
@@ -69,11 +74,23 @@ class SppdController extends Controller
     public function update(Request $request, Ticket $ticket)
     {
         $this->authorizeRevision($request, $ticket);
-        $ticket = $this->workflow->resubmit($ticket, $request->user(), $request->validate(
-            $this->rules() + ['version' => ['required', 'integer', 'min:1']],
-        ));
+        $data = $this->formData($request, $ticket);
+        $this->requirePreview($request, $data, $ticket);
+        $ticket = $this->workflow->resubmit($ticket, $request->user(), $data);
 
         return redirect()->route('sppd.show', $ticket)->with('success', 'Revisi SPPD berhasil diajukan.');
+    }
+
+    public function preview(Request $request, SppdPdf $pdf)
+    {
+        return $this->previewPdf($request, $pdf);
+    }
+
+    public function previewRevision(Request $request, Ticket $ticket, SppdPdf $pdf)
+    {
+        $this->authorizeRevision($request, $ticket);
+
+        return $this->previewPdf($request, $pdf, $ticket);
     }
 
     public function decide(Request $request, Ticket $ticket, Approval $approval)
@@ -117,6 +134,49 @@ class SppdController extends Controller
         abort_unless(data_get($ticket->payload, 'workflow_status') === 'REVISION_REQUESTED', 409);
     }
 
+    private function previewPdf(Request $request, SppdPdf $pdf, ?Ticket $ticket = null)
+    {
+        $data = $this->formData($request, $ticket);
+        abort_if($ticket && (int) $data['version'] !== (int) data_get($ticket->payload, 'sppd.version'), 409, 'Pengajuan sudah berubah. Muat ulang halaman SPPD.');
+
+        $bytes = $pdf->preview($this->workflow->preview($request->user(), $data, $ticket));
+
+        return response($bytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="pratinjau-sppd.pdf"',
+            'Cache-Control' => 'private, no-store',
+            'X-Sppd-Preview-Token' => Crypt::encryptString($this->previewFingerprint($request, $data, $ticket)),
+        ]);
+    }
+
+    private function requirePreview(Request $request, array $data, ?Ticket $ticket = null): void
+    {
+        $token = $request->input('preview_token');
+        if (is_string($token) && strlen($token) <= 512) {
+            try {
+                if (hash_equals($this->previewFingerprint($request, $data, $ticket), Crypt::decryptString($token))) {
+                    return;
+                }
+            } catch (DecryptException) {
+                // Invalid tokens use the same prompt as missing or out-of-date previews.
+            }
+        }
+
+        throw ValidationException::withMessages(['preview_token' => 'Buka pratinjau PDF dari isian terbaru sebelum mengirim SPPD.']);
+    }
+
+    private function previewFingerprint(Request $request, array $data, ?Ticket $ticket): string
+    {
+        return hash('sha256', serialize([$request->user()->id, $ticket?->id, $data]));
+    }
+
+    private function formData(Request $request, ?Ticket $ticket = null): array
+    {
+        return $request->validate($this->rules() + ($ticket
+            ? ['version' => ['required', 'integer', 'min:1']]
+            : ['submission_token' => ['required', 'uuid']]));
+    }
+
     private function rules(): array
     {
         $rules = [
@@ -131,6 +191,11 @@ class SppdController extends Controller
             'return_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:depart_on'],
             'purpose' => ['required', 'string', 'max:700'],
             'costs' => ['nullable', 'array:'.implode(',', array_keys(Sppd::COSTS))],
+            'other_costs' => ['nullable', 'array'],
+            'other_costs.*' => ['required', 'array:label,amount,note'],
+            'other_costs.*.label' => ['required', 'string', 'max:120'],
+            'other_costs.*.amount' => ['required', self::COST_AMOUNT],
+            'other_costs.*.note' => ['nullable', 'string', 'max:90'],
             'notes' => ['nullable', 'string', 'max:500'],
             'bank' => ['nullable', 'array:name,account,holder'],
             'bank.name' => ['nullable', 'required_with:bank.account,bank.holder', 'string', 'max:50'],
@@ -139,7 +204,7 @@ class SppdController extends Controller
         ];
         foreach (array_keys(Sppd::COSTS) as $row) {
             $rules["costs.{$row}"] = ['nullable', 'array:amount,note'];
-            $rules["costs.{$row}.amount"] = ['nullable', 'regex:/^[0-9]{1,10}(\.[0-9]{1,2})?$/D'];
+            $rules["costs.{$row}.amount"] = ['nullable', self::COST_AMOUNT];
             $rules["costs.{$row}.note"] = ['nullable', 'string', 'max:90'];
         }
 
