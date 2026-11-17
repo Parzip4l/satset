@@ -21,6 +21,7 @@ use App\Models\Master\TicketFormSchema;
 use App\Models\Master\TicketHistory;
 use App\Models\Master\Urgency;
 use App\Models\User;
+use App\Services\AtkRtkRequesterQr;
 use App\Services\ConsumableStockService;
 use App\Services\GaRequestFindingReportService;
 use App\Services\LrtjSpaceMobileNotificationService;
@@ -1028,7 +1029,9 @@ class TicketController extends Controller
                     'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).' - Public)',
                 ]);
 
-                $this->attachRequesterSignature($ticket, $requester, $requestType === 'consumption');
+                if (! app(AtkRtkRequesterQr::class)->queueForSubmission($ticket)) {
+                    $this->attachRequesterSignature($ticket, $requester, $requestType === 'consumption');
+                }
 
                 if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                     $this->createManagerApproval($ticket);
@@ -1182,14 +1185,11 @@ class TicketController extends Controller
 
         [$ticket, $duplicate] = $this->createPublicTicketFromPayload($validated, $payload, $requester, 'atk_rtk', $submissionToken);
 
-        if ($duplicate) {
-            return redirect()->route('public.ticket.atk-rtk.create')
-                ->with('success', 'Permintaan ATK/RTK sudah tercatat sebelumnya. Nomor ticket Anda: '.$ticket->ticket_no);
+        if (! $duplicate) {
+            $this->sendPublicTicketEmails($ticket, $validated['category_id']);
         }
-        $this->sendPublicTicketEmails($ticket, $validated['category_id']);
 
-        return redirect()->route('public.ticket.atk-rtk.create')
-            ->with('success', 'Permintaan ATK/RTK berhasil dikirim. Nomor ticket Anda: '.$ticket->ticket_no);
+        return $this->atkRtkSubmissionResponse($request, $ticket, $duplicate, true);
     }
 
     /**
@@ -1325,7 +1325,9 @@ class TicketController extends Controller
                     'action' => 'Ticket dibuat ('.$this->getRequestTypeLabel($requestType).')',
                 ]);
 
-                $this->attachRequesterSignature($ticket, auth()->user(), $requestType === 'consumption');
+                if (! app(AtkRtkRequesterQr::class)->queueForSubmission($ticket)) {
+                    $this->attachRequesterSignature($ticket, auth()->user(), $requestType === 'consumption');
+                }
 
                 if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                     $this->createManagerApproval($ticket);
@@ -1371,10 +1373,7 @@ class TicketController extends Controller
         }
 
         if ($requestType === 'atk_rtk') {
-            return redirect()->route('ticket.atk-rtk.create')
-                ->with('success', $duplicate
-                    ? 'Permintaan ATK/RTK sudah tercatat sebelumnya. Nomor ticket: '.$ticket->ticket_no
-                    : 'Permintaan ATK/RTK berhasil dibuat.');
+            return $this->atkRtkSubmissionResponse($request, $ticket, $duplicate);
         }
 
         if ($requestType === 'ga_request_finding') {
@@ -2361,6 +2360,25 @@ class TicketController extends Controller
         app(\App\Services\SatsetInitialApprovalService::class)->create($ticket);
     }
 
+    private function atkRtkSubmissionResponse(Request $request, Ticket $ticket, bool $duplicate, bool $public = false)
+    {
+        $message = $duplicate
+            ? 'Permintaan ATK/RTK sudah tercatat sebelumnya.'
+            : 'Permintaan ATK/RTK berhasil dikirim.';
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'ticket_no' => $ticket->ticket_no,
+                'detail_url' => ! $public && (int) $ticket->requester_id === (int) $request->user()->id
+                    ? route('ticket.show', $ticket)
+                    : null,
+            ], $duplicate ? 200 : 201);
+        }
+
+        return redirect()->route($public ? 'public.ticket.atk-rtk.create' : 'ticket.atk-rtk.create')
+            ->with('success', $message.' Nomor tiket: '.$ticket->ticket_no);
+    }
+
     private function attachRequesterSignature(Ticket $ticket, User $requester, bool $required = false): bool
     {
         $signature = app(LrtjSpacePortalSignatureService::class)->createRequesterSignature($ticket, $requester);
@@ -2392,7 +2410,10 @@ class TicketController extends Controller
             return;
         }
 
-        if ($this->attachRequesterSignature($ticket, $requester)) {
+        $attached = data_get($ticket->payload, 'request_type') === 'atk_rtk'
+            ? app(AtkRtkRequesterQr::class)->ensure($ticket)
+            : $this->attachRequesterSignature($ticket, $requester);
+        if ($attached) {
             $ticket->refresh();
             $ticket->loadMissing([
                 'requester.division',

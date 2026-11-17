@@ -473,8 +473,12 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         ]);
     }
 
-    public function test_logged_in_atk_request_persists_recipient_pic_from_form(): void
+    public function test_atk_submission_returns_ticket_number_before_the_requester_qr_is_created(): void
     {
+        config(['satset.portal_signatures.shared_secret' => 'atk-qr-test']);
+        if (! Schema::hasTable('jobs')) {
+            (require database_path('migrations/0001_01_01_000002_create_jobs_table.php'))->up();
+        }
         $now = ['created_at' => now(), 'updated_at' => now()];
         $priorityId = DB::table('priorities')->insertGetId(['name' => 'Medium', ...$now]);
         $impactId = DB::table('impacts')->insertGetId(['name' => 'Medium', ...$now]);
@@ -513,15 +517,26 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             'password' => 'secret',
         ]);
 
-        $this->mock(LrtjSpacePortalSignatureService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('createRequesterSignature')->once()->andReturnNull();
+        $approver = User::create([
+            'name' => 'Atasan ATK', 'email' => 'atasan.atk@lrtjakarta.co.id',
+            'username' => 'atasan.atk', 'phone' => '0', 'role' => 'manager', 'password' => 'secret',
+        ]);
+        $signatures = $this->mock(LrtjSpacePortalSignatureService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('createRequesterSignature')->twice()->andReturn([
+                'portal_signature_id' => 'atk-requester-qr',
+                'portal_signature_url' => 'https://portal.example.test/verify/atk-requester',
+            ]);
+        });
+        $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($approver): void {
+            $mock->shouldReceive('resolveFirstApprover')->once()->andReturn($approver);
         });
         $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
             $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
             $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
+            $mock->shouldReceive('notifyApprovalRequested')->once();
         });
 
-        $response = $this->actingAs($requester)->post(route('ticket.store'), [
+        $data = [
             'submission_token' => (string) Str::uuid(),
             'request_type' => 'atk_rtk',
             'category_id' => $categoryId,
@@ -537,13 +552,44 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
                 'delivery_location' => 'MCC',
                 'recipient_pic' => 'Budi PIC MCC',
             ],
-        ]);
+        ];
 
-        $response->assertRedirect(route('ticket.atk-rtk.create'))
-            ->assertSessionHasNoErrors();
+        $response = $this->actingAs($requester)->postJson(route('ticket.store'), $data)->assertCreated();
 
         $ticket = Ticket::where('requester_id', $requester->id)->firstOrFail();
+        $response->assertJsonPath('ticket_no', $ticket->ticket_no)->assertJsonPath('detail_url', route('ticket.show', $ticket));
         $this->assertSame('Budi PIC MCC', data_get($ticket->payload, 'recipient_pic'));
+        $this->assertNull(data_get($ticket->payload, 'portal_signatures.requester'));
+        $this->assertDatabaseMissing('approvals', ['request_id' => $ticket->id]);
+
+        $this->postJson(route('ticket.store'), $data)->assertOk()->assertJsonPath('ticket_no', $ticket->ticket_no);
+        $this->post(route('ticket.store'), $data)->assertRedirect(route('ticket.atk-rtk.create'));
+        $this->assertDatabaseCount('jobs', 1);
+
+        config(['bum.atk_rtk_manager_approval_threshold' => 8000]);
+        $public = $this->postJson(route('public.ticket.atk-rtk.store'), array_replace($data, [
+            'submission_token' => (string) Str::uuid(),
+            'reporter_name' => $requester->name,
+            'reporter_email' => $requester->email,
+        ]))->assertCreated()->assertJsonPath('detail_url', null);
+        $publicTicket = Ticket::where('ticket_no', $public->json('ticket_no'))->firstOrFail();
+        $this->assertDatabaseHas('approvals', ['request_id' => $publicTicket->id, 'status' => 'Pending']);
+        $this->assertDatabaseCount('jobs', 2);
+        $signatures->shouldNotHaveReceived('createRequesterSignature');
+
+        $ticket->updateQuietly(['payload' => array_replace($ticket->payload, ['bum_note' => 'Perubahan setelah submit'])]);
+        $this->artisan('queue:work', [
+            'connection' => GaSubmissionDelivery::CONNECTION,
+            '--queue' => GaSubmissionDelivery::QUEUE,
+            '--sleep' => 0,
+            '--stop-when-empty' => true,
+        ])->assertSuccessful();
+        $this->assertDatabaseCount('jobs', 0);
+        $this->assertDatabaseCount('failed_jobs', 0);
+        $this->assertSame('Perubahan setelah submit', data_get($ticket->fresh()->payload, 'bum_note'));
+        foreach ([$ticket, $publicTicket] as $created) {
+            $this->assertSame('atk-requester-qr', data_get($created->fresh()->payload, 'portal_signatures.requester.portal_signature_id'));
+        }
     }
 
     public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void

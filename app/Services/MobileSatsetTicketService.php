@@ -150,7 +150,9 @@ class MobileSatsetTicketService
                     'action' => 'Ticket dibuat dari LRTJ Space Mobile ('.$this->getRequestTypeLabel($requestType).')',
                 ]);
 
-                $this->attachRequesterSignature($ticket, $user, $requestType === 'consumption');
+                if (! app(AtkRtkRequesterQr::class)->queueForSubmission($ticket)) {
+                    $this->attachRequesterSignature($ticket, $user, $requestType === 'consumption');
+                }
 
                 if (data_get($payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL') {
                     $this->createManagerApproval($ticket);

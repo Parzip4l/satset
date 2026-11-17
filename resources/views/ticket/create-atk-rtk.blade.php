@@ -155,7 +155,17 @@
             @endunless
         </div>
 
-        <form action="{{ ($isPublic ?? false) ? route('public.ticket.atk-rtk.store') : route('ticket.store') }}" method="POST" id="atkRtkForm" data-ticket-submit-guard>
+        <section class="alert alert-success" id="atkSubmitSuccess" tabindex="-1" aria-labelledby="atkSubmitTitle" hidden>
+            <h4 class="alert-heading" id="atkSubmitTitle">Permintaan ATK/RTK tercatat</h4>
+            <p class="mb-2" data-atk-submit-message></p>
+            <p class="mb-3">Nomor tiket <strong data-atk-ticket-number></strong></p>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary" data-atk-ticket-link hidden>Lihat Tiket</a>
+                <a class="btn btn-light border" href="{{ ($isPublic ?? false) ? route('public.ticket.atk-rtk.create') : route('ticket.atk-rtk.create') }}">Ajukan Lagi</a>
+            </div>
+        </section>
+
+        <form action="{{ ($isPublic ?? false) ? route('public.ticket.atk-rtk.store') : route('ticket.store') }}" method="POST" id="atkRtkForm">
             @csrf
             <input type="hidden" name="submission_token" value="{{ old('submission_token', (string) \Illuminate\Support\Str::uuid()) }}">
             <input type="hidden" name="request_type" value="atk_rtk">
@@ -164,6 +174,8 @@
             <input type="hidden" name="impact_id" value="{{ $mediumImpactId ?? '' }}">
             <input type="hidden" name="urgency_id" value="{{ $mediumUrgencyId ?? '' }}">
             <input type="hidden" name="category_id" value="{{ old('category_id', $atkRtkCategoryId ?? ($categories[0]['id'] ?? '')) }}">
+            <div class="alert alert-danger" data-atk-submit-error role="alert" tabindex="-1" hidden></div>
+            <fieldset class="border-0 p-0 m-0">
 
             <div class="row g-4">
                 <div class="col-xl-8">
@@ -302,6 +314,7 @@
                     </div>
                 </div>
             </div>
+            </fieldset>
         </form>
     </div>
 </div>
@@ -311,7 +324,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="{{ asset('assets/js/ticket-submit-guard.js') }}"></script>
+<script src="{{ asset('assets/js/atk-rtk-submit.js') }}?v={{ filemtime(public_path('assets/js/atk-rtk-submit.js')) }}"></script>
 <script>
     let atkItemIndex = {{ count($oldItems) }};
 
