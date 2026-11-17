@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Jobs\CreateAtkRtkRequesterQr;
 use App\Models\Master\Ticket;
 use App\Support\GaSubmissionDelivery;
+use App\Support\GaSubmissionTiming;
 use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -20,7 +22,7 @@ class AtkRtkRequesterQr
         }
 
         if (filled(config('satset.portal_signatures.shared_secret'))) {
-            CreateAtkRtkRequesterQr::dispatch((int) $ticket->id, $ticket->ticket_no);
+            GaSubmissionTiming::measure('qr_enqueue', fn () => Bus::dispatch(new CreateAtkRtkRequesterQr((int) $ticket->id, $ticket->ticket_no)));
         }
 
         return true;

@@ -473,7 +473,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         ]);
     }
 
-    public function test_atk_submission_returns_ticket_number_before_portal_approval_and_requester_qr(): void
+    public function test_atk_submission_returns_ticket_number_before_portal_approval_qr_and_notifications(): void
     {
         config(['satset.portal_signatures.shared_secret' => 'atk-qr-test']);
         if (! Schema::hasTable('jobs')) {
@@ -530,8 +530,8 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $resolver = $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($approver): void {
             $mock->shouldReceive('resolveFirstApprover')->once()->andReturn($approver);
         });
-        $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
+        $notifications = $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('notifyTicketCreated')->withArgs(fn (Ticket $ticket, bool $background) => $background)->twice();
             $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
             $mock->shouldReceive('notifyApprovalRequested')->once();
         });
@@ -564,7 +564,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
 
         $this->postJson(route('ticket.store'), $data)->assertOk()->assertJsonPath('ticket_no', $ticket->ticket_no);
         $this->post(route('ticket.store'), $data)->assertRedirect(route('ticket.atk-rtk.create'));
-        $this->assertDatabaseCount('jobs', 1);
+        $this->assertDatabaseCount('jobs', 2);
 
         config(['bum.atk_rtk_manager_approval_threshold' => 8000]);
         $public = $this->postJson(route('public.ticket.atk-rtk.store'), array_replace($data, [
@@ -576,10 +576,15 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $public->assertJsonPath('message', 'Permintaan ATK/RTK berhasil disimpan. Satset sedang mencari atasan dari Portal.');
         $this->assertSame(SatsetInitialApprovalService::QUEUED, data_get($publicTicket->payload, 'manager_approval_setup'));
         $this->assertDatabaseMissing('approvals', ['request_id' => $publicTicket->id]);
-        $this->assertDatabaseCount('jobs', 3);
-        $this->assertStringNotContainsString('portal_approval', $public->headers->get('Server-Timing'));
+        $this->assertDatabaseCount('jobs', 5);
+        $timing = $public->headers->get('Server-Timing');
+        foreach (['satset_sql', 'queue_check', 'ticket_persist', 'approval_enqueue', 'qr_enqueue', 'ticket_notification_enqueue'] as $metric) {
+            $this->assertStringContainsString($metric.';dur=', $timing);
+        }
+        $this->assertStringNotContainsString('portal_approval', $timing);
         $resolver->shouldNotHaveReceived('resolveFirstApprover');
         $signatures->shouldNotHaveReceived('createRequesterSignature');
+        $notifications->shouldNotHaveReceived('notifyTicketCreated');
 
         $ticket->updateQuietly(['payload' => array_replace($ticket->payload, ['bum_note' => 'Perubahan setelah submit'])]);
         $this->artisan('queue:work', [

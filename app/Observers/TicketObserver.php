@@ -2,20 +2,31 @@
 
 namespace App\Observers;
 
+use App\Jobs\NotifyAtkRtkTicketCreated;
 use App\Models\Master\Status;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Support\GaSubmissionDelivery;
+use App\Support\GaSubmissionTiming;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
+use Illuminate\Support\Facades\Bus;
 
 class TicketObserver implements ShouldHandleEventsAfterCommit
 {
     public function created(Ticket $ticket): void
     {
         if (data_get($ticket->payload, 'it_workflow') === 'it_v1') return;
-        app(LrtjSpaceMobileNotificationService::class)
-            ->notifyTicketCreated($ticket->fresh(['requester', 'status']), GaSubmissionDelivery::usesQueue($ticket));
+
+        $usesQueue = GaSubmissionDelivery::usesQueue($ticket);
+        if ($usesQueue && data_get($ticket->payload, 'request_type') === 'atk_rtk') {
+            GaSubmissionTiming::measure('ticket_notification_enqueue', fn () => Bus::dispatch(new NotifyAtkRtkTicketCreated((int) $ticket->id, $ticket->ticket_no)));
+
+            return;
+        }
+
+        GaSubmissionTiming::measure('ticket_notifications', fn () => app(LrtjSpaceMobileNotificationService::class)
+            ->notifyTicketCreated($ticket->fresh(['requester', 'status']), $usesQueue));
     }
 
     public function updated(Ticket $ticket): void

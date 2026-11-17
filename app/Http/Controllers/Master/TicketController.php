@@ -32,6 +32,7 @@ use App\Services\SatsetPendingApprovalSyncService;
 use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
 use App\Support\GaSubmissionDelivery;
+use App\Support\GaSubmissionTiming;
 use App\Support\ItAccess;
 use App\Support\SatsetRequesterPolicy;
 use App\Support\ServiceDomains;
@@ -73,7 +74,7 @@ class TicketController extends Controller
         }
 
         try {
-            return [$create(), false];
+            return [GaSubmissionTiming::measure('ticket_persist', $create), false];
         } catch (QueryException $exception) {
             $existing = Ticket::where('submission_token', $submissionToken)->first();
 

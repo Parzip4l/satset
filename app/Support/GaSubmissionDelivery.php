@@ -16,8 +16,8 @@ final class GaSubmissionDelivery
     public static function usesQueue(Ticket $ticket): bool
     {
         return in_array(data_get($ticket->payload, 'request_type'), ['consumption', 'atk_rtk'], true)
-            && Schema::connection(config('queue.connections.database.connection'))
-                ->hasTable(config('queue.connections.database.table', 'jobs'));
+            && GaSubmissionTiming::measure('queue_check', fn () => Schema::connection(config('queue.connections.database.connection'))
+                ->hasTable(config('queue.connections.database.table', 'jobs')));
     }
 
     public static function sendMail(Ticket $ticket, string $email, string $recipientType): void

@@ -7,6 +7,7 @@ use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use App\Support\GaSubmissionDelivery;
+use App\Support\GaSubmissionTiming;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -29,7 +30,7 @@ class SatsetInitialApprovalService
         }
 
         if (data_get($ticket->payload, 'request_type') === 'atk_rtk' && $this->canQueue($ticket)) {
-            $this->enqueue($ticket);
+            GaSubmissionTiming::measure('approval_enqueue', fn () => $this->enqueue($ticket));
 
             return;
         }
