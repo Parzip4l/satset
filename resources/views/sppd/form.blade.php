@@ -20,7 +20,8 @@
     @include('sppd.messages')
 
     <form class="sppd-form-layout" id="sppd-form" method="POST" action="{{ $ticket ? route('sppd.update', $ticket) : route('sppd.store') }}"
-        data-preview-url="{{ $ticket ? route('sppd.preview-revision', $ticket) : route('sppd.preview') }}">
+        data-preview-url="{{ $ticket ? route('sppd.preview-revision', $ticket) : route('sppd.preview') }}"
+        data-profile-url="{{ route('sppd.profile') }}">
         @csrf
         <input type="hidden" name="preview_token" value="">
         @if($ticket)
@@ -37,14 +38,15 @@
                     <h2 id="sppd-employee-title">Pelaksana Perjalanan Dinas</h2>
                 </header>
                 <div class="sppd-panel-body sppd-field-grid">
+                    <p class="sppd-wide sppd-help mb-0" id="sppd-profile-status" role="status" hidden></p>
                     <div>
                         <label class="form-label" for="employee-name">Nama</label>
-                        <input class="form-control" id="employee-name" value="{{ $profile['name'] }}" readonly>
+                        <input class="form-control" id="employee-name" data-profile-field="name" value="{{ $profile['name'] }}" readonly>
                     </div>
                     @foreach(['nik' => 'NIK', 'position' => 'Jabatan', 'division' => 'Divisi', 'directorate' => 'Direktorat'] as $key => $label)
                         <div @class(['sppd-wide' => $key === 'directorate'])>
                             <label class="form-label" for="{{ $key }}">{{ $label }}</label>
-                            <input class="form-control" id="{{ $key }}" name="{{ $key }}" maxlength="{{ $key === 'nik' ? 40 : 100 }}"
+                            <input class="form-control" id="{{ $key }}" name="{{ $key }}" data-profile-field="{{ $key }}" maxlength="{{ $key === 'nik' ? 40 : 100 }}"
                                 value="{{ $profile[$key] ?: old($key, data_get($sppd, "profile.{$key}")) }}" @readonly(filled($profile[$key]))>
                         </div>
                     @endforeach
@@ -216,6 +218,7 @@
         const previewToken = form.elements.preview_token;
         let previewRequest;
         let pdfUrl;
+        let pendingProfile;
         const budget = form.querySelector('#sppd-costs');
         const otherCosts = form.querySelector('#sppd-other-costs');
         const otherCostTemplate = form.querySelector('#sppd-other-cost-template');
@@ -229,6 +232,41 @@
         const departure = form.elements.depart_on;
         const returnDate = form.elements.return_on;
         const duration = form.querySelector('#sppd-days');
+
+        async function loadRequesterProfile() {
+            const status = form.querySelector('#sppd-profile-status');
+            const fields = Array.from(form.querySelectorAll('[data-profile-field]'));
+            const initialValues = fields.map(field => field.value);
+            status.textContent = 'Mengambil profil dari Portal LRTJ Space…';
+            status.hidden = false;
+
+            try {
+                const response = await fetch(form.dataset.profileUrl, { headers: { Accept: 'application/json' } });
+                if (!response.ok) throw new Error();
+                const profile = await response.json();
+
+                const applyProfile = () => {
+                    fields.forEach((field, index) => {
+                        const value = profile[field.dataset.profileField];
+                        if (value != null && String(value).trim() && field.value === initialValues[index]) {
+                            field.value = value;
+                            field.readOnly = true;
+                        }
+                    });
+                    status.textContent = fields.some(field => !field.value.trim())
+                        ? 'Lengkapi kolom profil yang masih kosong.'
+                        : '';
+                    status.hidden = !status.textContent;
+                };
+                if (preview.open) {
+                    pendingProfile = applyProfile;
+                } else {
+                    applyProfile();
+                }
+            } catch {
+                status.textContent = 'Profil Portal belum bisa dimuat. Lengkapi kolom yang masih kosong.';
+            }
+        }
 
         function updateTotals() {
             let total = 0;
@@ -320,6 +358,8 @@
             previewToken.value = '';
             confirmPreview.disabled = true;
             preview.close();
+            pendingProfile?.();
+            pendingProfile = null;
         }
 
         preview.querySelector('[data-close-preview]').addEventListener('click', closePreview);
@@ -350,6 +390,7 @@
         [departure, returnDate].forEach(input => input.addEventListener('input', updateDuration));
         updateTotals();
         updateDuration();
+        loadRequesterProfile();
     })();
 </script>
 @endsection

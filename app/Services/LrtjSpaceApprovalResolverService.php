@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Support\GaSubmissionTiming;
 use App\Support\SatsetRequesterPolicy;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Arr;
@@ -135,8 +136,11 @@ class LrtjSpaceApprovalResolverService
         return ['requester' => $requester, 'approvers' => $approvers];
     }
 
-    public function resolveSppdRequester(Ticket $ticket): array
+    public function resolveSppdRequester(User $user): array
     {
+        $ticket = new Ticket(['payload' => ['request_type' => \App\Support\Sppd::TYPE]]);
+        $ticket->setRelation('requester', $user);
+
         return data_get($this->resolve($ticket, ['metadata' => ['purpose' => 'organization_sync']]), 'data.requester', []);
     }
 
@@ -183,7 +187,7 @@ class LrtjSpaceApprovalResolverService
                 $client = $client->withoutVerifying();
             }
 
-            $response = $client->withBody($body, 'application/json')->post($endpoint);
+            $response = GaSubmissionTiming::measure('portal_approval', fn () => $client->withBody($body, 'application/json')->post($endpoint));
         } catch (ConnectionException $exception) {
             Log::warning('LRTJ Space approval resolver connection failed.', [
                 'message' => $exception->getMessage(),

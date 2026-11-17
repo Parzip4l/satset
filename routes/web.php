@@ -24,6 +24,7 @@ use App\Http\Controllers\Setting\TicketDataController;
 use App\Http\Controllers\Setting\SppdServiceController;
 use App\Http\Controllers\SppdController;
 use App\Http\Middleware\EnsureSppdAcceptingRequests;
+use App\Http\Middleware\TraceGaSubmission;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -52,12 +53,12 @@ Route::get('/public/requests', [App\Http\Controllers\Master\TicketController::cl
 Route::get('/public/requests/konsumsi', [App\Http\Controllers\Master\TicketController::class, 'createPublicConsumption'])
     ->name('public.ticket.konsumsi.create');
 Route::post('/public/requests/konsumsi', [App\Http\Controllers\Master\TicketController::class, 'storePublicConsumption'])
-    ->middleware('throttle:30,1')
+    ->middleware(['throttle:30,1', TraceGaSubmission::class.':consumption'])
     ->name('public.ticket.konsumsi.store');
 Route::get('/public/requests/atk-rtk', [App\Http\Controllers\Master\TicketController::class, 'createPublicAtkRtk'])
     ->name('public.ticket.atk-rtk.create');
 Route::post('/public/requests/atk-rtk', [App\Http\Controllers\Master\TicketController::class, 'storePublicAtkRtk'])
-    ->middleware('throttle:30,1')
+    ->middleware(['throttle:30,1', TraceGaSubmission::class.':atk_rtk'])
     ->name('public.ticket.atk-rtk.store');
 Route::get('/public/requests/ga-permintaan-temuan', [App\Http\Controllers\Master\TicketController::class, 'createPublicGaRequestFinding'])
     ->name('public.ticket.ga-permintaan-temuan.alias');
@@ -102,6 +103,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
 
     Route::prefix('sppd')->name('sppd.')->controller(SppdController::class)->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::get('/profil', 'requesterProfile')->name('profile');
         Route::middleware(EnsureSppdAcceptingRequests::class)->group(function () {
             Route::get('/ajukan', 'create')->name('create');
             Route::post('/pratinjau', 'preview')->name('preview');
@@ -213,7 +215,8 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         ->name('ticket.approvals');
     Route::get('/tickets/{ticket}/attachments/{attachment}', [App\Http\Controllers\Master\TicketController::class, 'viewAttachment'])
         ->name('ticket.attachments.show');
-    Route::resource('ticket', App\Http\Controllers\Master\TicketController::class);
+    Route::resource('ticket', App\Http\Controllers\Master\TicketController::class)
+        ->middlewareFor('store', TraceGaSubmission::class);
     Route::put('/tickets/{ticket}/status', [App\Http\Controllers\Master\TicketController::class, 'updateStatus'])
         ->name('ticket.updateStatus');
     Route::post('/tickets/{ticket}/assign', [App\Http\Controllers\Master\TicketController::class, 'assign'])->name('ticket.assign');

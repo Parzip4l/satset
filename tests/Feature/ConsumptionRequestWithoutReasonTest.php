@@ -2,15 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Mail\TicketCreated;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use App\Services\LrtjSpaceApprovalResolverService;
 use App\Services\LrtjSpaceMobileNotificationService;
 use App\Services\LrtjSpacePortalSignatureService;
 use App\Services\SatsetInitialApprovalService;
+use App\Support\GaSubmissionDelivery;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -150,6 +153,12 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
     public function test_public_consumption_request_can_be_submitted_without_reason(): void
     {
         Mail::fake();
+        if (! Schema::hasTable('jobs')) {
+            (require database_path('migrations/0001_01_01_000002_create_jobs_table.php'))->up();
+        }
+        if (! Schema::hasTable('notifications')) {
+            (require database_path('migrations/2025_07_28_112236_create_notifications_table.php'))->up();
+        }
 
         $now = ['created_at' => now(), 'updated_at' => now()];
         DB::table('priorities')->insert(['name' => 'Medium', ...$now]);
@@ -168,20 +177,28 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             'password' => 'secret',
         ]);
 
-        $this->mock(LrtjSpacePortalSignatureService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('createRequesterSignature')->twice()->andReturn([
+        User::create([
+            'name' => 'Petugas GA', 'email' => 'ga@example.test', 'username' => 'ga',
+            'phone' => '0', 'role' => 'ga', 'password' => 'secret',
+        ]);
+        foreach (['portal_signatures', 'approval_resolver', 'lrtj_space_notifications'] as $service) {
+            config([
+                "satset.{$service}.base_url" => 'https://portal.example.test',
+                "satset.{$service}.shared_secret" => 'timing-test',
+            ]);
+        }
+        config(['satset.lrtj_space_notifications.enabled' => true]);
+        Http::preventStrayRequests();
+        Http::fake([
+            'portal.example.test/api/v1/signatures' => Http::response(['data' => ['signature' => [
                 'portal_signature_id' => 'signature-requester',
                 'portal_signature_url' => 'https://portal.example.test/signatures/requester',
-            ]);
-        });
-        $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($approver): void {
-            $mock->shouldReceive('resolveFirstApprover')->twice()->andReturn($approver);
-        });
-        $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('notifyTicketCreated')->zeroOrMoreTimes();
-            $mock->shouldReceive('notifyApprovalRequested')->twice();
-            $mock->shouldReceive('notifyTicketStatusChanged')->zeroOrMoreTimes();
-        });
+            ]]]),
+            'portal.example.test/api/v1/approval/resolve' => Http::response([
+                'data' => ['steps' => [['approver' => $approver->only(['email', 'name'])]]],
+            ]),
+            'portal.example.test/api/mobile/v1/satset/notifications' => Http::response(['ok' => true]),
+        ]);
 
         $submissionToken = (string) Str::uuid();
         $requestData = [
@@ -233,6 +250,14 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $response->assertRedirect(route('public.ticket.konsumsi.create'))
             ->assertSessionHasNoErrors()
             ->assertSessionHas('success');
+        $timing = $response->headers->get('Server-Timing');
+        $this->assertStringContainsString('portal_qr;dur=', $timing);
+        $this->assertStringContainsString('portal_approval;dur=', $timing);
+        $this->assertMatchesRegularExpression('/notification_enqueue;dur=[\d.]+;desc="4 calls"/', $timing);
+        $this->assertStringNotContainsString('portal_notification', $timing);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/satset/notifications'));
+        $this->assertSame(4, DB::table('jobs')->where('queue', GaSubmissionDelivery::QUEUE)->count());
+        $this->assertDatabaseCount('notifications', 4);
 
         $ticket = DB::table('requests')->first();
         $this->assertNotNull($ticket);
@@ -246,10 +271,25 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
 
         $duplicateResponse->assertRedirect(route('public.ticket.konsumsi.create'))
             ->assertSessionHas('success', fn (string $message) => str_contains($message, 'sudah tercatat'));
+        $this->assertStringNotContainsString('portal_qr', $duplicateResponse->headers->get('Server-Timing'));
         $this->assertSame(1, DB::table('requests')->where('submission_token', $submissionToken)->count());
         $this->assertSame(1, DB::table('ticket_histories')->where('ticket_id', $ticket->id)->count());
         $this->assertSame(1, DB::table('approvals')->where('request_id', $ticket->id)->count());
+        $this->assertSame(4, DB::table('jobs')->where('queue', GaSubmissionDelivery::QUEUE)->count());
+        $this->artisan('queue:work', [
+            'connection' => GaSubmissionDelivery::CONNECTION,
+            '--queue' => GaSubmissionDelivery::QUEUE,
+            '--sleep' => 0,
+            '--stop-when-empty' => true,
+        ])->assertSuccessful();
+        $this->assertDatabaseCount('jobs', 0);
+        $this->assertDatabaseCount('failed_jobs', 0);
+        Http::assertSentCount(6);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/satset/notifications')
+            && $request['event_type'] === 'ticket_approval_requested' && $request['recipient_email'] === $approver->email);
+        $this->assertDatabaseCount('notifications', 4);
 
+        config(['satset.ticket_email_notifications.enabled' => true]);
         $reporter = User::where('email', $requestData['reporter_email'])->firstOrFail();
         $loggedInResponse = $this->actingAs($reporter)->post(route('ticket.store'), [
             'submission_token' => (string) Str::uuid(),
@@ -273,6 +313,8 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $this->assertSame($requestData['payload']['event_date'], $loggedInPayload['event_date']);
         $this->assertSame($requestData['payload']['event_end_date'], $loggedInPayload['event_end_date']);
         Mail::assertNothingSent();
+        Mail::assertQueued(TicketCreated::class, fn (TicketCreated $mail) => $mail->hasTo($reporter->email)
+            && $mail->connection === GaSubmissionDelivery::CONNECTION && $mail->queue === GaSubmissionDelivery::QUEUE);
     }
 
     public function test_team_ga_requests_requiring_approval_wait_for_manager(): void

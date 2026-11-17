@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
+use App\Support\GaSubmissionDelivery;
 use Illuminate\Validation\ValidationException;
 
 class SatsetInitialApprovalService
@@ -43,7 +44,7 @@ class SatsetInitialApprovalService
         ]);
 
         if ($approval->wasRecentlyCreated) {
-            $this->notifications->notifyApprovalRequested($ticket, $approval);
+            $this->notifications->notifyApprovalRequested($ticket, $approval, GaSubmissionDelivery::usesQueue($ticket));
         }
 
         return $approval;

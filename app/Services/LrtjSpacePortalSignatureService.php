@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Support\GaSubmissionTiming;
 use App\Support\SatsetRequesterPolicy;
 use App\Support\Sppd;
 use Carbon\Carbon;
@@ -255,7 +256,7 @@ class LrtjSpacePortalSignatureService
                 $client = $client->withoutVerifying();
             }
 
-            $response = $client->withBody($body, 'application/json')->post($endpoint);
+            $response = GaSubmissionTiming::measure('portal_qr', fn () => $client->withBody($body, 'application/json')->post($endpoint));
         } catch (ConnectionException $exception) {
             Log::warning('Portal signature request failed.', [
                 'message' => $exception->getMessage(),

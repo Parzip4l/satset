@@ -6,6 +6,7 @@ use App\Models\Master\Status;
 use App\Models\Master\Ticket;
 use App\Models\User;
 use App\Services\LrtjSpaceMobileNotificationService;
+use App\Support\GaSubmissionDelivery;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 class TicketObserver implements ShouldHandleEventsAfterCommit
@@ -14,7 +15,7 @@ class TicketObserver implements ShouldHandleEventsAfterCommit
     {
         if (data_get($ticket->payload, 'it_workflow') === 'it_v1') return;
         app(LrtjSpaceMobileNotificationService::class)
-            ->notifyTicketCreated($ticket->fresh(['requester', 'status']));
+            ->notifyTicketCreated($ticket->fresh(['requester', 'status']), GaSubmissionDelivery::usesQueue($ticket));
     }
 
     public function updated(Ticket $ticket): void

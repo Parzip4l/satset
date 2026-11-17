@@ -43,6 +43,11 @@ class SppdWorkflow
         ];
     }
 
+    public function formProfile(User $user): array
+    {
+        return $this->mergeProfile($user, [], $this->resolver->resolveSppdRequester($user));
+    }
+
     public function submit(User $user, array $data): Ticket
     {
         $existing = $this->submittedTicket($user, $data['submission_token']);
@@ -163,15 +168,10 @@ class SppdWorkflow
         });
     }
 
-    public function preview(User $user, array $data, ?Ticket $ticket): array
+    public function preview(User $user, array $data): array
     {
         $sppd = $this->documentData($data, (int) ($data['version'] ?? 0) + 1);
-        $draft = new Ticket([
-            'ticket_no' => $ticket?->ticket_no,
-            'payload' => ['request_type' => Sppd::TYPE, 'total_estimated_amount' => $sppd['total_cents'] / 100],
-        ]);
-        $draft->setRelation('requester', $user);
-        $sppd['profile'] = $this->documentProfile($user, $data, $this->resolver->resolveSppdRequester($draft));
+        $sppd['profile'] = $this->documentProfile($user, $data, $this->resolver->resolveSppdRequester($user));
 
         return $sppd;
     }
@@ -213,10 +213,11 @@ class SppdWorkflow
         ];
     }
 
-    private function documentProfile(User $user, array $data, array $portal): array
+    private function mergeProfile(User $user, array $data, array $portal): array
     {
         $local = $this->profile($user);
-        $profile = [
+
+        return [
             'name' => data_get($portal, 'name') ?: $local['name'],
             'nik' => data_get($portal, 'employee_number') ?: ($local['nik'] ?: ($data['nik'] ?? null)),
             'position' => data_get($portal, 'position') ?: ($local['position'] ?: ($data['position'] ?? null)),
@@ -225,6 +226,11 @@ class SppdWorkflow
                 ?: (data_get($portal, 'organization.unit.type') === 'directorate' ? data_get($portal, 'organization.unit.name') : null)
                 ?: ($data['directorate'] ?? null),
         ];
+    }
+
+    private function documentProfile(User $user, array $data, array $portal): array
+    {
+        $profile = $this->mergeProfile($user, $data, $portal);
         $missing = array_filter($profile, fn ($value) => blank($value));
         if ($missing) {
             $labels = ['name' => 'Nama', 'nik' => 'NIK', 'position' => 'Jabatan', 'division' => 'Divisi', 'directorate' => 'Direktorat'];

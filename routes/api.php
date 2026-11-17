@@ -72,8 +72,10 @@ Route::prefix('mobile/v1/satset')->group(function () {
         Route::get('/tickets/{ticket}', [MobileSatsetTicketController::class, 'show']);
         Route::get('/tickets/{ticket}/history', [MobileSatsetTicketController::class, 'history']);
         Route::post('/tickets/general', [MobileSatsetTicketController::class, 'storeGeneral']);
-        Route::post('/tickets/consumption', [MobileSatsetTicketController::class, 'storeConsumption']);
-        Route::post('/tickets/atk-rtk', [MobileSatsetTicketController::class, 'storeAtkRtk']);
+        Route::post('/tickets/consumption', [MobileSatsetTicketController::class, 'storeConsumption'])
+            ->middleware(\App\Http\Middleware\TraceGaSubmission::class.':consumption');
+        Route::post('/tickets/atk-rtk', [MobileSatsetTicketController::class, 'storeAtkRtk'])
+            ->middleware(\App\Http\Middleware\TraceGaSubmission::class.':atk_rtk');
         Route::post('/tickets/ga-request-finding', [MobileSatsetTicketController::class, 'storeGaRequestFinding']);
         Route::post('/tickets/{ticket}/comments', [MobileSatsetTicketController::class, 'comment']);
         Route::post('/tickets/{ticket}/attachments', [MobileSatsetTicketController::class, 'uploadAttachment']);

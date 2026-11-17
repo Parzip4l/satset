@@ -42,6 +42,12 @@ class SppdController extends Controller
         return view('sppd.form', compact('ticket', 'sppd', 'profile', 'submissionToken'));
     }
 
+    public function requesterProfile(Request $request)
+    {
+        return response()->json($this->workflow->formProfile($request->user()))
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function store(Request $request)
     {
         $data = $this->formData($request);
@@ -139,7 +145,7 @@ class SppdController extends Controller
         $data = $this->formData($request, $ticket);
         abort_if($ticket && (int) $data['version'] !== (int) data_get($ticket->payload, 'sppd.version'), 409, 'Pengajuan sudah berubah. Muat ulang halaman SPPD.');
 
-        $bytes = $pdf->preview($this->workflow->preview($request->user(), $data, $ticket));
+        $bytes = $pdf->preview($this->workflow->preview($request->user(), $data));
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',

@@ -29,6 +29,7 @@ use App\Services\SatsetApprovalDecisionService;
 use App\Services\SatsetPendingApprovalSyncService;
 use App\Support\AtkRtkGoodsIssue;
 use App\Support\GaAccess;
+use App\Support\GaSubmissionDelivery;
 use App\Support\ItAccess;
 use App\Support\SatsetRequesterPolicy;
 use App\Support\ServiceDomains;
@@ -1045,9 +1046,8 @@ class TicketController extends Controller
         }
 
         try {
-            Mail::to($ticket->requester->email)
-                ->send(new TicketCreated($ticket, 'requester'));
-            Log::info("Email ticket public terkirim ke pengaju: {$ticket->requester->email}");
+            GaSubmissionDelivery::sendMail($ticket, $ticket->requester->email, 'requester');
+            Log::info("Email ticket public diproses untuk pengaju: {$ticket->requester->email}");
         } catch (\Exception $e) {
             Log::error("Gagal kirim email ticket public ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
         }
@@ -1061,9 +1061,8 @@ class TicketController extends Controller
         foreach ($departments as $dep) {
             if ($dep && $dep->email) {
                 try {
-                    Mail::to($dep->email)
-                        ->send(new TicketCreated($ticket, 'department'));
-                    Log::info("Email ticket public terkirim ke departemen: {$dep->email}");
+                    GaSubmissionDelivery::sendMail($ticket, $dep->email, 'department');
+                    Log::info("Email ticket public diproses untuk departemen: {$dep->email}");
                 } catch (\Exception $e) {
                     Log::error("Gagal kirim email ticket public ke departemen: {$dep->email}. Error: ".$e->getMessage());
                 }
@@ -1344,9 +1343,8 @@ class TicketController extends Controller
 
         if (! $duplicate && config('satset.ticket_email_notifications.enabled', false)) {
             try {
-                Mail::to($ticket->requester->email)
-                    ->send(new TicketCreated($ticket, 'requester'));
-                Log::info("Email ticket terkirim ke pengaju: {$ticket->requester->email}");
+                GaSubmissionDelivery::sendMail($ticket, $ticket->requester->email, 'requester');
+                Log::info("Email ticket diproses untuk pengaju: {$ticket->requester->email}");
             } catch (\Exception $e) {
                 Log::error("Gagal kirim email ke pengaju: {$ticket->requester->email}. Error: ".$e->getMessage());
             }
@@ -1356,9 +1354,8 @@ class TicketController extends Controller
             foreach ($departments as $dep) {
                 if ($dep && $dep->email) {
                     try {
-                        Mail::to($dep->email)
-                            ->send(new TicketCreated($ticket, 'department'));
-                        Log::info("Email ticket terkirim ke departemen: {$dep->email}");
+                        GaSubmissionDelivery::sendMail($ticket, $dep->email, 'department');
+                        Log::info("Email ticket diproses untuk departemen: {$dep->email}");
                     } catch (\Exception $e) {
                         Log::error("Gagal kirim email ke departemen: {$dep->email}. Error: ".$e->getMessage());
                     }

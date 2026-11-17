@@ -51,7 +51,10 @@ class SppdWorkflowTest extends TestCase
                         'name' => 'Pemohon Contoh',
                         'employee_number' => '001234',
                         'position' => 'Staf Operasional',
-                        'organization' => ['division' => ['name' => 'Operasi']],
+                        'organization' => [
+                            'division' => ['name' => 'Operasi'],
+                            'directorate' => ['name' => 'Direktorat Operasi dan Pengembangan'],
+                        ],
                     ],
                     'steps' => [['approver' => $this->person('manager')]],
                 ]]);
@@ -73,6 +76,25 @@ class SppdWorkflowTest extends TestCase
                 ]]]);
             },
         ]);
+    }
+
+    public function test_form_loads_and_fetches_the_current_requesters_portal_profile_separately(): void
+    {
+        $owner = $this->createUser('owner');
+        $this->actingAs($owner)->get(route('sppd.create'))->assertOk()->assertSee(route('sppd.profile'));
+        Http::assertNothingSent();
+
+        $this->getJson(route('sppd.profile', ['email' => 'other@example.test']))->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')
+            ->assertExactJson([
+                'name' => 'Pemohon Contoh',
+                'nik' => '001234',
+                'position' => 'Staf Operasional',
+                'division' => 'Operasi',
+                'directorate' => 'Direktorat Operasi dan Pengembangan',
+            ]);
+        Http::assertSent(fn (Request $request) => $request['requester_email'] === $owner->email
+            && $request['metadata']['purpose'] === 'organization_sync');
     }
 
     public function test_existing_sppd_can_be_revised_approved_and_downloaded_when_new_requests_are_closed(): void

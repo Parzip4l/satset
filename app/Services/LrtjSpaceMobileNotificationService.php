@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Jobs\DeliverGaSubmissionNotification;
 use App\Models\Master\Approval;
 use App\Models\Master\Notification as WebNotification;
 use App\Models\Master\Ticket;
 use App\Models\User;
+use App\Support\GaSubmissionTiming;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -14,7 +16,7 @@ use Illuminate\Support\Facades\Schema;
 
 class LrtjSpaceMobileNotificationService
 {
-    public function notifyTicketCreated(Ticket $ticket): void
+    public function notifyTicketCreated(Ticket $ticket, bool $background = false): void
     {
         $ticket->loadMissing(['requester', 'status']);
 
@@ -38,11 +40,10 @@ class LrtjSpaceMobileNotificationService
         $requesterEmail = $ticket->requester?->email;
         if ($requesterEmail && $this->acquireDedupe('ticket_created', $requesterEmail, (string) $ticket->id)) {
             $requesterPayload = array_merge($payload, ['recipient_email' => $requesterEmail]);
-            $this->recordWebNotification($ticket->requester, $title, $body, $ticket);
-            $this->send($requesterPayload);
+            $this->notifyRecipient($ticket, $ticket->requester, $requesterPayload, $background);
         }
 
-        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$requesterEmail]);
+        $this->notifyAdminAndGaRecipients($payload, $ticket, [$requesterEmail], $background);
     }
 
     public function notifyTicketStatusChanged(Ticket $ticket, ?User $actor = null, ?string $previousStatus = null): void
@@ -83,10 +84,10 @@ class LrtjSpaceMobileNotificationService
         ];
 
         $this->send($payload);
-        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$requester->email]);
+        $this->notifyAdminAndGaRecipients($payload, $ticket, [$requester->email]);
     }
 
-    public function notifyApprovalRequested(Ticket $ticket, Approval $approval): void
+    public function notifyApprovalRequested(Ticket $ticket, Approval $approval, bool $background = false): void
     {
         $approval->loadMissing('approver');
         $approver = $approval->approver;
@@ -101,8 +102,9 @@ class LrtjSpaceMobileNotificationService
         $title = 'Approval SatSet menunggu Anda';
         $body = "{$ticket->ticket_no} membutuhkan approval Anda.";
 
-        $this->recordWebNotification($approver, $title, $body, $ticket);
         if (\App\Support\Sppd::is($ticket)) {
+            $this->recordWebNotification($approver, $title, $body, $ticket);
+
             return;
         }
 
@@ -120,8 +122,8 @@ class LrtjSpaceMobileNotificationService
             'priority' => 'high',
         ];
 
-        $this->send($payload);
-        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$approver->email]);
+        $this->notifyRecipient($ticket, $approver, $payload, $background);
+        $this->notifyAdminAndGaRecipients($payload, $ticket, [$approver->email], $background);
     }
 
     public function notifyApprovalDecided(Ticket $ticket, Approval $approval, User $actor, string $status, ?string $note = null): void
@@ -166,7 +168,7 @@ class LrtjSpaceMobileNotificationService
         ];
 
         $this->send($payload);
-        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$requester->email]);
+        $this->notifyAdminAndGaRecipients($payload, $ticket, [$requester->email]);
     }
 
     public function notifyTicketAssigned(Ticket $ticket, ?User $assignedUser): void
@@ -198,15 +200,14 @@ class LrtjSpaceMobileNotificationService
         ];
 
         $this->send($payload);
-        $this->notifyAdminAndGaRecipients($payload, $title, $body, $ticket, [$assignedUser->email]);
+        $this->notifyAdminAndGaRecipients($payload, $ticket, [$assignedUser->email]);
     }
 
     private function notifyAdminAndGaRecipients(
         array $payload,
-        string $title,
-        string $message,
         Ticket $ticket,
         array $exceptEmails = [],
+        bool $background = false,
     ): void {
         // IT recipients are selected by the future IT domain event handler, never GA broadcast.
         if (\App\Support\ItAccess::isIt($ticket)) {
@@ -235,7 +236,7 @@ class LrtjSpaceMobileNotificationService
                 'operasional ga',
             ])
             ->get()
-            ->each(function (User $recipient) use ($payload, $title, $message, $ticket, $excluded): void {
+            ->each(function (User $recipient) use ($payload, $ticket, $excluded, $background): void {
                 if ($excluded->contains(strtolower((string) $recipient->email))) {
                     return;
                 }
@@ -250,12 +251,38 @@ class LrtjSpaceMobileNotificationService
                     return;
                 }
 
-                $this->recordWebNotification($recipient, $title, $message, $ticket);
-                $this->send($recipientPayload);
+                $this->notifyRecipient($ticket, $recipient, $recipientPayload, $background);
             });
     }
 
-    private function recordWebNotification(?User $recipient, string $title, string $message, Ticket $ticket): void
+    private function notifyRecipient(Ticket $ticket, User $recipient, array $payload, bool $background): void
+    {
+        $this->recordWebNotification($recipient, $payload['title'], $payload['body'], $ticket, ! $background);
+
+        if ($background) {
+            $mobileEnabled = config('satset.lrtj_space_notifications.enabled', true)
+                && filled(config('satset.lrtj_space_notifications.shared_secret'));
+            if (! $mobileEnabled && ! app(BrowserWebPushService::class)->configured()) {
+                return;
+            }
+
+            GaSubmissionTiming::measure('notification_enqueue', function () use ($ticket, $recipient, $payload): void {
+                DeliverGaSubmissionNotification::dispatch((int) $ticket->id, (int) $recipient->id, $payload);
+            });
+
+            return;
+        }
+
+        $this->send($payload);
+    }
+
+    public function deliverQueued(Ticket $ticket, User $recipient, array $payload): void
+    {
+        $this->sendBrowserPush($recipient, $payload['title'], $payload['body'], route('ticket.show', $ticket), $ticket);
+        $this->send($payload);
+    }
+
+    private function recordWebNotification(?User $recipient, string $title, string $message, Ticket $ticket, bool $browserPush = true): void
     {
         if (! $recipient?->id) {
             return;
@@ -273,11 +300,18 @@ class LrtjSpaceMobileNotificationService
             ]);
         }
 
-        app(BrowserWebPushService::class)->sendToUser($recipient, $title, $message, $url, [
+        if ($browserPush) {
+            $this->sendBrowserPush($recipient, $title, $message, $url, $ticket);
+        }
+    }
+
+    private function sendBrowserPush(User $recipient, string $title, string $message, string $url, Ticket $ticket): void
+    {
+        GaSubmissionTiming::measure('browser_push', fn () => app(BrowserWebPushService::class)->sendToUser($recipient, $title, $message, $url, [
             'ticket_id' => (string) $ticket->id,
             'ticket_no' => $ticket->ticket_no,
             'tag' => 'satset-ticket-'.$ticket->id,
-        ]);
+        ]));
     }
 
     private function send(array $payload): void
@@ -311,7 +345,7 @@ class LrtjSpaceMobileNotificationService
                 $client = $client->withoutVerifying();
             }
 
-            $response = $client->withBody($body, 'application/json')->post($endpoint);
+            $response = GaSubmissionTiming::measure('portal_notification', fn () => $client->withBody($body, 'application/json')->post($endpoint));
             if (! $response->successful()) {
                 Log::warning('LRTJ Space mobile notification bridge failed.', [
                     'status' => $response->status(),

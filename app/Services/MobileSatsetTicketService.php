@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Mail\TicketCreated;
 use App\Models\Master\Approval;
 use App\Models\Master\Attachment;
 use App\Models\Master\Comment;
@@ -19,6 +18,7 @@ use App\Models\Master\TicketHistory;
 use App\Models\Master\Urgency;
 use App\Models\User;
 use App\Support\GaAccess;
+use App\Support\GaSubmissionDelivery;
 use App\Support\TicketAccess;
 use App\Support\ItAccess;
 use App\Support\ServiceDomains;
@@ -29,7 +29,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -381,7 +380,7 @@ class MobileSatsetTicketService
         }
 
         try {
-            Mail::to($ticket->requester->email)->send(new TicketCreated($ticket, 'requester'));
+            GaSubmissionDelivery::sendMail($ticket, $ticket->requester->email, 'requester');
         } catch (\Exception $exception) {
             Log::error('Gagal kirim email ticket mobile ke pengaju: '.$exception->getMessage());
         }
@@ -396,7 +395,7 @@ class MobileSatsetTicketService
                     return;
                 }
                 try {
-                    Mail::to($department->email)->send(new TicketCreated($ticket, 'department'));
+                    GaSubmissionDelivery::sendMail($ticket, $department->email, 'department');
                 } catch (\Exception $exception) {
                     Log::error('Gagal kirim email ticket mobile ke departemen: '.$exception->getMessage());
                 }
