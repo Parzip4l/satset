@@ -38,6 +38,14 @@ class SppdServiceController extends Controller
         );
     }
 
+    public function updatePolicy(Request $request)
+    {
+        $data = $request->validate(['sppd_policy_url' => ['nullable', 'url:http,https', 'max:2000']]);
+        $this->service()->update(['sppd_policy_url' => $data['sppd_policy_url'] ?? null]);
+
+        return redirect()->route('settings.sppd-service.index')->with('success', 'Tautan SK Perjalanan Dinas disimpan.');
+    }
+
     private function service(): ServiceDomain
     {
         $service = Schema::hasTable('service_domains')

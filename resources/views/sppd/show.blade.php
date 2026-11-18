@@ -31,6 +31,7 @@
                     'Pelaksana' => $sppd['profile']['name'],
                     'NIK' => $sppd['profile']['nik'],
                     'Jabatan' => $sppd['profile']['position'],
+                    'Job Level' => $sppd['profile']['job_level'] ?? '-',
                     'Divisi' => $sppd['profile']['division'],
                     'Direktorat' => $sppd['profile']['directorate'],
                     'Kategori' => \App\Support\Sppd::CATEGORIES[$sppd['category']],
@@ -38,14 +39,28 @@
                     'Ke' => $sppd['destination'],
                     'Tanggal Berangkat' => $sppd['depart_on'],
                     'Tanggal Kembali' => $sppd['return_on'],
-                    'Jumlah Hari' => $sppd['days'],
+                    'Total Hari' => $sppd['days'],
+                    'Jenis Perjalanan Luar Negeri' => \App\Support\Sppd::INTERNATIONAL_PURPOSES[$sppd['international_purpose'] ?? null] ?? null,
+                    'Prakiraan Suhu Terendah' => isset($sppd['forecast_temperature']) ? $sppd['forecast_temperature'].' °C' : null,
                     'Keperluan' => $sppd['purpose'],
                 ] as $label => $value)
-                    <dt class="col-sm-3">{{ $label }}</dt><dd class="col-sm-9 text-break" style="white-space: pre-line">{{ $value }}</dd>
+                    @if($value !== null)
+                        <dt class="col-sm-3">{{ $label }}</dt><dd class="col-sm-9 text-break" style="white-space: pre-line">{{ $value }}</dd>
+                    @endif
+                @endforeach
+                @foreach(\App\Support\Sppd::ATTACHMENTS as $key => $label)
+                    @if($name = data_get($sppd, "attachments.{$key}.name"))
+                        <dt class="col-sm-3">{{ $label }}</dt>
+                        <dd class="col-sm-9 text-break"><a href="{{ route('sppd.attachment', [$ticket, $key]) }}">{{ $name }}</a></dd>
+                    @endif
                 @endforeach
             </dl>
         </div>
     </div>
+
+    @if($revision = $sppd['budget_revision'] ?? null)
+        <div class="alert alert-info">Admin mengusulkan perubahan nominal. Pemohon perlu meninjau dan mengajukan ulang.<br><strong>Alasan</strong> {{ $revision['reason'] }}</div>
+    @endif
 
     <div class="card mb-3">
         <div class="card-header"><h5 class="mb-0">Rencana Anggaran Biaya Perjalanan Dinas</h5></div>
@@ -55,6 +70,9 @@
                 <h6>Catatan Tambahan</h6>
                 @include('sppd.notes')
             </div>
+        @endif
+        @if(\App\Support\AccountAccess::isAdmin(auth()->user()) && $approvals->whereIn('id', $sppd['approvals'])->contains('status', 'Pending'))
+            @include('sppd.budget-revision')
         @endif
     </div>
 

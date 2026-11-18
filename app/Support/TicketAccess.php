@@ -14,7 +14,7 @@ final class TicketAccess
         }
 
         if (Sppd::is($ticket)) {
-            return SppdAccess::isOperator($user)
+            return SppdAccess::canConfigure($user)
                 || (int) $ticket->requester_id === (int) $user->id
                 || $ticket->approvals()->where('approver_id', $user->id)->exists();
         }

@@ -2,8 +2,10 @@
 
 namespace App\Support;
 
+use App\Models\Master\ServiceDomain;
 use App\Models\Master\Ticket;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Schema;
 
 final class Sppd
 {
@@ -29,6 +31,55 @@ final class Sppd
     public const OTHER_COST_NUMBER = '6';
 
     public const EMPLOYEE_COST_ROWS = [33, 34, 35, 36];
+
+    public const WINTER_COST = 39;
+
+    public const PROVIDER_ROWS = [30, 31, 32];
+
+    public const PROVIDERS = [
+        'ga' => 'Support by GA',
+        'organizer' => 'Provided by Organizer',
+        'reimburse' => 'Reimburse',
+    ];
+
+    public const INTERNATIONAL_PURPOSES = [
+        'education' => 'Training / Pelatihan / Seminar / Pengembangan Diri',
+        'official' => 'Jabatan',
+    ];
+
+    public const ATTACHMENTS = [
+        'invitation' => 'Undangan / Disposisi / Memo',
+        'assignment' => 'Surat Tugas',
+        'forecast' => 'Screenshot prakiraan cuaca',
+    ];
+
+    public const COST_AMOUNT = 'regex:/^[0-9]{1,10}(\.[0-9]{1,2})?$/D';
+
+    public static function costRows(bool $international): array
+    {
+        return $international ? self::COSTS + [self::WINTER_COST => ['7', 'Pakaian Musim Dingin']] : self::COSTS;
+    }
+
+    public static function employeeCost(array $cost, int $row): bool
+    {
+        return filled($cost['provider'] ?? null)
+            ? $cost['provider'] === 'reimburse'
+            : in_array($row, self::EMPLOYEE_COST_ROWS, true) || $row === self::WINTER_COST;
+    }
+
+    public static function policyUrl(): ?string
+    {
+        return Schema::hasColumn('service_domains', 'sppd_policy_url')
+            ? ServiceDomain::where('code', self::TYPE)->value('sppd_policy_url')
+            : null;
+    }
+
+    public static function benefits(?string $grade): array
+    {
+        $rates = config('sppd.grade_benefits', []);
+
+        return $grade === null ? [] : ($rates[$grade] ?? []);
+    }
 
     public const STAGES = [
         0 => ['Diajukan Oleh', 'Pelaksana Perjalanan Dinas', 'requester'],

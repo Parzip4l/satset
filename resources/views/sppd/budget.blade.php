@@ -1,32 +1,38 @@
+@php
+    $international = $sppd['category'] === 'international';
+    $columns = $international ? 5 : 4;
+@endphp
+@if(filled($sppd['exchange_rate'] ?? null))
+    <p class="sppd-rate">
+        Kurs acuan <a href="{{ \App\Services\SppdExchangeRate::SOURCE }}">ECB</a>
+        {{ $sppd['exchange_rate']['date'] }} · 1 USD = {{ \App\Support\Sppd::rupiah((int) round($sppd['exchange_rate']['idr_per_usd'] * 100)) }}
+    </p>
+@endif
 <table class="{{ $tableClass }}">
     <thead>
-        <tr><th rowspan="2">No.</th><th rowspan="2">Pengeluaran</th><th colspan="2">Rincian Biaya</th><th rowspan="2">Keterangan</th></tr>
-        <tr><th>Mata Uang</th><th>Biaya</th></tr>
+        <tr>
+            <th style="width: 6%">No.</th>
+            <th style="width: 30%">Pengeluaran</th>
+            @if($international)<th style="width: 14%">Biaya (USD)</th>@endif
+            <th style="width: 22%">Biaya (IDR)</th>
+            <th>Keterangan</th>
+        </tr>
     </thead>
     <tbody>
-    @foreach(\App\Support\Sppd::COSTS as $row => [$number, $label])
-        <tr>
-            <td style="width: 6%">{{ $number }}</td>
-            <td style="width: 39%">{{ $label }}</td>
-            <td style="width: 12%">{{ $row === 31 && empty($sppd['costs'][$row]['cents']) ? '' : 'Rp' }}</td>
-            <td style="width: 19%" class="amount">{{ number_format($sppd['costs'][$row]['cents'] / 100, $sppd['costs'][$row]['cents'] % 100 === 0 ? 0 : 2, ',', '.') }}</td>
-            <td style="width: 24%">{{ $sppd['costs'][$row]['note'] }}</td>
-        </tr>
-    @endforeach
+        @foreach(\App\Support\Sppd::COSTS as $row => [$number, $label])
+            @include('sppd.budget-row', ['expense' => $sppd['costs'][$row] ?? []])
+        @endforeach
         <tr>
             <td>{{ \App\Support\Sppd::OTHER_COST_NUMBER }}</td>
-            <th scope="row" colspan="4">Lain-lain</th>
+            <th scope="row" colspan="{{ $columns - 1 }}">Lain-lain</th>
         </tr>
         @foreach(\App\Support\Sppd::otherCosts($sppd) as $expense)
-            <tr>
-                <td>{{ \App\Support\Sppd::OTHER_COST_NUMBER }}.{{ $loop->iteration }}</td>
-                <td>{{ $expense['label'] }}</td>
-                <td>Rp</td>
-                <td class="amount">{{ number_format($expense['cents'] / 100, $expense['cents'] % 100 === 0 ? 0 : 2, ',', '.') }}</td>
-                <td>{{ $expense['note'] }}</td>
-            </tr>
+            @include('sppd.budget-row', ['number' => \App\Support\Sppd::OTHER_COST_NUMBER.'.'.$loop->iteration, 'label' => $expense['label']])
         @endforeach
-        <tr><th colspan="3">Jumlah Keseluruhan</th><td class="amount"><strong>{{ \App\Support\Sppd::rupiah($sppd['total_cents']) }}</strong></td><td></td></tr>
-        <tr><th colspan="3">Jumlah yang dibayarkan ke karyawan</th><td class="amount"><strong>{{ \App\Support\Sppd::rupiah($sppd['employee_cents']) }}</strong></td><td></td></tr>
+        @if($international && isset($sppd['costs'][\App\Support\Sppd::WINTER_COST]))
+            @include('sppd.budget-row', ['number' => '7', 'label' => 'Pakaian Musim Dingin', 'expense' => $sppd['costs'][\App\Support\Sppd::WINTER_COST]])
+        @endif
+        <tr><th colspan="{{ $columns - 2 }}">Jumlah Keseluruhan</th><td class="amount"><strong>{{ \App\Support\Sppd::rupiah($sppd['total_cents']) }}</strong></td><td></td></tr>
+        <tr><th colspan="{{ $columns - 2 }}">Jumlah yang dibayarkan ke karyawan</th><td class="amount"><strong>{{ \App\Support\Sppd::rupiah($sppd['employee_cents']) }}</strong></td><td></td></tr>
     </tbody>
 </table>

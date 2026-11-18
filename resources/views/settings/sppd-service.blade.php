@@ -31,5 +31,18 @@
             </form>
         </div>
     </section>
+    <section class="card border mt-3">
+        <div class="card-body p-4">
+            <h2 class="h5">Acuan SK Perjalanan Dinas</h2>
+            <form action="{{ route('settings.sppd-service.policy') }}" method="POST">
+                @csrf
+                @method('PUT')
+                <label class="form-label" for="sppd-policy-url">Tautan SK Perjalanan Dinas</label>
+                <input class="form-control" id="sppd-policy-url" name="sppd_policy_url" type="url" maxlength="2000"
+                    value="{{ old('sppd_policy_url', $service->sppd_policy_url) }}">
+                <button class="btn btn-primary mt-3" type="submit">Simpan Tautan</button>
+            </form>
+        </div>
+    </section>
 </div>
 @endsection

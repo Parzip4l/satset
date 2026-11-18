@@ -29,6 +29,13 @@ return [
     */
 
     'disks' => [
+        'sppd_private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/sppd-attachments'),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
         'it_private' => [
             'driver' => 'local', 'root' => storage_path('app/private/it-attachments'),
             'visibility' => 'private', 'throw' => true,

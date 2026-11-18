@@ -471,3 +471,13 @@
 [data-bs-theme="dark"] .sppd-back {
     color: #e7eaef;
 }
+
+.sppd-form-page [hidden] {
+    display: none !important;
+}
+
+.sppd-cost-fields {
+    display: grid;
+    gap: .4rem;
+    min-width: 0;
+}

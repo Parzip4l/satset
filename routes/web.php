@@ -88,6 +88,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         ->controller(SppdServiceController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::put('/', 'update')->name('update');
+            Route::put('/sk', 'updatePolicy')->name('policy');
         });
     Route::prefix('settings/ticket-data')->name('settings.ticket-data.')->middleware('admin.only')->group(function () {
         Route::get('/', [TicketDataController::class, 'index'])->name('index');
@@ -104,6 +105,7 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::prefix('sppd')->name('sppd.')->controller(SppdController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/profil', 'requesterProfile')->name('profile');
+        Route::get('/kurs', 'exchangeRate')->name('exchange-rate');
         Route::middleware(EnsureSppdAcceptingRequests::class)->group(function () {
             Route::get('/ajukan', 'create')->name('create');
             Route::post('/pratinjau', 'preview')->name('preview');
@@ -113,6 +115,8 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::get('/{ticket}/revisi', 'edit')->name('edit');
         Route::post('/{ticket}/revisi/pratinjau', 'previewRevision')->name('preview-revision');
         Route::put('/{ticket}', 'update')->name('update');
+        Route::put('/{ticket}/anggaran', 'proposeBudget')->middleware('admin.only')->name('propose-budget');
+        Route::get('/{ticket}/lampiran/{kind}', 'attachment')->name('attachment');
         Route::post('/{ticket}/persetujuan/{approval}', 'decide')->name('decide');
         Route::get('/{ticket}/pdf', 'download')->name('pdf');
     });

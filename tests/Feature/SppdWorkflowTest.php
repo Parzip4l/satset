@@ -99,6 +99,8 @@ class SppdWorkflowTest extends TestCase
                 'position' => 'Staf Operasional',
                 'division' => 'Operasi',
                 'directorate' => 'Direktorat Operasi dan Pengembangan',
+                'job_level' => null,
+                'benefits' => [],
             ]);
         Http::assertSent(fn (Request $request) => $request['requester_email'] === $owner->email
             && $request['metadata']['purpose'] === 'organization_sync');
@@ -417,6 +419,105 @@ class SppdWorkflowTest extends TestCase
 
         $this->actingAs($owner)->post(route('sppd.store'), $reviewed)->assertRedirect();
         $this->assertDatabaseCount('requests', 1);
+    }
+
+    public function test_international_budget_locks_usd_rate_and_keeps_required_attachments_private(): void
+    {
+        Storage::fake('sppd_private');
+        Http::fake([
+            'www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml' => Http::response(
+                '<Envelope xmlns="http://www.ecb.int/vocabulary/2002-08-01/eurofxref"><Cube><Cube time="2026-11-17"><Cube currency="USD" rate="1.25"/><Cube currency="IDR" rate="20000.00"/></Cube></Cube></Envelope>',
+            ),
+        ]);
+        config([
+            'sppd.employee_grades' => ['001234' => 'G-4'],
+            'sppd.grade_benefits' => ['G-4' => ['international' => [35 => ['idr' => 50000, 'per_day' => true]]]],
+        ]);
+        $admin = $this->createUser('admin');
+        $admin->update(['role' => 'admin']);
+        $policy = 'https://portal.example.test/sk-perdin';
+        $this->actingAs($admin)->put(route('settings.sppd-service.policy'), ['sppd_policy_url' => $policy])->assertRedirect();
+        $owner = $this->createUser('owner');
+        $this->actingAs($owner)->get(route('sppd.create'))->assertOk()->assertSee($policy)->assertSee('Job Level');
+        $this->getJson(route('sppd.profile'))
+            ->assertOk()->assertJsonPath('job_level', 'G-4')
+            ->assertJsonPath('benefits.international.35.idr', 50000);
+
+        $data = array_replace($this->input(), [
+            'category' => 'international',
+            'destination' => 'Tokyo',
+            'international_purpose' => 'education',
+            'forecast_temperature' => '14.5',
+            'costs' => [
+                30 => ['usd_amount' => '25.00', 'provider' => 'reimburse'],
+                31 => ['amount' => '12000', 'provider' => 'ga'],
+                Sppd::WINTER_COST => ['amount' => '100000'],
+            ],
+            'other_costs' => [['label' => 'Parkir', 'usd_amount' => '1.50']],
+        ]);
+        $this->postJson(route('sppd.preview'), $data)->assertUnprocessable()->assertJsonValidationErrors('uploads.forecast');
+        $this->postJson(route('sppd.preview'), array_replace($data, ['forecast_temperature' => '15']))
+            ->assertUnprocessable()->assertJsonValidationErrors('forecast_temperature');
+        $data['uploads'] = [
+            'invitation' => UploadedFile::fake()->create('undangan.pdf', 10, 'application/pdf'),
+            'assignment' => UploadedFile::fake()->create('surat-tugas.pdf', 10, 'application/pdf'),
+            'forecast' => UploadedFile::fake()->image('prakiraan.png'),
+        ];
+        $reviewed = $this->withPreview($data);
+        $this->assertDatabaseCount('attachments', 0);
+        $this->postJson(route('sppd.store'), array_replace($reviewed, ['uploads' => [
+            ...$data['uploads'],
+            'forecast' => UploadedFile::fake()->image('prakiraan.png', 30, 30),
+        ]]))->assertUnprocessable()->assertJsonValidationErrors('preview_token');
+
+        \Illuminate\Support\Facades\Cache::forget('sppd:ecb-usd-idr');
+        $this->post(route('sppd.store'), $reviewed)->assertRedirect();
+        Http::assertSentCount(7);
+        $ticket = Ticket::sole();
+        $sppd = $ticket->payload['sppd'];
+        $this->assertSame('G-4', $sppd['profile']['job_level']);
+        $this->assertEquals(16000, $sppd['exchange_rate']['idr_per_usd']);
+        $this->assertSame(2500, $sppd['costs'][30]['usd_cents']);
+        $this->assertSame(53600000, $sppd['total_cents']);
+        $this->assertSame(50000000, $sppd['employee_cents']);
+        $this->assertDatabaseCount('attachments', 3);
+        $attachment = $ticket->attachments()->where('attachment_type', 'sppd_forecast')->sole();
+        Storage::disk('sppd_private')->assertExists($attachment->file_path);
+        $url = route('sppd.attachment', [$ticket, 'forecast']);
+        $this->get($url)->assertDownload('prakiraan.png');
+        $this->get(route('ticket.attachments.show', [$ticket, $attachment]))->assertNotFound();
+        $this->actingAs($this->createUser('unrelated'))->get($url)->assertForbidden();
+    }
+
+    public function test_admin_budget_change_requires_requester_confirmation_and_a_new_approval(): void
+    {
+        $owner = $this->createUser('owner');
+        $this->actingAs($owner);
+        $data = $this->input();
+        $this->post(route('sppd.store'), $this->withPreview($data))->assertRedirect();
+        $ticket = Ticket::sole();
+        $pending = $ticket->approvals()->sole();
+        $url = route('sppd.propose-budget', $ticket);
+        $proposal = ['version' => 1, 'reason' => 'Koreksi tarif hotel', 'costs' => [30 => '300000']];
+        $this->put($url, $proposal)->assertForbidden();
+
+        $admin = $this->createUser('admin');
+        $admin->update(['role' => 'admin']);
+        $this->actingAs($admin)->get(route('sppd.show', $ticket))->assertOk()->assertSee('Revisi Nominal Anggaran');
+        $this->put($url, $proposal)->assertRedirect(route('sppd.show', $ticket));
+        $this->assertSame('revision_requested', $pending->fresh()->status);
+        $this->assertSame(45000050, data_get($ticket->fresh()->payload, 'sppd.costs.30.cents'));
+        $this->assertDatabaseHas('approval_audits', ['approver_id' => $admin->id, 'comment' => 'Koreksi tarif hotel']);
+        $this->actingAs($pending->approver)->post(route('sppd.decide', [$ticket, $pending]), ['decision' => 'approved'])->assertConflict();
+
+        $this->actingAs($owner)->get(route('sppd.edit', $ticket))->assertOk()->assertSee('300000.00')->assertSee('Koreksi tarif hotel');
+        $data['costs'][30]['amount'] = '300000';
+        $this->put(route('sppd.update', $ticket), $this->withPreview($data + ['version' => 1], $ticket))
+            ->assertRedirect(route('sppd.show', $ticket));
+        $ticket->refresh();
+        $this->assertSame(30000000, data_get($ticket->payload, 'sppd.costs.30.cents'));
+        $this->assertSame(2, data_get($ticket->payload, 'sppd.version'));
+        $this->assertSame(1, (int) $ticket->approvals()->where('status', 'Pending')->sole()->level);
     }
 
     private function withPreview(array $data, ?Ticket $ticket = null): array

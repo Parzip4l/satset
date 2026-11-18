@@ -18,10 +18,16 @@
     </header>
 
     @include('sppd.messages')
+    @if($policyUrl = \App\Support\Sppd::policyUrl())
+        <p><a href="{{ $policyUrl }}" target="_blank" rel="noopener noreferrer">Buka SK Perjalanan Dinas</a></p>
+    @endif
+    @if($reason = data_get($sppd, 'budget_revision.reason'))
+        <p class="alert alert-info">Usulan nominal admin sudah dimasukkan ke formulir. Periksa sebelum mengajukan ulang.<br><strong>Alasan</strong> {{ $reason }}</p>
+    @endif
 
-    <form class="sppd-form-layout" id="sppd-form" method="POST" action="{{ $ticket ? route('sppd.update', $ticket) : route('sppd.store') }}"
+    <form class="sppd-form-layout" id="sppd-form" method="POST" enctype="multipart/form-data" action="{{ $ticket ? route('sppd.update', $ticket) : route('sppd.store') }}"
         data-preview-url="{{ $ticket ? route('sppd.preview-revision', $ticket) : route('sppd.preview') }}"
-        data-profile-url="{{ route('sppd.profile') }}">
+        data-profile-url="{{ route('sppd.profile') }}" data-exchange-url="{{ route('sppd.exchange-rate') }}">
         @csrf
         <input type="hidden" name="preview_token" value="">
         @if($ticket)
@@ -50,6 +56,11 @@
                                 value="{{ $profile[$key] ?: old($key, data_get($sppd, "profile.{$key}")) }}" @readonly(filled($profile[$key]))>
                         </div>
                     @endforeach
+                    <div>
+                        <label class="form-label" for="job-level">Job Level</label>
+                        <input class="form-control" id="job-level" data-profile-field="job_level"
+                            value="{{ $profile['job_level'] ?? data_get($sppd, 'profile.job_level') }}" placeholder="Belum tersedia" readonly>
+                    </div>
                 </div>
             </section>
 
@@ -75,10 +86,26 @@
                                 value="{{ old($key, $sppd[$key] ?? '') }}" maxlength="120" required>
                         </div>
                     @endforeach
+                    <div>
+                        <label class="form-label" for="sppd-trip-days">Total Hari Perjalanan Dinas</label>
+                        <output class="form-control" id="sppd-trip-days" for="depart_on return_on">{{ isset($sppd['days']) ? $sppd['days'].' hari' : '-' }}</output>
+                    </div>
+                    <div class="sppd-wide" data-sppd-international hidden>
+                        <label class="form-label" for="international-purpose">Jenis Perjalanan Dinas Luar Negeri</label>
+                        <select class="form-select" id="international-purpose" name="international_purpose" required>
+                            <option value="">Pilih jenis perjalanan</option>
+                            @foreach(\App\Support\Sppd::INTERNATIONAL_PURPOSES as $key => $label)
+                                <option value="{{ $key }}" @selected(old('international_purpose', $sppd['international_purpose'] ?? '') === $key)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="sppd-wide">
                         <label class="form-label" for="purpose">Keperluan Perjalanan Dinas <span class="sppd-required" aria-hidden="true">*</span></label>
                         <textarea class="form-control" id="purpose" name="purpose" rows="3" maxlength="700" required>{{ old('purpose', $sppd['purpose'] ?? '') }}</textarea>
                     </div>
+                    @foreach(array_diff_key(\App\Support\Sppd::ATTACHMENTS, ['forecast' => true]) as $key => $label)
+                        @include('sppd.upload', ['key' => $key, 'label' => $label, 'accept' => '.pdf,.jpg,.jpeg,.png,.webp'])
+                    @endforeach
                 </div>
             </section>
 
@@ -87,26 +114,19 @@
                     <span class="sppd-section-icon"><i class="bi bi-receipt" aria-hidden="true"></i></span>
                     <h2 id="sppd-budget-title">Rencana Anggaran</h2>
                 </header>
+                <div class="sppd-panel-body pb-0">
+                    <button class="btn btn-sm btn-outline-primary" type="button" id="sppd-apply-benefits" hidden>Terapkan benefit grade</button>
+                    <div data-sppd-international hidden>
+                        <p class="sppd-help mb-1">Isi setiap pengeluaran dalam rupiah atau USD. Estimasi kurs tampil di bawah.</p>
+                        <p class="sppd-help" id="sppd-exchange-status" role="status"></p>
+                    </div>
+                </div>
                 <div class="sppd-expenses" id="sppd-costs">
                     <div class="sppd-expense-head" aria-hidden="true">
                         <span>No.</span><span>Pengeluaran</span><span>Biaya</span><span>Keterangan</span>
                     </div>
                     @foreach(\App\Support\Sppd::COSTS as $row => [$number, $label])
-                        <div class="sppd-expense">
-                            <span class="sppd-expense-number">{{ $number }}</span>
-                            <label class="sppd-expense-name" for="amount-{{ $row }}">
-                                {{ $label }}
-                                <span class="visually-hidden">nomor {{ $number }}, biaya dalam rupiah</span>
-                            </label>
-                            <div class="sppd-money">
-                                <span aria-hidden="true">Rp</span>
-                                <input class="form-control" id="amount-{{ $row }}" name="costs[{{ $row }}][amount]" type="number" inputmode="decimal"
-                                    min="0" max="9999999999.99" step="0.01" data-cost="{{ $row }}" data-budget-amount placeholder="0"
-                                    value="{{ old("costs.{$row}.amount", isset($sppd['costs'][$row]) ? number_format($sppd['costs'][$row]['cents'] / 100, 2, '.', '') : '') }}">
-                            </div>
-                            <input class="form-control sppd-expense-note" aria-label="Keterangan {{ $label }} nomor {{ $number }}" name="costs[{{ $row }}][note]" maxlength="90"
-                                value="{{ old("costs.{$row}.note", data_get($sppd, "costs.{$row}.note")) }}">
-                        </div>
+                        @include('sppd.cost-row')
                     @endforeach
                     <div class="sppd-expense sppd-other-heading">
                         <span class="sppd-expense-number">{{ \App\Support\Sppd::OTHER_COST_NUMBER }}</span>
@@ -118,7 +138,12 @@
                     @php
                         $otherCosts = session()->hasOldInput('_token')
                             ? old('other_costs', [])
-                            : array_map(fn ($expense) => ['amount' => number_format($expense['cents'] / 100, 2, '.', '')] + $expense, \App\Support\Sppd::otherCosts($sppd));
+                            : array_map(function ($expense, $key) use ($sppd) {
+                                $proposal = data_get($sppd, "budget_revision.other_costs.{$key}.to");
+                                $usd = isset($expense['usd_cents']);
+                                $amount = $proposal ?? ($usd ? $expense['usd_cents'] : $expense['cents']);
+                                return [($usd ? 'usd_amount' : 'amount') => number_format($amount / 100, 2, '.', '')] + $expense;
+                            }, \App\Support\Sppd::otherCosts($sppd), array_keys(\App\Support\Sppd::otherCosts($sppd)));
                     @endphp
                     <div id="sppd-other-costs" data-group-number="{{ \App\Support\Sppd::OTHER_COST_NUMBER }}" aria-labelledby="sppd-other-title" role="group">
                         @foreach(array_values(is_array($otherCosts) ? $otherCosts : []) as $index => $expense)
@@ -128,6 +153,16 @@
                     <template id="sppd-other-cost-template">
                         @include('sppd.other-cost-row', ['index' => 0, 'expense' => []])
                     </template>
+                    @include('sppd.cost-row', ['row' => \App\Support\Sppd::WINTER_COST, 'number' => '7', 'label' => 'Pakaian Musim Dingin'])
+                    <div class="sppd-field-grid mt-3" data-sppd-international hidden>
+                        <div>
+                            <label class="form-label" for="forecast-temperature">Prakiraan Suhu Terendah (°C)</label>
+                            <input class="form-control" id="forecast-temperature" name="forecast_temperature" type="number" min="-100" max="100" step="any"
+                                value="{{ old('forecast_temperature', $sppd['forecast_temperature'] ?? '') }}">
+                            <p class="sppd-help mt-1">Untuk suhu di bawah 15°C, lampirkan prakiraan pada tanggal perjalanan.</p>
+                        </div>
+                        @include('sppd.upload', ['key' => 'forecast', 'label' => \App\Support\Sppd::ATTACHMENTS['forecast'], 'accept' => '.jpg,.jpeg,.png,.webp'])
+                    </div>
                 </div>
             </section>
 
@@ -223,7 +258,7 @@
         const otherCosts = form.querySelector('#sppd-other-costs');
         const otherCostTemplate = form.querySelector('#sppd-other-cost-template');
         const addCost = form.querySelector('#sppd-add-cost');
-        const employeeRows = @json(\App\Support\Sppd::EMPLOYEE_COST_ROWS);
+        const employeeRows = [...@json(\App\Support\Sppd::EMPLOYEE_COST_ROWS), {{ \App\Support\Sppd::WINTER_COST }}];
         const currency = new Intl.NumberFormat('id-ID', {
             style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 2
         });
@@ -232,6 +267,13 @@
         const departure = form.elements.depart_on;
         const returnDate = form.elements.return_on;
         const duration = form.querySelector('#sppd-days');
+        const tripDays = form.querySelector('#sppd-trip-days');
+        const category = form.elements.category;
+        const exchangeStatus = form.querySelector('#sppd-exchange-status');
+        const applyBenefits = form.querySelector('#sppd-apply-benefits');
+        let benefits = @json(\App\Support\Sppd::benefits($profile['job_level']));
+        let exchangeRate;
+        let exchangeRequest;
 
         async function loadRequesterProfile() {
             const status = form.querySelector('#sppd-profile-status');
@@ -253,7 +295,9 @@
                             field.readOnly = true;
                         }
                     });
-                    status.textContent = fields.some(field => !field.value.trim())
+                    benefits = profile.benefits;
+                    updateBenefitsButton();
+                    status.textContent = fields.some(field => field.name && !field.value.trim())
                         ? 'Lengkapi kolom profil yang masih kosong.'
                         : '';
                     status.hidden = !status.textContent;
@@ -272,9 +316,16 @@
             let total = 0;
             let paid = 0;
             for (const input of budget.querySelectorAll('[data-budget-amount]')) {
-                const cents = Math.round((Number(input.value) || 0) * 100);
+                if (input.disabled) continue;
+                const row = input.closest('.sppd-expense');
+                const usd = row.querySelector('[data-budget-usd]:enabled');
+                const usdCents = Math.round((Number(usd?.value) || 0) * 100);
+                const cents = usdCents > 0
+                    ? Math.round(usdCents * (exchangeRate?.idr_per_usd || 0))
+                    : Math.round((Number(input.value) || 0) * 100);
                 total += cents;
-                if (employeeRows.includes(Number(input.dataset.cost))) paid += cents;
+                const provider = row.querySelector('[data-cost-provider]')?.value;
+                if (provider ? provider === 'reimburse' : employeeRows.includes(Number(input.dataset.cost))) paid += cents;
             }
             costTotal.value = currency.format(total / 100);
             costPaid.value = currency.format(paid / 100);
@@ -283,6 +334,39 @@
         function updateDuration() {
             const daysBetween = (returnDate.valueAsNumber - departure.valueAsNumber) / 86400000;
             duration.value = daysBetween >= 0 ? `${daysBetween + 1} hari` : '—';
+            tripDays.value = duration.value;
+            updateBenefitsButton();
+        }
+
+        function updateBenefitsButton() {
+            const rates = benefits?.[category.value];
+            applyBenefits.hidden = !rates || !Object.keys(rates).length;
+            applyBenefits.disabled = !(returnDate.valueAsNumber >= departure.valueAsNumber);
+        }
+
+        async function updateInternationalFields() {
+            const international = category.value === 'international';
+            for (const section of form.querySelectorAll('[data-sppd-international]')) {
+                section.hidden = !international;
+                section.querySelectorAll('input, select').forEach(input => input.disabled = !international);
+            }
+            updateTotals();
+            updateBenefitsButton();
+            if (!international || exchangeRate || exchangeRequest) return;
+
+            exchangeStatus.textContent = 'Mengambil kurs acuan ECB…';
+            exchangeRequest = fetch(form.dataset.exchangeUrl, { headers: { Accept: 'application/json' } });
+            try {
+                const response = await exchangeRequest;
+                if (!response.ok) throw new Error();
+                exchangeRate = await response.json();
+                exchangeStatus.textContent = `1 USD ≈ ${currency.format(exchangeRate.idr_per_usd)} · ECB ${exchangeRate.date}`;
+                updateTotals();
+            } catch {
+                exchangeStatus.textContent = 'Estimasi kurs belum tersedia. Kurs akan dicoba lagi saat pratinjau.';
+            } finally {
+                exchangeRequest = null;
+            }
         }
 
         function updateOtherRows() {
@@ -294,7 +378,7 @@
                     input.name = `other_costs[${index}][${input.dataset.otherCostField}]`;
                 });
             });
-            updateTotals();
+            updateInternationalFields();
         }
 
         async function showPreview() {
@@ -385,11 +469,23 @@
             (neighbor?.querySelector('[data-other-cost-field="label"]') || addCost).focus();
         });
         budget.addEventListener('input', event => {
-            if (event.target.matches('[data-budget-amount]')) updateTotals();
+            if (event.target.matches('[data-budget-amount], [data-budget-usd], [data-cost-provider]')) updateTotals();
         });
+        applyBenefits.addEventListener('click', () => {
+            const days = (returnDate.valueAsNumber - departure.valueAsNumber) / 86400000 + 1;
+            for (const [row, benefit] of Object.entries(benefits?.[category.value] || {})) {
+                const input = budget.querySelector(`[data-cost="${row}"]`);
+                const enteredUsd = input?.closest('.sppd-expense').querySelector('[data-budget-usd]:enabled')?.value;
+                if (input && !input.disabled && Number.isFinite(Number(benefit.idr)) && !enteredUsd) {
+                    input.value = (Number(benefit.idr) * (benefit.per_day ? days : 1)).toFixed(2);
+                }
+            }
+            updateTotals();
+        });
+        category.addEventListener('change', updateInternationalFields);
         [departure, returnDate].forEach(input => input.addEventListener('input', updateDuration));
-        updateTotals();
         updateDuration();
+        updateInternationalFields();
         loadRequesterProfile();
     })();
 </script>

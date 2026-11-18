@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Master\Approval;
 use App\Models\Master\Ticket;
+use App\Services\SppdExchangeRate;
 use App\Services\SppdPdf;
 use App\Services\SppdWorkflow;
 use App\Support\ServiceDomains;
@@ -13,19 +14,21 @@ use App\Support\TicketAccess;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class SppdController extends Controller
 {
-    private const COST_AMOUNT = 'regex:/^[0-9]{1,10}(\.[0-9]{1,2})?$/D';
-
-    public function __construct(private readonly SppdWorkflow $workflow) {}
+    public function __construct(
+        private readonly SppdWorkflow $workflow,
+        private readonly SppdExchangeRate $exchangeRates,
+    ) {}
 
     public function index(Request $request)
     {
-        $isOperator = SppdAccess::isOperator($request->user());
+        $isOperator = SppdAccess::canConfigure($request->user());
         $requests = Ticket::where('payload->request_type', Sppd::TYPE)
             ->when(! $isOperator, fn ($query) => $query->where('requester_id', $request->user()->id))
             ->latest()
@@ -54,11 +57,16 @@ class SppdController extends Controller
             ->header('Cache-Control', 'private, no-store');
     }
 
+    public function exchangeRate()
+    {
+        return response()->json($this->exchangeRates->latest())
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function store(Request $request)
     {
         $data = $this->formData($request);
-        $this->requirePreview($request, $data);
-        $ticket = $this->workflow->submit($request->user(), $data);
+        $ticket = $this->workflow->submit($request->user(), $data + $this->requirePreview($request, $data));
 
         return redirect()->route('sppd.show', $ticket)->with('success', 'SPPD berhasil diajukan.');
     }
@@ -87,8 +95,7 @@ class SppdController extends Controller
     {
         $this->authorizeRevision($request, $ticket);
         $data = $this->formData($request, $ticket);
-        $this->requirePreview($request, $data, $ticket);
-        $ticket = $this->workflow->resubmit($ticket, $request->user(), $data);
+        $ticket = $this->workflow->resubmit($ticket, $request->user(), $data + $this->requirePreview($request, $data, $ticket));
 
         return redirect()->route('sppd.show', $ticket)->with('success', 'Revisi SPPD berhasil diajukan.');
     }
@@ -116,6 +123,38 @@ class SppdController extends Controller
         $this->workflow->decide($ticket, $approval, $request->user(), $data['decision'], $data['note'] ?? null);
 
         return redirect()->route('sppd.show', $ticket)->with('success', 'Keputusan berhasil dicatat.');
+    }
+
+    public function proposeBudget(Request $request, Ticket $ticket)
+    {
+        $this->authorizeView($request, $ticket);
+        $data = $request->validate([
+            'version' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'max:500'],
+            'costs' => ['sometimes', 'array'],
+            'costs.*' => ['required', Sppd::COST_AMOUNT],
+            'other_costs' => ['sometimes', 'array'],
+            'other_costs.*' => ['required', Sppd::COST_AMOUNT],
+        ]);
+        $this->workflow->proposeBudget($ticket, $request->user(), $data);
+
+        return redirect()->route('sppd.show', $ticket)->with('success', 'Usulan nominal dikirim ke pemohon untuk dikonfirmasi.');
+    }
+
+    public function attachment(Request $request, Ticket $ticket, string $kind)
+    {
+        $this->authorizeView($request, $ticket);
+        abort_unless(isset(Sppd::ATTACHMENTS[$kind]), 404);
+        $attachment = $ticket->attachments()->where('attachment_type', 'sppd_'.$kind)
+            ->findOrFail(data_get($ticket->payload, "sppd.attachments.{$kind}.id") ?? 0);
+        $disk = Storage::disk('sppd_private');
+        abort_unless($disk->exists($attachment->file_path), 404);
+
+        return $disk->download($attachment->file_path, $attachment->file_name, [
+            'Content-Type' => $attachment->mime_type,
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function download(Request $request, Ticket $ticket, SppdPdf $pdf)
@@ -151,23 +190,30 @@ class SppdController extends Controller
         $data = $this->formData($request, $ticket);
         abort_if($ticket && (int) $data['version'] !== (int) data_get($ticket->payload, 'sppd.version'), 409, 'Pengajuan sudah berubah. Muat ulang halaman SPPD.');
 
-        $bytes = $pdf->preview($this->workflow->preview($request->user(), $data));
+        $quote = $this->usesUsd($data) ? $this->exchangeRates->latest() : null;
+        $document = $this->workflow->preview($request->user(), $data + ['exchange_rate' => $quote]);
+        $bytes = $pdf->preview($document);
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="pratinjau-sppd.pdf"',
             'Cache-Control' => 'private, no-store',
-            'X-Sppd-Preview-Token' => Crypt::encryptString($this->previewFingerprint($request, $data, $ticket)),
+            'X-Sppd-Preview-Token' => Crypt::encryptString(json_encode([
+                'fingerprint' => $this->previewFingerprint($request, $data, $ticket),
+                'exchange_rate' => $quote,
+                'preview_job_level' => $document['profile']['job_level'],
+            ], JSON_THROW_ON_ERROR)),
         ]);
     }
 
-    private function requirePreview(Request $request, array $data, ?Ticket $ticket = null): void
+    private function requirePreview(Request $request, array $data, ?Ticket $ticket = null): array
     {
         $token = $request->input('preview_token');
-        if (is_string($token) && strlen($token) <= 512) {
+        if (is_string($token) && strlen($token) <= 2048) {
             try {
-                if (hash_equals($this->previewFingerprint($request, $data, $ticket), Crypt::decryptString($token))) {
-                    return;
+                $preview = json_decode(Crypt::decryptString($token), true);
+                if (is_string($preview['fingerprint'] ?? null) && hash_equals($this->previewFingerprint($request, $data, $ticket), $preview['fingerprint'])) {
+                    return ['exchange_rate' => $preview['exchange_rate'], 'preview_job_level' => $preview['preview_job_level']];
                 }
             } catch (DecryptException) {
                 // Invalid tokens use the same prompt as missing or out-of-date previews.
@@ -179,14 +225,67 @@ class SppdController extends Controller
 
     private function previewFingerprint(Request $request, array $data, ?Ticket $ticket): string
     {
+        unset($data['uploads']);
+
         return hash('sha256', serialize([$request->user()->id, $ticket?->id, $data]));
     }
 
     private function formData(Request $request, ?Ticket $ticket = null): array
     {
-        return $request->validate($this->rules() + ($ticket
+        $data = $request->validate($this->rules() + ($ticket
             ? ['version' => ['required', 'integer', 'min:1']]
             : ['submission_token' => ['required', 'uuid']]));
+        $manifest = data_get($ticket?->payload, 'sppd.attachments', []);
+        $forecastMatchesTrip = ! $ticket || (
+            $data['depart_on'] === data_get($ticket->payload, 'sppd.depart_on')
+            && $data['return_on'] === data_get($ticket->payload, 'sppd.return_on')
+            && $data['destination'] === data_get($ticket->payload, 'sppd.destination')
+        );
+        if ($data['category'] !== 'international' || ! $forecastMatchesTrip) {
+            unset($manifest['forecast']);
+        }
+        foreach ($data['uploads'] ?? [] as $key => $file) {
+            if ($file) {
+                $name = trim(str_replace(["\r", "\n", "\0", '/', '\\'], '_', $file->getClientOriginalName()));
+                $manifest[$key] = [
+                    'name' => Str::limit($name, 240, ''),
+                    'sha256' => hash_file('sha256', $file->getRealPath()),
+                ];
+            }
+        }
+        $data['uploads'] = array_filter($data['uploads'] ?? []);
+        $data['attachment_manifest'] = $manifest;
+
+        foreach (['costs', 'other_costs'] as $group) {
+            foreach ($data[$group] ?? [] as $key => $row) {
+                if ((float) ($row['amount'] ?? 0) > 0 && (float) ($row['usd_amount'] ?? 0) > 0) {
+                    throw ValidationException::withMessages(["{$group}.{$key}.usd_amount" => 'Isi biaya dalam rupiah atau USD untuk setiap pengeluaran.']);
+                }
+            }
+        }
+
+        $temperature = $data['forecast_temperature'] ?? null;
+        $winter = $data['costs'][Sppd::WINTER_COST] ?? [];
+        if (max((float) ($winter['amount'] ?? 0), (float) ($winter['usd_amount'] ?? 0)) > 0
+            && ($temperature === null || (float) $temperature >= 15)) {
+            throw ValidationException::withMessages(['forecast_temperature' => 'Biaya pakaian musim dingin berlaku untuk prakiraan di bawah 15°C.']);
+        }
+        if ($temperature !== null && (float) $temperature < 15 && empty($manifest['forecast'])) {
+            throw ValidationException::withMessages(['uploads.forecast' => 'Lampirkan screenshot prakiraan cuaca untuk tanggal perjalanan dinas.']);
+        }
+
+        return $data;
+    }
+
+    private function usesUsd(array $data): bool
+    {
+        foreach (array_merge($data['costs'] ?? [], $data['other_costs'] ?? []) as $row) {
+            if ((float) ($row['usd_amount'] ?? 0) > 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function rules(): array
@@ -202,11 +301,18 @@ class SppdController extends Controller
             'depart_on' => ['required', 'date_format:Y-m-d'],
             'return_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:depart_on'],
             'purpose' => ['required', 'string', 'max:700'],
-            'costs' => ['nullable', 'array:'.implode(',', array_keys(Sppd::COSTS))],
-            'other_costs' => ['nullable', 'array'],
-            'other_costs.*' => ['required', 'array:label,amount,note'],
+            'international_purpose' => ['exclude_unless:category,international', 'required', Rule::in(array_keys(Sppd::INTERNATIONAL_PURPOSES))],
+            'forecast_temperature' => ['exclude_unless:category,international', 'nullable', 'numeric', 'between:-100,100'],
+            'uploads' => ['nullable', 'array:invitation,assignment,forecast'],
+            'uploads.invitation' => ['nullable', 'file', 'mimes:pdf,jpeg,png,webp', 'max:5120'],
+            'uploads.assignment' => ['nullable', 'file', 'mimes:pdf,jpeg,png,webp', 'max:5120'],
+            'uploads.forecast' => ['exclude_unless:category,international', 'nullable', 'file', 'mimes:jpeg,png,webp', 'max:5120'],
+            'costs' => ['nullable', 'array:'.implode(',', array_keys(Sppd::costRows(true)))],
+            'other_costs' => ['nullable', 'array', 'max:40'],
+            'other_costs.*' => ['required', 'array:label,amount,usd_amount,note'],
             'other_costs.*.label' => ['required', 'string', 'max:120'],
-            'other_costs.*.amount' => ['required', self::COST_AMOUNT],
+            'other_costs.*.amount' => ['nullable', 'required_without:other_costs.*.usd_amount', Sppd::COST_AMOUNT],
+            'other_costs.*.usd_amount' => ['prohibited_unless:category,international', 'nullable', 'regex:/^[0-9]{1,6}(\.[0-9]{1,2})?$/D'],
             'other_costs.*.note' => ['nullable', 'string', 'max:90'],
             'notes' => ['nullable', 'string', 'max:500'],
             'bank' => ['nullable', 'array:name,account,holder'],
@@ -214,10 +320,18 @@ class SppdController extends Controller
             'bank.account' => ['nullable', 'required_with:bank.name,bank.holder', 'regex:/^[0-9]{5,30}$/D'],
             'bank.holder' => ['nullable', 'required_with:bank.name,bank.account', 'string', 'max:100'],
         ];
-        foreach (array_keys(Sppd::COSTS) as $row) {
-            $rules["costs.{$row}"] = ['nullable', 'array:amount,note'];
-            $rules["costs.{$row}.amount"] = ['nullable', self::COST_AMOUNT];
+        foreach (array_keys(Sppd::costRows(true)) as $row) {
+            $supportsProvider = in_array($row, Sppd::PROVIDER_ROWS, true);
+            $rules["costs.{$row}"] = ['nullable', 'array:amount,usd_amount,note'.($supportsProvider ? ',provider' : '')];
+            if ($row === Sppd::WINTER_COST) {
+                array_unshift($rules["costs.{$row}"], 'exclude_unless:category,international');
+            }
+            $rules["costs.{$row}.amount"] = ['nullable', Sppd::COST_AMOUNT];
+            $rules["costs.{$row}.usd_amount"] = ['prohibited_unless:category,international', 'nullable', 'regex:/^[0-9]{1,6}(\.[0-9]{1,2})?$/D'];
             $rules["costs.{$row}.note"] = ['nullable', 'string', 'max:90'];
+            if ($supportsProvider) {
+                $rules["costs.{$row}.provider"] = ['nullable', Rule::in(array_keys(Sppd::PROVIDERS))];
+            }
         }
 
         return $rules;

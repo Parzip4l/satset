@@ -1442,6 +1442,7 @@ class TicketController extends Controller
      */
     public function viewAttachment(Request $request, Ticket $ticket, Attachment $attachment)
     {
+        abort_if(\App\Support\Sppd::is($ticket), 404);
         abort_unless((int) $attachment->request_id === (int) $ticket->id, 404);
 
         $user = $request->user();
