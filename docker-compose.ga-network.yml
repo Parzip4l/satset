@@ -1,0 +1,12 @@
+# For production installations using MySQL on the shared infrastructure network.
+# docker compose -f docker-compose.yml -f docker-compose.ga-network.yml up -d --no-deps --force-recreate ga-notifications-worker
+services:
+  ga-notifications-worker:
+    networks:
+      - satset-network
+      - shared-infra
+
+networks:
+  shared-infra:
+    external: true
+    name: ${SATSET_INFRA_NETWORK:-my-infra_app-network}

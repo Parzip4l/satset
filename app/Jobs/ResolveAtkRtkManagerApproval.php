@@ -17,7 +17,7 @@ class ResolveAtkRtkManagerApproval implements ShouldQueue
     public function __construct(public readonly int $ticketId, public readonly string $ticketNo)
     {
         $this->onConnection(GaSubmissionDelivery::CONNECTION)
-            ->onQueue(GaSubmissionDelivery::QUEUE)
+            ->onQueue(GaSubmissionDelivery::APPROVAL_QUEUE)
             ->beforeCommit();
     }
 

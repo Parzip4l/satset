@@ -13,6 +13,8 @@ final class GaSubmissionDelivery
 
     public const QUEUE = 'ga-notifications';
 
+    public const APPROVAL_QUEUE = 'ga-approvals';
+
     public static function usesQueue(Ticket $ticket): bool
     {
         return in_array(data_get($ticket->payload, 'request_type'), ['consumption', 'atk_rtk'], true)

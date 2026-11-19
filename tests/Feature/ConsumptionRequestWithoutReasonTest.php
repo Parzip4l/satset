@@ -587,9 +587,10 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         $notifications->shouldNotHaveReceived('notifyTicketCreated');
 
         $ticket->updateQuietly(['payload' => array_replace($ticket->payload, ['bum_note' => 'Perubahan setelah submit'])]);
+        $this->assertSame(1, DB::table('jobs')->where('queue', GaSubmissionDelivery::APPROVAL_QUEUE)->count());
         $this->artisan('queue:work', [
             'connection' => GaSubmissionDelivery::CONNECTION,
-            '--queue' => GaSubmissionDelivery::QUEUE,
+            '--queue' => GaSubmissionDelivery::APPROVAL_QUEUE.','.GaSubmissionDelivery::QUEUE,
             '--sleep' => 0,
             '--stop-when-empty' => true,
         ])->assertSuccessful();
@@ -627,7 +628,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         });
 
         DB::transaction(fn () => app(SatsetInitialApprovalService::class)->start($ticket));
-        $job = app('queue')->connection(GaSubmissionDelivery::CONNECTION)->pop(GaSubmissionDelivery::QUEUE);
+        $job = app('queue')->connection(GaSubmissionDelivery::CONNECTION)->pop(GaSubmissionDelivery::APPROVAL_QUEUE);
         $job->fail(new \RuntimeException('Portal tidak dapat dihubungi.'));
         $this->assertSame(SatsetInitialApprovalService::FAILED, data_get($ticket->fresh()->payload, 'manager_approval_setup'));
 
@@ -640,13 +641,55 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
 
         $this->artisan('queue:work', [
             'connection' => GaSubmissionDelivery::CONNECTION,
-            '--queue' => GaSubmissionDelivery::QUEUE,
+            '--queue' => GaSubmissionDelivery::APPROVAL_QUEUE,
             '--sleep' => 0,
             '--stop-when-empty' => true,
         ])->assertSuccessful();
         $this->assertDatabaseHas('approvals', ['request_id' => $ticket->id, 'approver_id' => $approver->id]);
         $this->assertDatabaseCount('requests', 1);
         $this->assertNull(data_get($ticket->fresh()->payload, 'manager_approval_setup'));
+    }
+
+    public function test_requester_can_resolve_a_queued_manager_when_the_worker_is_unavailable(): void
+    {
+        if (! Schema::hasTable('jobs')) {
+            (require database_path('migrations/0001_01_01_000002_create_jobs_table.php'))->up();
+        }
+        $requester = User::create(['name' => 'Pemohon', 'email' => 'pemohon@example.test', 'password' => 'secret']);
+        $other = User::create(['name' => 'Lain', 'email' => 'lain@example.test', 'password' => 'secret']);
+        $approver = User::create(['name' => 'Atasan', 'email' => 'atasan@example.test', 'password' => 'secret']);
+        $ticket = Ticket::withoutEvents(fn () => Ticket::create([
+            'ticket_no' => 'ATKRTK-RECOVER',
+            'requester_id' => $requester->id,
+            'category_id' => 1,
+            'title' => 'Permintaan ATK/RTK',
+            'payload' => ['request_type' => 'atk_rtk', 'workflow_status' => 'WAITING_MANAGER_APPROVAL'],
+        ]));
+        $this->mock(LrtjSpaceApprovalResolverService::class, function (MockInterface $mock) use ($approver): void {
+            $mock->shouldReceive('resolveFirstApprover')->once()->andReturn($approver);
+        });
+        $this->mock(LrtjSpaceMobileNotificationService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('notifyApprovalRequested')->once();
+        });
+        DB::transaction(fn () => app(SatsetInitialApprovalService::class)->start($ticket));
+        $statusUrl = route('ticket.approvals.manager-status', $ticket);
+        $syncUrl = route('ticket.approvals.sync-manager', $ticket);
+        $this->actingAs($other)->getJson($statusUrl)->assertForbidden();
+        $this->post($syncUrl)->assertForbidden();
+        $this->actingAs($requester)->getJson($statusUrl)->assertOk()
+            ->assertJsonPath('setup', SatsetInitialApprovalService::QUEUED);
+        $this->post($syncUrl)->assertRedirect(route('ticket.show', $ticket))
+            ->assertSessionHas('success', 'Atasan berhasil disinkronkan. Status tiket diperbarui.');
+        $this->getJson($statusUrl)->assertOk()->assertJsonPath('setup', null)
+            ->assertJsonPath('workflow_status', 'WAITING_MANAGER_APPROVAL');
+        $this->artisan('queue:work', [
+            'connection' => GaSubmissionDelivery::CONNECTION,
+            '--queue' => GaSubmissionDelivery::APPROVAL_QUEUE,
+            '--sleep' => 0,
+            '--stop-when-empty' => true,
+        ])->assertSuccessful();
+        $this->assertDatabaseCount('approvals', 1);
+        $this->assertDatabaseHas('approvals', ['request_id' => $ticket->id, 'approver_id' => $approver->id, 'status' => 'Pending']);
     }
 
     public function test_public_ga_report_attachment_is_saved_and_can_be_viewed(): void

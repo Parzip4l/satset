@@ -19,7 +19,7 @@ services:
     image: satset-app
     restart: unless-stopped
     working_dir: /var/www
-    command: ["php", "artisan", "queue:work", "database", "--queue=ga-notifications", "--sleep=1", "--tries=3", "--timeout=60", "--max-time=3600"]
+    command: ["php", "artisan", "queue:work", "database", "--queue=ga-approvals,ga-notifications", "--sleep=1", "--tries=3", "--timeout=60", "--max-time=3600"]
     volumes:
       - ./:/var/www
     networks:

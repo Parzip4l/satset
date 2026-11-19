@@ -563,13 +563,17 @@
                             $approvalProgress = \App\Support\TicketWorkflowPresenter::make($ticket->payload);
                         @endphp
                         <div class="col-12">
-                            <div class="alert alert-{{ $approvalProgress['color'] }} mb-0 small">
+                            <div class="alert alert-{{ $approvalProgress['color'] }} mb-0 small"
+                                @if($managerApprovalSetup === \App\Services\SatsetInitialApprovalService::QUEUED)
+                                    data-manager-approval-status="{{ route('ticket.approvals.manager-status', $ticket) }}"
+                                    data-manager-setup="{{ $managerApprovalSetup }}" data-manager-workflow="{{ $workflowStatus }}"
+                                @endif>
                                 <div class="fw-bold mb-1">{{ $approvalProgress['label'] }}</div>
                                 <div>{{ $approvalProgress['description'] }}</div>
-                                @if($managerApprovalSetup === \App\Services\SatsetInitialApprovalService::FAILED && ($isRequester || $canManageGaOperations))
+                                @if($isRequester || $canManageGaOperations)
                                     <form action="{{ route('ticket.approvals.sync-manager', $ticket) }}" method="POST" class="mt-2">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-outline-dark">Cari ulang atasan</button>
+                                        <button type="submit" class="btn btn-sm btn-outline-dark">{{ $managerApprovalSetup === \App\Services\SatsetInitialApprovalService::FAILED ? 'Cari ulang atasan' : 'Sinkronkan atasan sekarang' }}</button>
                                     </form>
                                 @endif
                             </div>
@@ -1097,6 +1101,7 @@
 @endsection
 
 @section('js')
+<script src="{{ asset('assets/js/atk-rtk-approval-status.js') }}?v={{ filemtime(public_path('assets/js/atk-rtk-approval-status.js')) }}"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>

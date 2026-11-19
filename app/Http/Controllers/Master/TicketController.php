@@ -1709,6 +1709,13 @@ class TicketController extends Controller
 
         $setup = data_get($ticket->payload, 'manager_approval_setup');
         if (in_array($setup, [SatsetInitialApprovalService::FAILED, SatsetInitialApprovalService::QUEUED], true)) {
+            if ($setup === SatsetInitialApprovalService::QUEUED) {
+                $initialApproval->resolveQueued($ticket);
+
+                return redirect()->route('ticket.show', $ticket)
+                    ->with('success', 'Atasan berhasil disinkronkan. Status tiket diperbarui.');
+            }
+
             $retried = $setup === SatsetInitialApprovalService::FAILED
                 && $initialApproval->retryFailedResolution($ticket);
 
@@ -1723,6 +1730,17 @@ class TicketController extends Controller
             : "Approver sudah sesuai data Portal terbaru: {$approverName}.";
 
         return redirect()->route('ticket.show', $ticket)->with('success', $message);
+    }
+
+    public function managerApprovalStatus(Request $request, Ticket $ticket)
+    {
+        abort_unless(TicketAccess::canView($request->user(), $ticket), 403);
+        abort_unless(data_get($ticket->payload, 'request_type') === 'atk_rtk', 404);
+
+        return response()->json([
+            'setup' => data_get($ticket->payload, 'manager_approval_setup'),
+            'workflow_status' => data_get($ticket->payload, 'workflow_status'),
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     public function bumReviewAtkRtk(Request $request, Ticket $ticket)

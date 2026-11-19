@@ -14,7 +14,7 @@ class RestrictSppdOperator
         'ticket.index', 'ticket.mine', 'ticket.general', 'ticket.create', 'ticket.store',
         'ticket.konsumsi.create', 'ticket.atk-rtk.create', 'ticket.ga-permintaan-temuan.create',
         'ticket.form-schema', 'ticket.show', 'ticket.attachments.show', 'ticket.comment',
-        'ticket.approvals.sync-manager', 'ticket.atk-rtk.goods-issue',
+        'ticket.approvals.sync-manager', 'ticket.approvals.manager-status', 'ticket.atk-rtk.goods-issue',
         'ticket.consumption.form', 'ticket.consumption.evidence', 'ticket.ga-request-finding.report',
         'it.index', 'it.request', 'it.create', 'it.form', 'it.store', 'it.show',
         'it.revise.form', 'it.revise.schema', 'it.action', 'it.attachment', 'it.notifications*',

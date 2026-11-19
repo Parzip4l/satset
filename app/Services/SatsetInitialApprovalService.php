@@ -53,7 +53,8 @@ class SatsetInitialApprovalService
             return;
         }
 
-        $approver = $this->resolveApprover($ticket);
+        $existing = $ticket->approvals()->where('level', 1)->first();
+        $approver = $existing ? null : $this->resolveApprover($ticket);
 
         DB::transaction(function () use ($ticket, $approver): void {
             $current = Ticket::lockForUpdate()->find($ticket->id);
@@ -61,7 +62,11 @@ class SatsetInitialApprovalService
                 return;
             }
 
-            $this->persistApproval($current, $approver->id, 1);
+            $approval = $current->approvals()->where('level', 1)->first();
+            if (! $approval) {
+                abort_unless($approver, 409, 'Approval berubah. Muat ulang detail tiket.');
+                $this->persistApproval($current, $approver->id, 1);
+            }
             $payload = $current->payload;
             unset($payload['manager_approval_setup']);
             $current->updateQuietly(['payload' => $payload]);

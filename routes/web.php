@@ -228,6 +228,8 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
     Route::post('{ticket}/approve', [App\Http\Controllers\Master\TicketController::class, 'approve'])->name('ticket.approve');
     Route::post('/tickets/{ticket}/approvals/sync-manager', [App\Http\Controllers\Master\TicketController::class, 'syncManagerApproval'])
         ->name('ticket.approvals.sync-manager');
+    Route::get('/tickets/{ticket}/approvals/manager-status', [App\Http\Controllers\Master\TicketController::class, 'managerApprovalStatus'])
+        ->name('ticket.approvals.manager-status');
     Route::post('/tickets/{ticket}/atk-rtk/bum-review', [App\Http\Controllers\Master\TicketController::class, 'bumReviewAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.bum-review');
     Route::post('/tickets/{ticket}/atk-rtk/replenish', [App\Http\Controllers\Master\TicketController::class, 'replenishAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.replenish');
     Route::post('/tickets/{ticket}/atk-rtk/handover', [App\Http\Controllers\Master\TicketController::class, 'handoverAtkRtk'])->middleware('ga.team')->name('ticket.atk-rtk.handover');
