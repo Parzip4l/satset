@@ -8,8 +8,10 @@ use App\Models\It\AssetEmployee;
 use App\Models\It\AssetLocation;
 use App\Models\It\AssetType;
 use App\Services\It\AssetRegister;
+use App\Services\It\AssetWorkbook;
 use App\Services\It\PortalEmployeeDirectory;
 use App\Support\ItAssetAccess;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -96,6 +98,41 @@ class AssetController extends Controller
         $asset = new Asset(['asset_tag' => 'IT-'.Str::upper((string) Str::ulid()), 'status' => 'available']);
 
         return view('it.assets.form', $this->options() + compact('asset'));
+    }
+
+    public function template(Request $request)
+    {
+        $this->check($request);
+
+        return response()->download(resource_path('templates/it-assets.xlsx'), 'template-aset-it.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function importForm(Request $request)
+    {
+        $this->check($request);
+
+        return view('it.assets.import');
+    }
+
+    public function import(Request $request, AssetWorkbook $workbook, AssetRegister $register)
+    {
+        $this->check($request);
+        $request->validate(['file' => 'required|file|mimes:xlsx|extensions:xlsx|max:5120'], [
+            'file.required' => 'Pilih file XLSX yang akan diimpor.', 'file.file' => 'Unggahan harus berupa file XLSX.',
+            'file.mimes' => 'Gunakan file Excel dengan format .xlsx.', 'file.extensions' => 'Ekstensi file harus .xlsx.',
+            'file.max' => 'Ukuran file maksimal 5 MB.', 'file.uploaded' => 'File gagal diunggah. Periksa ukuran file lalu coba lagi.',
+        ]);
+        $rows = $workbook->read($request->file('file')->getRealPath());
+        try {
+            $count = $register->createBatch($request->user(), $rows);
+        } catch (UniqueConstraintViolationException) {
+            throw ValidationException::withMessages(['file' => 'Data berubah saat impor berlangsung. Tidak ada aset dari file ini yang disimpan. Periksa kode aset lalu unggah ulang.']);
+        }
+
+        return redirect()->route('it.assets.index')->with('success', $count.' aset berhasil diimpor. Pencatatan awal tersimpan dalam riwayat masing-masing aset.');
     }
 
     public function store(Request $request, AssetRegister $register)

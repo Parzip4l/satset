@@ -147,6 +147,9 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
 
     Route::prefix('it/assets')->name('it.assets.')->controller(\App\Http\Controllers\It\AssetController::class)->group(function () {
         Route::get('/employees', 'employees')->middleware('throttle:120,1')->name('employees');
+        Route::get('/template', 'template')->name('template');
+        Route::get('/import', 'importForm')->name('import.form');
+        Route::post('/import', 'import')->middleware('throttle:5,1')->name('import');
         Route::get('/', 'index')->name('index');
         Route::get('/create', 'create')->name('create');
         Route::post('/', 'store')->name('store');

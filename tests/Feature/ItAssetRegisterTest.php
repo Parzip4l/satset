@@ -7,13 +7,16 @@ use App\Models\It\AssetEmployee;
 use App\Models\It\AssetHistory;
 use App\Models\User;
 use App\Services\It\AssetRegister;
+use App\Services\It\AssetWorkbook;
 use App\Services\It\PortalEmployeeDirectory;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
+use ZipArchive;
 
 class ItAssetRegisterTest extends TestCase
 {
@@ -26,6 +29,18 @@ class ItAssetRegisterTest extends TestCase
     private User $andi;
 
     private User $budi;
+
+    private array $workbookFiles = [];
+
+    protected function tearDown(): void
+    {
+        foreach ($this->workbookFiles as $path) {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+        parent::tearDown();
+    }
 
     protected function setUp(): void
     {
@@ -302,6 +317,231 @@ class ItAssetRegisterTest extends TestCase
             $this->assertStringContainsString($message, $response->json('message'));
             $this->assertStringNotContainsString('directory-secret', $response->getContent());
         }
+    }
+
+    private function workbook(array $rows, ?array $headers = null): UploadedFile
+    {
+        $headers ??= array_merge(array_keys(AssetWorkbook::COLUMNS), ['Spesifikasi: RAM']);
+        $path = tempnam(sys_get_temp_dir(), 'asset-import-test-');
+        $this->workbookFiles[] = $path;
+        copy(resource_path('templates/it-assets.xlsx'), $path);
+        $zip = new ZipArchive;
+        $zip->open($path);
+        $xml = '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+        foreach ([1 => $headers] + $rows as $number => $values) {
+            $xml .= '<row r="'.$number.'">';
+            foreach (array_values($values) as $index => $value) {
+                $column = '';
+                for ($n = $index + 1; $n > 0; $n = intdiv($n - 1, 26)) {
+                    $column = chr(65 + ($n - 1) % 26).$column;
+                }
+                $xml .= '<c r="'.$column.$number.'" t="inlineStr"><is><t>'.htmlspecialchars((string) ($value ?? ''), ENT_XML1, 'UTF-8').'</t></is></c>';
+            }
+            $xml .= '</row>';
+        }
+        $zip->addFromString('xl/worksheets/sheet1.xml', $xml.'</sheetData></worksheet>');
+        $zip->close();
+
+        return new UploadedFile($path, 'aset.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+    }
+
+    private function importRow(array $changes = []): array
+    {
+        return array_values(array_replace([
+            'asset_tag' => 'IMPORT-001', 'name' => 'Laptop impor', 'type_name' => 'Hardware', 'location_name' => 'Gudang IT',
+            'status' => 'Tersedia', 'employee_email' => '', 'brand' => 'Lenovo', 'model' => 'T14', 'serial_number' => 'SN-IMPORT',
+            'acquired_on' => '', 'purchase_price' => '', 'expires_on' => '', 'notes' => '', 'ram' => '16 GB',
+        ], $changes));
+    }
+
+    public function test_asset_template_and_import_page_require_it_permission_and_template_has_no_example_assets(): void
+    {
+        $this->actingAs($this->operator)->get(route('it.assets.template'))->assertOk()->assertDownload('template-aset-it.xlsx');
+        $this->get(route('it.assets.import.form'))->assertOk()->assertSee('Email pemegang')->assertSee('Spesifikasi: Nama');
+        try {
+            app(AssetWorkbook::class)->read(resource_path('templates/it-assets.xlsx'));
+            $this->fail('Template kosong harus meminta pengguna mengisi data.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertStringContainsString('Belum ada data', $exception->errors()['file'][0]);
+        }
+        $this->actingAs($this->andi)->get(route('it.assets.template'))->assertForbidden();
+        $this->get(route('it.assets.import.form'))->assertForbidden();
+        $this->post(route('it.assets.import'))->assertForbidden();
+    }
+
+    public function test_xlsx_import_creates_assets_specs_and_histories_and_checks_repeated_portal_email_once(): void
+    {
+        app(PortalEmployeeDirectory::class)->shouldReceive('findByEmail')->once()->with('andi@portal.test')->andReturn([
+            'id' => $this->andiPortalId, 'name' => 'Andi Portal', 'email' => 'andi@portal.test', 'status' => 'active',
+        ]);
+        $file = $this->workbook([
+            2 => $this->importRow(['acquired_on' => '45292', 'purchase_price' => '0']),
+            3 => $this->importRow(['asset_tag' => 'IMPORT-002', 'status' => 'Digunakan', 'employee_email' => 'ANDI@portal.test', 'type_name' => 'Perangkat jaringan', 'location_name' => 'Ruang Server']),
+            5 => $this->importRow(['asset_tag' => 'IMPORT-003', 'status' => 'in_use', 'employee_email' => 'andi@portal.test']),
+        ]);
+        $this->actingAs($this->operator)->post(route('it.assets.import'), ['file' => $file])->assertRedirect(route('it.assets.index'))->assertSessionHasNoErrors()->assertSessionHas('success');
+        $first = Asset::where('asset_tag', 'IMPORT-001')->firstOrFail();
+        $this->assertSame('2024-01-01', $first->acquired_on->toDateString());
+        $this->assertSame('0.00', $first->purchase_price);
+        $this->assertNull($first->assigned_employee_id);
+        $this->assertSame([['name' => 'RAM', 'value' => '16 GB']], $first->specifications);
+        $second = Asset::where('asset_tag', 'IMPORT-002')->firstOrFail();
+        $this->assertSame('Andi Portal', $second->assignee->name);
+        $this->assertSame('Perangkat jaringan', $second->type->name);
+        $this->assertNull($second->purchase_price);
+        $this->assertDatabaseCount('it_assets', 3);
+        $this->assertDatabaseCount('it_asset_histories', 3);
+        $this->assertDatabaseCount('users', 3);
+        $this->assertSame('Pencatatan awal aset melalui impor XLSX.', $first->histories()->first()->reason);
+    }
+
+    public function test_xlsx_invalid_rows_report_excel_row_numbers_and_save_nothing(): void
+    {
+        $file = $this->workbook([2 => $this->importRow(), 6 => $this->importRow(['asset_tag' => 'IMPORT-002', 'purchase_price' => '-100'])]);
+        $this->actingAs($this->operator)->from(route('it.assets.import.form'))->post(route('it.assets.import'), ['file' => $file])->assertRedirect(route('it.assets.import.form'))->assertSessionHasErrors('rows.6.purchase_price');
+        $this->get(route('it.assets.import.form'))->assertOk()->assertSee('Baris 6: Harga perolehan tidak boleh kurang dari 0.')->assertSee('Impor belum disimpan');
+        $this->assertDatabaseCount('it_assets', 0);
+        $this->assertDatabaseCount('it_asset_histories', 0);
+        $this->assertDatabaseCount('it_asset_locations', 0);
+    }
+
+    public function test_xlsx_duplicate_codes_in_file_and_existing_assets_are_rejected_without_overwriting_history(): void
+    {
+        $asset = $this->create();
+        $this->actingAs($this->operator)->post(route('it.assets.import'), ['file' => $this->workbook([2 => $this->importRow(), 3 => $this->importRow(['asset_tag' => ' import-001 '])])])->assertSessionHasErrors('rows.3.asset_tag');
+        $this->post(route('it.assets.import'), ['file' => $this->workbook([2 => $this->importRow(), 3 => $this->importRow(['asset_tag' => $asset->asset_tag])])])->assertSessionHasErrors('rows.3.asset_tag');
+        $this->assertDatabaseCount('it_assets', 1);
+        $this->assertSame(1, $asset->fresh()->lock_version);
+        $this->assertSame(1, $asset->histories()->count());
+    }
+
+    public function test_xlsx_portal_outage_prevents_partial_import_and_spoofed_employee_names_are_rejected(): void
+    {
+        app(PortalEmployeeDirectory::class)->shouldReceive('findByEmail')->once()->andThrow(\Illuminate\Validation\ValidationException::withMessages(['employee_directory' => 'Portal sedang tidak dapat dihubungi.']));
+        $this->actingAs($this->operator)->post(route('it.assets.import'), ['file' => $this->workbook([2 => $this->importRow(), 3 => $this->importRow(['asset_tag' => 'IMPORT-002', 'status' => 'Digunakan', 'employee_email' => 'andi@portal.test'])])])->assertSessionHasErrors('rows.3.employee_directory');
+        $this->post(route('it.assets.import'), ['file' => $this->workbook([2 => $this->importRow(['status' => 'Digunakan', 'employee_email' => 'Andi'])])])->assertSessionHasErrors('rows.2.employee_email');
+        $this->assertDatabaseCount('it_assets', 0);
+        $this->assertDatabaseCount('it_asset_employees', 0);
+    }
+
+    public function test_xlsx_rejects_invalid_formats_headers_formula_cells_and_more_than_100_assets(): void
+    {
+        $this->actingAs($this->operator);
+        $this->post(route('it.assets.import'), ['file' => UploadedFile::fake()->create('aset.csv', 1, 'text/csv')])->assertSessionHasErrors('file');
+        $this->post(route('it.assets.import'), ['file' => UploadedFile::fake()->create('aset.xlsx', 1, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')])->assertSessionHasErrors('file');
+        $this->post(route('it.assets.import'), ['file' => $this->workbook([2 => ['test']], ['Judul salah'])])->assertSessionHasErrors('file');
+        $file = $this->workbook([2 => $this->importRow()]);
+        $zip = new ZipArchive;
+        $zip->open($file->getRealPath());
+        $zip->addFromString('xl/worksheets/sheet1.xml', str_replace('<c r="A2" t="inlineStr">', '<c r="A2" t="inlineStr"><f>1+1</f>', $zip->getFromName('xl/worksheets/sheet1.xml')));
+        $zip->close();
+        $this->post(route('it.assets.import'), ['file' => $file])->assertSessionHasErrors('file');
+        $rows = [];
+        for ($i = 2; $i <= 102; $i++) {
+            $rows[$i] = $this->importRow(['asset_tag' => 'IMPORT-'.$i]);
+        }
+        $this->post(route('it.assets.import'), ['file' => $this->workbook($rows)])->assertSessionHasErrors('file');
+        $this->assertDatabaseCount('it_assets', 0);
+    }
+
+    public function test_xlsx_history_failure_rolls_back_every_asset_master_and_employee_in_batch(): void
+    {
+        $this->withoutExceptionHandling();
+        app(PortalEmployeeDirectory::class)->shouldReceive('findByEmail')->once()->andReturn([
+            'id' => $this->andiPortalId, 'name' => 'Andi Portal', 'email' => 'andi@portal.test', 'status' => 'active',
+        ]);
+        $count = 0;
+        AssetHistory::creating(function () use (&$count) {
+            if (++$count === 2) {
+                throw new \RuntimeException('Batch history failure');
+            }
+        });
+        try {
+            $this->actingAs($this->operator)->post(route('it.assets.import'), ['file' => $this->workbook([2 => $this->importRow(['type_name' => 'Jenis baru', 'status' => 'Digunakan', 'employee_email' => 'andi@portal.test']), 3 => $this->importRow(['asset_tag' => 'IMPORT-002'])])]);
+            $this->fail('Impor harus dibatalkan jika riwayat gagal.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Batch history failure', $exception->getMessage());
+        } finally {
+            AssetHistory::flushEventListeners();
+        }
+        $this->assertDatabaseCount('it_assets', 0);
+        $this->assertDatabaseCount('it_asset_histories', 0);
+        $this->assertDatabaseCount('it_asset_locations', 0);
+        $this->assertDatabaseCount('it_asset_types', 3);
+        $this->assertDatabaseCount('it_asset_employees', 0);
+    }
+
+    public function test_portal_import_email_matching_is_exact_active_and_unique_across_pages(): void
+    {
+        $this->realDirectory();
+        Http::fakeSequence()
+            ->push($this->portalPayload(['id' => $this->budiPortalId, 'name' => 'Budi', 'email' => 'andi@portal.test.other', 'status' => 'active'], 1, true))
+            ->push($this->portalPayload(['id' => $this->andiPortalId, 'name' => 'Andi', 'email' => 'andi@portal.test', 'status' => 'active'], 2))
+            ->push($this->portalPayload(['id' => $this->andiPortalId, 'name' => 'Andi', 'email' => 'andi@portal.test', 'status' => 'inactive']))
+            ->push(['success' => true, 'data' => [
+                ['id' => $this->andiPortalId, 'name' => 'Andi', 'email' => 'andi@portal.test', 'status' => 'active'],
+                ['id' => $this->budiPortalId, 'name' => 'Nama lain', 'email' => 'andi@portal.test', 'status' => 'active'],
+            ], 'meta' => ['pagination' => ['current_page' => 1, 'has_more' => false]]]);
+        $this->assertSame($this->andiPortalId, app(PortalEmployeeDirectory::class)->findByEmail('ANDI@portal.test')['id']);
+        try {
+            app(PortalEmployeeDirectory::class)->findByEmail('andi@portal.test');
+            $this->fail('Karyawan nonaktif tidak boleh dipilih.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('employee_email', $exception->errors());
+        }
+        try {
+            app(PortalEmployeeDirectory::class)->findByEmail('andi@portal.test');
+            $this->fail('Email karyawan yang ambigu tidak boleh dipilih.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('employee_email', $exception->errors());
+        }
+    }
+
+    public function test_xlsx_handles_reordered_columns_dynamic_specs_and_1904_excel_dates(): void
+    {
+        $headers = ['Status', 'Lokasi', 'Nama aset', 'Kode aset', 'Tipe aset', 'Spesifikasi: Prosesor', 'Spesifikasi: RAM', 'Tanggal perolehan', 'Harga perolehan'];
+        $file = $this->workbook([2 => ['Tersedia', 'Depo', 'Laptop Excel', 'DYNAMIC-001', 'Hardware', 'Intel i7', '32 GB', '43830', '1.50000005E7']], $headers);
+        $zip = new ZipArchive;
+        $zip->open($file->getRealPath());
+        $zip->addFromString('xl/workbook.xml', str_replace('<x:sheets>', '<x:workbookPr date1904="1"/><x:sheets>', $zip->getFromName('xl/workbook.xml')));
+        // Use a numeric Excel cell rather than an inline text date.
+        $zip->addFromString('xl/worksheets/sheet1.xml', str_replace('<c r="H2" t="inlineStr"><is><t>43830</t></is></c>', '<c r="H2"><v>43830</v></c>', $zip->getFromName('xl/worksheets/sheet1.xml')));
+        $zip->close();
+        $this->actingAs($this->operator)->post(route('it.assets.import'), ['file' => $file])->assertRedirect()->assertSessionHasNoErrors();
+        $asset = Asset::firstOrFail();
+        $this->assertSame('2024-01-01', $asset->acquired_on->toDateString());
+        $this->assertSame('15000000.50', $asset->purchase_price);
+        $this->assertSame([['name' => 'Prosesor', 'value' => 'Intel i7'], ['name' => 'RAM', 'value' => '32 GB']], $asset->specifications);
+    }
+
+    public function test_xlsx_rejects_external_entities_and_duplicate_specification_names(): void
+    {
+        $file = $this->workbook([2 => $this->importRow()]);
+        $zip = new ZipArchive;
+        $zip->open($file->getRealPath());
+        $zip->addFromString('xl/worksheets/sheet1.xml', str_replace('<?xml version="1.0"?>', '<?xml version="1.0"?><!DOCTYPE worksheet [<!ENTITY data SYSTEM "file:///etc/passwd">]>', $zip->getFromName('xl/worksheets/sheet1.xml')));
+        $zip->close();
+        $this->actingAs($this->operator)->post(route('it.assets.import'), ['file' => $file])->assertSessionHasErrors('file');
+        $headers = array_merge(array_keys(AssetWorkbook::COLUMNS), ['Spesifikasi: RAM', 'Spesifikasi:ram']);
+        $this->post(route('it.assets.import'), ['file' => $this->workbook([2 => array_merge($this->importRow(), ['32 GB'])], $headers)])->assertSessionHasErrors('file');
+        $this->assertDatabaseCount('it_assets', 0);
+    }
+
+    public function test_xlsx_template_can_be_filled_without_replacing_exported_shared_strings_sheet(): void
+    {
+        $file = $this->workbook([]);
+        $original = new ZipArchive;
+        $original->open(resource_path('templates/it-assets.xlsx'));
+        $xml = $original->getFromName('xl/worksheets/sheet1.xml');
+        $original->close();
+        $row = '<x:row r="2"><x:c r="A2" t="inlineStr"><x:is><x:t>FILLED-001</x:t></x:is></x:c><x:c r="B2" t="inlineStr"><x:is><x:t>Laptop dari template</x:t></x:is></x:c><x:c r="C2" t="inlineStr"><x:is><x:t>Hardware</x:t></x:is></x:c><x:c r="D2" t="inlineStr"><x:is><x:t>Depo</x:t></x:is></x:c><x:c r="E2" t="inlineStr"><x:is><x:t>Tersedia</x:t></x:is></x:c></x:row>';
+        $xml = preg_replace('~<x:row r="2"[^>]*>.*?</x:row>~s', $row, $xml);
+        $zip = new ZipArchive;
+        $zip->open($file->getRealPath());
+        $zip->addFromString('xl/worksheets/sheet1.xml', $xml);
+        $zip->close();
+        $this->actingAs($this->operator)->post(route('it.assets.import'), ['file' => $file])->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('it_assets', ['asset_tag' => 'FILLED-001', 'name' => 'Laptop dari template']);
     }
 
     private function realDirectory(): void

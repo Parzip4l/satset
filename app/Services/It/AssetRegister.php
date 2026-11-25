@@ -37,7 +37,18 @@ final class AssetRegister
             'specifications.*' => 'required|array:name,value',
             'specifications.*.name' => 'required|string|max:100',
             'specifications.*.value' => 'required|string|max:1000',
-        ], ['asset_tag.unique' => 'Kode aset sudah dipakai. Gunakan kode yang berbeda.'])->validate();
+        ], [
+            'asset_tag.unique' => 'Kode aset sudah dipakai. Gunakan kode yang berbeda.',
+            'required' => ':attribute wajib diisi.', 'string' => ':attribute harus berupa teks.',
+            'max' => ['string' => ':attribute maksimal :max karakter.', 'array' => ':attribute maksimal :max baris.', 'numeric' => ':attribute maksimal :max.'],
+            'min' => ':attribute tidak boleh kurang dari :min.',
+            'numeric' => ':attribute harus berupa angka tanpa Rp atau pemisah ribuan.',
+            'decimal' => ':attribute maksimal 2 angka desimal.',
+            'date_format' => ':attribute harus berupa tanggal YYYY-MM-DD yang valid.',
+            'before_or_equal' => ':attribute tidak boleh melewati hari ini.',
+            'after_or_equal' => ':attribute tidak boleh sebelum tanggal perolehan.',
+            'array' => ':attribute harus berisi nama dan nilai spesifikasi.',
+        ], array_flip(AssetWorkbook::COLUMNS) + ['specifications' => 'Spesifikasi', 'specifications.*.name' => 'Nama spesifikasi', 'specifications.*.value' => 'Nilai spesifikasi'])->validate();
         $data['specifications'] = array_map(fn ($row) => ['name' => Str::squish($row['name']), 'value' => trim($row['value'])], $data['specifications'] ?? []);
         $names = array_map(fn ($row) => Str::lower($row['name']), $data['specifications']);
         if (count(array_unique($names)) !== count($names)) {
@@ -47,13 +58,18 @@ final class AssetRegister
         return $data;
     }
 
-    private function placement(array $input, ?Asset $current = null): array
+    private function placement(array $input, ?Asset $current = null, array $verifiedEmployees = []): array
     {
         $data = Validator::make($input, [
             'location_name' => 'required|string|max:150',
             'assigned_employee_portal_id' => 'nullable|uuid',
             'assigned_user_id' => 'prohibited', 'assigned_employee_id' => 'prohibited',
             'status' => ['required', Rule::in(array_keys(ItAssetAccess::STATUSES))],
+        ], [
+            'location_name.required' => 'Lokasi wajib diisi.', 'location_name.string' => 'Lokasi harus berupa teks.',
+            'location_name.max' => 'Lokasi maksimal 150 karakter.', 'status.required' => 'Status wajib diisi.',
+            'status.in' => 'Status tidak dikenali. Gunakan pilihan status pada template atau form aset.',
+            'assigned_employee_portal_id.uuid' => 'Identitas karyawan Portal tidak valid.',
         ])->validate();
         $portalId = $data['assigned_employee_portal_id'] ?? null;
         if ($data['status'] === 'in_use' && ! $portalId) {
@@ -67,7 +83,7 @@ final class AssetRegister
             $existing = $current?->assignee;
             $employee = $existing && strcasecmp($existing->portal_id, $portalId) === 0
                 ? $existing
-                : $this->directory->find($portalId);
+                : ($verifiedEmployees[$portalId] ?? $this->directory->find($portalId));
         }
 
         return ['location_name' => $data['location_name'], 'status' => $data['status'], 'employee' => $employee];
@@ -105,15 +121,67 @@ final class AssetRegister
         $metadata = $this->metadata($input);
         $placement = $this->placement($input);
 
-        return DB::transaction(function () use ($actor, $placement, $metadata) {
-            $placement = $this->persistPlacement($placement);
-            $metadata['type_id'] = $this->lookup(AssetType::class, $metadata['type_name']);
-            unset($metadata['type_name']);
-            $asset = Asset::create($metadata + $placement + ['created_by' => $actor->id, 'lock_version' => 1]);
-            $this->record($asset, $actor, 'created', 'Pencatatan awal aset.', null);
+        return DB::transaction(fn () => $this->persistNew($actor, $metadata, $placement, 'Pencatatan awal aset.'));
+    }
 
-            return $asset;
+    public function createBatch(User $actor, array $rows): int
+    {
+        abort_unless(ItAssetAccess::allowed($actor), 403);
+        if (! $rows || count($rows) > AssetWorkbook::MAX_ROWS) {
+            throw ValidationException::withMessages(['file' => 'Isi antara 1 sampai 100 aset per file.']);
+        }
+        $prepared = $errors = $tags = $employees = [];
+        foreach ($rows as $row => $input) {
+            try {
+                $metadata = $this->metadata($input);
+                if (isset($tags[$metadata['asset_tag']])) {
+                    throw ValidationException::withMessages(['asset_tag' => 'Kode aset berulang dengan baris '.$tags[$metadata['asset_tag']].'.']);
+                }
+                $tags[$metadata['asset_tag']] = $row;
+                $email = Str::lower(trim((string) ($input['employee_email'] ?? '')));
+                Validator::make(['employee_email' => $email], ['employee_email' => 'nullable|email|max:255'], [
+                    'employee_email.email' => 'Isi email kerja karyawan yang valid, bukan nama karyawan.',
+                    'employee_email.max' => 'Email pemegang maksimal 255 karakter.',
+                ])->validate();
+                $verified = [];
+                if ($email !== '') {
+                    $employee = $employees[$email] ??= $this->directory->findByEmail($email);
+                    $input['assigned_employee_portal_id'] = $employee['id'];
+                    $verified[$employee['id']] = $employee;
+                }
+                $prepared[] = [$metadata, $this->placement($input, null, $verified)];
+            } catch (ValidationException $exception) {
+                foreach ($exception->errors() as $field => $messages) {
+                    $errors['rows.'.$row.'.'.$field] = array_map(fn ($message) => 'Baris '.$row.': '.$message, $messages);
+                }
+                // A directory outage affects the whole file; avoid retrying it for every row.
+                if (isset($exception->errors()['employee_directory'])) {
+                    break;
+                }
+            }
+        }
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return DB::transaction(function () use ($actor, $prepared) {
+            foreach ($prepared as [$metadata, $placement]) {
+                $this->persistNew($actor, $metadata, $placement, 'Pencatatan awal aset melalui impor XLSX.');
+            }
+
+            return count($prepared);
         });
+    }
+
+    private function persistNew(User $actor, array $metadata, array $placement, string $reason): Asset
+    {
+        $placement = $this->persistPlacement($placement);
+        $metadata['type_id'] = $this->lookup(AssetType::class, $metadata['type_name']);
+        unset($metadata['type_name']);
+        $asset = Asset::create($metadata + $placement + ['created_by' => $actor->id, 'lock_version' => 1]);
+        $this->record($asset, $actor, 'created', $reason, null);
+
+        return $asset;
     }
 
     public function update(User $actor, Asset $asset, array $input): Asset

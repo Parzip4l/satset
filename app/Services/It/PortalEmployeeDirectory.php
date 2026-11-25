@@ -26,6 +26,32 @@ class PortalEmployeeDirectory
         return $employee;
     }
 
+    public function findByEmail(string $email): array
+    {
+        $matches = [];
+        $page = 1;
+        do {
+            $response = $this->search($email, $page);
+            foreach ($response['employees'] as $employee) {
+                if (strcasecmp($employee['email'], $email) === 0 && $employee['status'] === 'active') {
+                    $matches[$employee['id']] = $employee;
+                }
+            }
+            if (! $response['has_more']) {
+                break;
+            }
+            if (++$page > 10) {
+                throw ValidationException::withMessages(['employee_email' => 'Hasil Portal terlalu banyak. Periksa email karyawan.']);
+            }
+        } while (true);
+
+        if (count($matches) !== 1) {
+            throw ValidationException::withMessages(['employee_email' => 'Email harus cocok dengan tepat satu karyawan aktif di Portal.']);
+        }
+
+        return array_values($matches)[0];
+    }
+
     private function request(array $input): array
     {
         $secret = (string) config('satset.employee_directory.shared_secret');

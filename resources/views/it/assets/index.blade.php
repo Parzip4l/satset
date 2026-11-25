@@ -5,7 +5,7 @@
 @section('css')@include('it.assets.style')@endsection
 @section('content')
 <div class="container-fluid py-4 it-assets">
-    <header class="asset-hero d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"><div><h1>Daftar Aset IT</h1><p>Pantau identitas, penempatan, umur, dan status aset beserta riwayat perpindahannya.</p></div><a href="{{ route('it.assets.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Tambah Aset</a></header>
+    <header class="asset-hero d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"><div><h1>Daftar Aset IT</h1><p>Pantau identitas, penempatan, umur, dan status aset beserta riwayat perpindahannya.</p></div><div class="d-flex flex-wrap gap-2"><a href="{{ route('it.assets.template') }}" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Template XLSX</a><a href="{{ route('it.assets.import.form') }}" class="btn btn-outline-secondary"><i class="bi bi-upload me-1"></i>Impor XLSX</a><a href="{{ route('it.assets.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Tambah Aset</a></div></header>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger">{{ $errors->first() }}</div>@endif
     <div class="row g-3 mb-4">
