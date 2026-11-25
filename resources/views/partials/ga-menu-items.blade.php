@@ -81,6 +81,7 @@
     ];
 @endphp
 
+@if(\App\Support\GaAccess::allowed(auth()->user()))
 @foreach($gaMenuItems as $item)
     @php($itemActive = request()->routeIs(...$item['patterns']))
     <li class="{{ $topLevel ? 'pe-slide' : 'pe-slide-item' }} ga-compact-menu-item">
@@ -93,4 +94,10 @@
             @endif
         </a>
     </li>
+    @if($item['route'] === 'ticket.ga-requests')
+        @include('partials.ga-procurement-menu')
+    @endif
 @endforeach
+@else
+    @include('partials.ga-procurement-menu')
+@endif

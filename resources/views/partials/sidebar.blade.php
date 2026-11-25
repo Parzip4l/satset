@@ -35,6 +35,7 @@
             }
 
             $canAccessGaMenu = \App\Support\GaAccess::allowed(auth()->user());
+            $canAccessProcurementMenu = \App\Support\ProcurementAccess::allowed(auth()->user());
             $canAccessApprovalMenu = auth()->check()
                 && \Illuminate\Support\Facades\Schema::hasTable('approvals')
                 && \App\Models\Master\Approval::where('approver_id', auth()->id())->exists();
@@ -128,12 +129,6 @@
 
             @include('partials.sppd-menu-item')
 
-            @if(\App\Support\ProcurementAccess::allowed(auth()->user()))
-            <li class="pe-menu-title">Procurement</li>
-            <li class="pe-slide"><a href="{{ route('procurement.index') }}" class="pe-nav-link {{ request()->routeIs('procurement.index', 'procurement.create') ? 'active' : '' }}"><i class="bi bi-cart-check pe-nav-icon"></i><span class="pe-nav-content">Pengadaan Barang</span></a></li>
-            <li class="pe-slide"><a href="{{ route('procurement.reports') }}" class="pe-nav-link {{ request()->routeIs('procurement.reports*') ? 'active' : '' }}"><i class="bi bi-bar-chart-line pe-nav-icon"></i><span class="pe-nav-content">Laporan Pengadaan</span></a></li>
-            @endif
-
             <li class="pe-menu-title">Layanan IT</li>
             <li class="pe-slide">
                 <a href="{{ route(\App\Support\ServiceDomains::itActive() ? 'it.index' : 'it.request') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show', 'it.request') ? 'active' : '' }}">
@@ -146,7 +141,7 @@
             @if(\Illuminate\Support\Facades\Schema::hasTable('it_configuration_sets') && (\App\Support\ItAccess::can(auth()->user(), 'manage_it_configuration') || \App\Support\ItAccess::can(auth()->user(), 'publish_it_configuration')))
             <li class="pe-slide"><a href="{{ route('it.configuration.index') }}" class="pe-nav-link {{ request()->routeIs('it.configuration.*') ? 'active' : '' }}"><i class="bi bi-sliders pe-nav-icon"></i><span class="pe-nav-content">Konfigurasi IT</span></a></li>
             @endif
-            @if($canAccessGaMenu)
+            @if($canAccessGaMenu || $canAccessProcurementMenu)
             <li class="pe-menu-title">Operasional GA</li>
             @include('partials.ga-menu-items', ['topLevel' => true])
             @endif

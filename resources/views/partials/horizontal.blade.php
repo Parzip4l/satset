@@ -38,6 +38,7 @@
         }
 
         $canAccessGaMenu = \App\Support\GaAccess::allowed(auth()->user());
+        $canAccessProcurementMenu = \App\Support\ProcurementAccess::allowed(auth()->user());
         $canAccessApprovalMenu = auth()->check()
             && \Illuminate\Support\Facades\Schema::hasTable('approvals')
             && \App\Models\Master\Approval::where('approver_id', auth()->id())->exists();
@@ -110,18 +111,16 @@
         @include('partials.sppd-menu-item')
 
         @php
-            $bumMenuActive = request()->routeIs('bum.*')
+            $bumMenuActive = request()->routeIs('bum.*', 'procurement.*')
+                || (request()->routeIs('ticket.show') && request()->route('ticket') instanceof \App\Models\Master\Ticket && \App\Support\ProcurementAccess::is(request()->route('ticket')))
                 || request()->routeIs('ticket.ga-requests')
                 || request()->routeIs('ticket.ga-permintaan-temuan.create')
                 || request()->routeIs('ticket.konsumsi.create')
                 || request()->routeIs('ticket.atk-rtk.create')
                 || request()->routeIs('ticket.atk-rtk.warehouse');
         @endphp
-        @if(\App\Support\ProcurementAccess::allowed(auth()->user()))
-        <li class="pe-slide"><a href="{{ route('procurement.index') }}" class="pe-nav-link {{ request()->routeIs('procurement.index', 'procurement.create') ? 'active' : '' }}"><i class="bi bi-cart-check pe-nav-icon"></i><span class="pe-nav-content">Pengadaan Barang</span></a></li>
-        <li class="pe-slide"><a href="{{ route('procurement.reports') }}" class="pe-nav-link {{ request()->routeIs('procurement.reports*') ? 'active' : '' }}"><i class="bi bi-bar-chart-line pe-nav-icon"></i><span class="pe-nav-content">Laporan Pengadaan</span></a></li>
-        @endif
-        @if($canAccessGaMenu)
+
+        @if($canAccessGaMenu || $canAccessProcurementMenu)
         <li class="pe-slide pe-has-sub">
             <a href="#collapseBumHorizontal" class="pe-nav-link {{ $bumMenuActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $bumMenuActive ? 'true' : 'false' }}" aria-controls="collapseBumHorizontal">
                 <i class="bi bi-box-seam pe-nav-icon"></i>
