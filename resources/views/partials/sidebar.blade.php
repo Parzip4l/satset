@@ -135,6 +135,9 @@
                     <i class="bi bi-laptop pe-nav-icon"></i><span class="pe-nav-content">Layanan IT</span>
                 </a>
             </li>
+            @if(\App\Support\ItAssetAccess::allowed(auth()->user()))
+            <li class="pe-slide"><a href="{{ route('it.assets.index') }}" class="pe-nav-link {{ request()->routeIs('it.assets.*') ? 'active' : '' }}"><i class="bi bi-pc-display pe-nav-icon"></i><span class="pe-nav-content">Aset IT</span></a></li>
+            @endif
             @if(\Illuminate\Support\Facades\Schema::hasTable('it_sla_clocks') && (\App\Support\ItAccess::operational(auth()->user()) || \App\Support\ItAccess::can(auth()->user(), 'view_it_queue') || \App\Support\ItAccess::can(auth()->user(), 'manage_it_configuration')))
             <li class="pe-slide"><a href="{{ route('it.dashboard') }}" class="pe-nav-link {{ request()->routeIs('it.dashboard') ? 'active' : '' }}"><i class="bi bi-bar-chart-line pe-nav-icon"></i><span class="pe-nav-content">Dashboard IT</span></a></li>
             @endif

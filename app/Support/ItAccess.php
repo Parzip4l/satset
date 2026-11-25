@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Schema;
 
 class ItAccess
 {
-    public const CAPABILITIES = ['manage_it_configuration', 'publish_it_configuration', 'view_it_queue', 'view_restricted_it', 'manage_it_operations', 'manage_it_practices', 'authorize_it_change', 'publish_it_knowledge'];
+    public const CAPABILITIES = ['manage_it_configuration', 'publish_it_configuration', 'view_it_queue', 'view_restricted_it', 'manage_it_operations', 'manage_it_practices', 'manage_it_assets', 'authorize_it_change', 'publish_it_knowledge'];
 
     public static function can(?User $user, string $capability): bool
     {

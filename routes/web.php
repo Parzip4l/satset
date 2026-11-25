@@ -145,6 +145,17 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::post('/{ticket}/pemenuhan', 'fulfill')->name('fulfill');
     });
 
+    Route::prefix('it/assets')->name('it.assets.')->controller(\App\Http\Controllers\It\AssetController::class)->group(function () {
+        Route::get('/employees', 'employees')->middleware('throttle:120,1')->name('employees');
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{asset}', 'show')->name('show');
+        Route::get('/{asset}/edit', 'edit')->name('edit');
+        Route::put('/{asset}', 'update')->name('update');
+        Route::post('/{asset}/move', 'move')->name('move');
+    });
+
     // Ticket
     Route::prefix('it')->name('it.')->controller(\App\Http\Controllers\It\WorkflowController::class)->group(function () {
         Route::get('/practices', [\App\Http\Controllers\It\PracticeController::class,'index'])->name('practices.index');

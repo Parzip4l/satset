@@ -58,6 +58,14 @@ return [
         ))),
     ],
 
+    'employee_directory' => [
+        'base_url' => rtrim(env('LRTJ_SPACE_BASE_URL', 'https://portal.lrtjakarta.co.id'), '/'),
+        'endpoint' => env('LRTJ_SPACE_EMPLOYEE_DIRECTORY_ENDPOINT', '/api/v1/satset/employees/search'),
+        'shared_secret' => env('LRTJ_SPACE_SATSET_SHARED_SECRET'),
+        'timeout' => (int) env('LRTJ_SPACE_EMPLOYEE_DIRECTORY_TIMEOUT', 8),
+        'verify_ssl' => filter_var(env('LRTJ_SPACE_EMPLOYEE_DIRECTORY_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+    ],
+
     'sppd' => [
         'positions' => [
             2 => env('SATSET_SPPD_HR_POSITION', 'Kepala Divisi SDM & Bagian Umum'),

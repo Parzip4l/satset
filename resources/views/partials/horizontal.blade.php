@@ -110,6 +110,10 @@
 
         @include('partials.sppd-menu-item')
 
+        @if(\App\Support\ItAssetAccess::allowed(auth()->user()))
+        <li class="pe-slide"><a href="{{ route('it.assets.index') }}" class="pe-nav-link {{ request()->routeIs('it.assets.*') ? 'active' : '' }}"><i class="bi bi-pc-display pe-nav-icon"></i><span class="pe-nav-content">Aset IT</span></a></li>
+        @endif
+
         @php
             $bumMenuActive = request()->routeIs('bum.*', 'procurement.*')
                 || (request()->routeIs('ticket.show') && request()->route('ticket') instanceof \App\Models\Master\Ticket && \App\Support\ProcurementAccess::is(request()->route('ticket')))
