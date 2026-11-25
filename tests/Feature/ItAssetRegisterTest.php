@@ -244,6 +244,38 @@ class ItAssetRegisterTest extends TestCase
         $this->get(route('it.assets.index'))->assertForbidden();
     }
 
+    public function test_it_manager_manages_assets_and_inherits_requester_navigation_in_both_layouts(): void
+    {
+        $this->operator->update(['role' => \App\Support\ItAccess::ROLE]);
+        $asset = $this->create();
+        $this->get(route('it.assets.index'))->assertOk()->assertSee('Pengajuan Satset')->assertSee('Antrean Tiket IT')->assertDontSee('Operasional GA');
+        $this->get(route('it.assets.template'))->assertOk()->assertDownload('template-aset-it.xlsx');
+        $this->get(route('it.assets.import.form'))->assertOk();
+        $this->post(route('it.assets.move', $asset), $this->move($asset))->assertRedirect()->assertSessionHasNoErrors();
+        Schema::table('menus', function (Blueprint $table) {
+            $table->string('title')->nullable();
+            $table->string('url')->nullable();
+            $table->string('type')->nullable();
+            $table->string('icon')->nullable();
+            $table->json('role_id')->nullable();
+        });
+        $parent = DB::table('menus')->insertGetId(['title' => 'Menu Pemohon', 'url' => '#', 'type' => 'menu', 'role_id' => json_encode(['pelapor'])]);
+        DB::table('menus')->insert(['parent_id' => $parent, 'title' => 'Pengajuan Saya', 'url' => 'ticket.index', 'type' => 'menu', 'role_id' => json_encode(['pelapor'])]);
+        $this->get(route('it.assets.index'))->assertOk()->assertSee('Menu Pemohon')->assertSee('Pengajuan Saya')->assertDontSee('Pengajuan Satset');
+    }
+
+    public function test_admin_role_forms_offer_it_manager_and_ordinary_users_do_not_receive_the_option(): void
+    {
+        Schema::create('roles', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+        });
+        $this->actingAs($this->operator)->get(route('user.create'))->assertOk()->assertSee('value="it_manager"', false)->assertSee('Pengelola IT');
+        $this->operator->update(['role' => \App\Support\ItAccess::ROLE]);
+        $this->get(route('user.index'))->assertOk()->assertSee('Pengelola IT')->assertDontSee('name="role"', false);
+        $this->actingAs($this->andi)->get(route('user.create'))->assertOk()->assertDontSee('value="it_manager"', false);
+    }
+
     public function test_all_pages_filters_and_age_sort_render_with_correct_summary(): void
     {
         $asset = $this->create(['acquired_on' => '2024-01-01', 'purchase_price' => 2000]);

@@ -20,7 +20,7 @@
     @else
     @php
         if (auth()->check()) {
-            $roles = auth()->user()->role; 
+            $roles = \App\Support\ItAccess::menuRoles(auth()->user());
             $menus = \App\Models\General\Menu::where('is_active', 1)
                 ->whereNull('parent_id')
                 ->with(['children' => function($query) {
@@ -31,7 +31,7 @@
 
             $filteredMenus = $menus->filter(function ($menu) use ($roles) {
                 $roleIds = is_string($menu->role_id) ? json_decode($menu->role_id, true) : $menu->role_id;
-                return is_array($roleIds) && in_array($roles, $roleIds);
+                return is_array($roleIds) && count(array_intersect($roles, $roleIds)) > 0;
             });
         } else {
             $filteredMenus = collect();
@@ -60,7 +60,7 @@
                     // Filter children berdasarkan role terlebih dahulu
                     $visibleChildren = $menu->children->filter(function($child) use ($roles) {
                         $childRoleIds = is_string($child->role_id) ? json_decode($child->role_id, true) : $child->role_id;
-                        return is_array($childRoleIds) && in_array($roles, $childRoleIds);
+                        return is_array($childRoleIds) && count(array_intersect($roles, $childRoleIds)) > 0;
                     });
                 @endphp
 
@@ -96,6 +96,8 @@
             @endif
         @endforeach
 
+        @include('partials.it-manager-requester-menu')
+
         @if($canAccessApprovalMenu)
         <li class="pe-slide">
             <a href="{{ route('ticket.approvals') }}" class="pe-nav-link {{ request()->routeIs('ticket.approvals') ? 'active' : '' }}">
@@ -112,6 +114,15 @@
 
         @if(\App\Support\ItAssetAccess::allowed(auth()->user()))
         <li class="pe-slide"><a href="{{ route('it.assets.index') }}" class="pe-nav-link {{ request()->routeIs('it.assets.*') ? 'active' : '' }}"><i class="bi bi-pc-display pe-nav-icon"></i><span class="pe-nav-content">Aset IT</span></a></li>
+        @endif
+
+        @if(\App\Support\ItAccess::isManager(auth()->user()))
+        <li class="pe-slide"><a href="{{ route('it.request') }}" class="pe-nav-link {{ request()->routeIs('it.request', 'it.create') ? 'active' : '' }}"><i class="bi bi-laptop pe-nav-icon"></i><span class="pe-nav-content">Ajukan Tiket IT</span></a></li>
+        <li class="pe-slide"><a href="{{ route('it.index') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show') ? 'active' : '' }}"><i class="bi bi-inboxes pe-nav-icon"></i><span class="pe-nav-content">Antrean Tiket IT</span></a></li>
+        @if(\Illuminate\Support\Facades\Schema::hasTable('it_sla_clocks'))
+        <li class="pe-slide"><a href="{{ route('it.operations') }}" class="pe-nav-link {{ request()->routeIs('it.operations') ? 'active' : '' }}"><i class="bi bi-activity pe-nav-icon"></i><span class="pe-nav-content">Operasional IT</span></a></li>
+        <li class="pe-slide"><a href="{{ route('it.dashboard') }}" class="pe-nav-link {{ request()->routeIs('it.dashboard') ? 'active' : '' }}"><i class="bi bi-bar-chart-line pe-nav-icon"></i><span class="pe-nav-content">Dashboard IT</span></a></li>
+        @endif
         @endif
 
         @php

@@ -47,6 +47,22 @@ class ItWorkflowTest extends TestCase
         $this->assertSame($t->itDetail->lock_version, DB::table('it_ticket_events')->where('request_id', $t->id)->count());
     }
 
+    public function test_it_manager_can_read_queue_claim_and_work_tickets_without_team_membership(): void
+    {
+        $operator = $this->user('Pengelola IT');
+        $operator->update(['role' => \App\Support\ItAccess::ROLE]);
+        $ticket = $this->ticket();
+        $this->actingAs($operator)->getJson(route('it.index'))->assertOk()->assertSee($ticket->ticket_no);
+        $this->getJson(route('it.show', $ticket))->assertOk();
+        $this->act($ticket, 'claim', [], $operator);
+        $this->assertSame($operator->id, $ticket->fresh()->assigned_user_id);
+        $this->act($ticket, 'start', [], $operator);
+        $ticket = $this->act($ticket, 'resolve', ['resolution' => 'Gangguan berhasil diperbaiki.'], $operator);
+        $this->assertSame('resolved', $ticket->itDetail->status);
+        $own = $this->workflow->submit($operator, $this->input());
+        $this->assertSame($operator->id, $own->requester_id);
+    }
+
     public function test_configuration_capabilities_never_give_ticket_access_or_claim_rights(): void
     {
         $t = $this->ticket();

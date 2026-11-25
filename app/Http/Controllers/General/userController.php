@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting\Role;
 use App\Models\User;
 use App\Support\AccountAccess;
+use App\Support\ItAccess;
 use App\Support\SppdAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -165,7 +166,7 @@ class userController extends Controller
             : Role::query()->where('name', 'pelapor')->pluck('name');
 
         if (\App\Support\AccountAccess::isAdmin($user)) {
-            $roles = $roles->merge(['admin', 'pelapor', 'ga', 'procurement', SppdAccess::ROLE]);
+            $roles = $roles->merge(['admin', 'pelapor', 'ga', 'procurement', SppdAccess::ROLE, ItAccess::ROLE]);
         }
         $roles = \App\Support\AccountAccess::isSuperadmin($user) ? $roles->push('superadmin') : $roles->reject(fn ($role) => strtolower(trim((string) $role)) === 'superadmin');
 
@@ -180,7 +181,11 @@ class userController extends Controller
             ->values()
             ->map(fn ($name) => (object) [
                 'name' => $name,
-                'label' => $name === SppdAccess::ROLE ? SppdAccess::LABEL : $name,
+                'label' => match ($name) {
+                    SppdAccess::ROLE => SppdAccess::LABEL,
+                    ItAccess::ROLE => ItAccess::LABEL,
+                    default => $name,
+                },
             ]);
     }
 }

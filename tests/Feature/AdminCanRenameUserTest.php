@@ -84,6 +84,35 @@ class AdminCanRenameUserTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_it_manager_role_is_assigned_by_admin_and_cannot_be_self_granted(): void
+    {
+        $admin = $this->user('Admin', 'admin@lrtjakarta.co.id', 'admin');
+        $target = $this->user('Karyawan', 'employee@lrtjakarta.co.id', 'pelapor');
+        $this->actingAs($target)->put(route('user.update', $target), ['role' => \App\Support\ItAccess::ROLE])->assertRedirect();
+        $this->assertSame('pelapor', $target->fresh()->role);
+        $this->actingAs($admin)->put(route('user.update', $target), ['role' => \App\Support\ItAccess::ROLE])->assertRedirect()->assertSessionHas('success');
+        $this->assertSame(\App\Support\ItAccess::ROLE, $target->fresh()->role);
+        $this->actingAs($target)->post(route('user.store'), ['name' => 'Other', 'email' => 'other@example.test', 'role' => 'admin', 'password' => 'password'])->assertForbidden();
+        $this->put(route('user.update', $admin), ['role' => \App\Support\ItAccess::ROLE])->assertForbidden();
+        $this->actingAs($admin)->put(route('user.update', $target), ['role' => 'pelapor'])->assertRedirect();
+        $this->assertFalse(\App\Support\ItAccess::can($target->fresh(), 'manage_it_assets'));
+    }
+
+    public function test_pic_assignment_cannot_replace_the_it_manager_role(): void
+    {
+        Schema::create('divisions', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+        });
+        $division = \Illuminate\Support\Facades\DB::table('divisions')->insertGetId(['name' => 'IT']);
+        $admin = $this->user('Admin', 'admin@example.test', 'admin');
+        $operator = $this->user('IT Manager', 'it@example.test', \App\Support\ItAccess::ROLE);
+        $input = ['name' => $operator->id, 'divisi' => $division];
+        $this->actingAs($admin)->post(route('pic.dataupdate'), $input)->assertForbidden();
+        $this->put(route('pic.update', $operator->id), $input)->assertForbidden();
+        $this->assertSame(\App\Support\ItAccess::ROLE, $operator->fresh()->role);
+    }
+
     private function user(string $name, string $email, string $role): User
     {
         return User::create([

@@ -10,12 +10,28 @@ use Illuminate\Support\Facades\Schema;
 
 class ItAccess
 {
+    public const ROLE = 'it_manager';
+
+    public const LABEL = 'Pengelola IT';
+
+    public const ROLE_CAPABILITIES = ['manage_it_assets', 'view_it_queue', 'manage_it_operations'];
+
     public const CAPABILITIES = ['manage_it_configuration', 'publish_it_configuration', 'view_it_queue', 'view_restricted_it', 'manage_it_operations', 'manage_it_practices', 'manage_it_assets', 'authorize_it_change', 'publish_it_knowledge'];
+
+    public static function isManager(?User $user): bool
+    {
+        return strtolower(trim((string) $user?->role)) === self::ROLE;
+    }
+
+    public static function menuRoles(?User $user): array
+    {
+        return self::isManager($user) ? [self::ROLE, 'pelapor'] : [(string) $user?->role];
+    }
 
     public static function can(?User $user, string $capability): bool
     {
         return $user && in_array($capability, self::CAPABILITIES, true)
-            && (AccountAccess::isSuperadmin($user) || (Schema::hasTable('it_user_capabilities')
+            && (AccountAccess::isSuperadmin($user) || (self::isManager($user) && in_array($capability, self::ROLE_CAPABILITIES, true)) || (Schema::hasTable('it_user_capabilities')
             && DB::table('it_user_capabilities')->where('user_id', $user->id)->where('capability', $capability)->exists()));
     }
 

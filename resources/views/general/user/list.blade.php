@@ -81,7 +81,7 @@
                                         <td><span class="text-muted">{{ $data->email }}</span></td>
                                         <td>
                                             <span class="badge bg-light text-dark border fw-normal">
-                                                {{ \App\Support\SppdAccess::isOperator($data) ? \App\Support\SppdAccess::LABEL : ($data->role ?? 'No Role') }}
+                                                {{ \App\Support\ItAccess::isManager($data) ? \App\Support\ItAccess::LABEL : (\App\Support\SppdAccess::isOperator($data) ? \App\Support\SppdAccess::LABEL : ($data->role ?? 'No Role')) }}
                                             </span>
                                         </td>
                                         <td class="text-end pe-4">
@@ -211,6 +211,7 @@
                                 </option>
                             @endforeach
                         </select>
+                        <div class="form-text">Pengelola IT tetap dapat mengajukan tiket Satset lainnya sebagai pemohon.</div>
                     </div>
                     @endif
 

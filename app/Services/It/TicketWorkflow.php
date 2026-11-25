@@ -205,7 +205,7 @@ class TicketWorkflow
         if (! $team || ! DB::table('support_teams')->where('id', $team)->where('is_active', true)->exists()) {
             return false;
         }
-        if (\App\Support\AccountAccess::isSuperadmin($user)) {
+        if (\App\Support\AccountAccess::isSuperadmin($user) || ItAccess::isManager($user)) {
             return true;
         }
         $q = DB::table('support_team_members')->where('support_team_id', $team)->where('user_id', $user->id);

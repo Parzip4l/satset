@@ -123,6 +123,24 @@ class MobileSatsetAuthTest extends TestCase
         }
     }
 
+    public function test_mobile_sso_preserves_local_it_manager_and_does_not_grant_it_role_from_claims(): void
+    {
+        config(['satset.mobile_sso.shared_secret' => 'test-shared-secret']);
+        \App\Models\User::create(['name' => 'IT Manager', 'email' => 'it@example.test', 'role' => \App\Support\ItAccess::ROLE, 'password' => 'password']);
+        foreach ([['it@example.test', 'pelapor', \App\Support\ItAccess::ROLE], ['new@example.test', \App\Support\ItAccess::ROLE, 'pelapor']] as [$email, $role, $expected]) {
+            $body = json_encode(['email' => $email, 'name' => 'User', 'role' => $role]);
+            $timestamp = now()->timestamp;
+            $response = $this->call('POST', '/api/mobile/v1/satset/auth/sso-exchange', [], [], [], [
+                'CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json',
+                'HTTP_X_SATSET_TIMESTAMP' => $timestamp,
+                'HTTP_X_SATSET_SIGNATURE' => hash_hmac('sha256', $timestamp.'.'.$body, 'test-shared-secret'),
+            ], $body)->assertOk()->assertJsonPath('data.user.role', $expected);
+            $this->assertDatabaseHas('users', ['email' => $email, 'role' => $expected]);
+            $this->postJson('/api/mobile/v1/satset/tickets/consumption', [], ['Authorization' => 'Bearer '.$response->json('data.access_token')])
+                ->assertUnprocessable()->assertJsonValidationErrors('payload.activity_name');
+        }
+    }
+
     public function test_mobile_consumption_rejects_end_date_before_start(): void
     {
         $token = $this->exchangeToken();

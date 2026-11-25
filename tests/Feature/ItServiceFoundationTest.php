@@ -120,6 +120,24 @@ class ItServiceFoundationTest extends TestCase
         }
     }
 
+    public function test_it_manager_role_has_operational_capabilities_and_preserves_restricted_ticket_isolation(): void
+    {
+        $user = $this->user(ItAccess::ROLE);
+        foreach (ItAccess::CAPABILITIES as $capability) {
+            $this->assertSame(in_array($capability, ItAccess::ROLE_CAPABILITIES, true), ItAccess::can($user, $capability));
+        }
+        $this->assertTrue(ItAccess::operational($user));
+        $this->assertTrue(ItAccess::canRead($user, $this->ticket($this->user())));
+        $this->assertFalse(ItAccess::canRead($user, $this->ticket($this->user(), 'it', true)));
+        $this->assertFalse(\App\Support\AccountAccess::isAdmin($user));
+        $this->assertFalse(\App\Support\GaAccess::allowed($user));
+        $this->assertFalse(\App\Support\ProcurementAccess::allowed($user));
+        $this->assertSame([ItAccess::ROLE, 'pelapor'], ItAccess::menuRoles($user));
+        $user->update(['role' => 'pelapor']);
+        $this->assertFalse(ItAccess::can($user, 'manage_it_operations'));
+        $this->assertFalse(ItAccess::can($user, 'manage_it_assets'));
+    }
+
     public function test_superadmin_has_it_capabilities_and_can_read_restricted_tickets(): void
     {
         $user = $this->user('superadmin');

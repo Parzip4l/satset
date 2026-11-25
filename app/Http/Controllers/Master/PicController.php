@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Models\Master\Divisions;
 use App\Support\SppdAccess;
+use App\Support\ItAccess;
 
 class PicController extends Controller
 {
@@ -52,6 +53,7 @@ class PicController extends Controller
 
         $user = User::findOrFail($request->name);
         abort_if(SppdAccess::isOperator($user), 403, 'Ubah role Pengelola SPPD melalui pengelolaan user.');
+        abort_if(ItAccess::isManager($user), 403, 'Ubah role Pengelola IT melalui pengelolaan user.');
 
         try {
             $user->division_id = $request->divisi;
@@ -111,6 +113,7 @@ class PicController extends Controller
 
         $user = User::findOrFail($request->name);
         abort_if(SppdAccess::isOperator($user), 403, 'Ubah role Pengelola SPPD melalui pengelolaan user.');
+        abort_if(ItAccess::isManager($user), 403, 'Ubah role Pengelola IT melalui pengelolaan user.');
 
         try {
             $user->division_id = $request->divisi;

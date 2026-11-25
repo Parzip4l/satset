@@ -150,7 +150,13 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         });
     }
 
-    public function test_public_consumption_request_can_be_submitted_without_reason(): void
+    public static function requesterRoles(): array
+    {
+        return [['pelapor'], [\App\Support\ItAccess::ROLE]];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('requesterRoles')]
+    public function test_public_consumption_request_can_be_submitted_without_reason(string $requesterRole): void
     {
         Mail::fake();
         if (! Schema::hasTable('jobs')) {
@@ -291,6 +297,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
 
         config(['satset.ticket_email_notifications.enabled' => true]);
         $reporter = User::where('email', $requestData['reporter_email'])->firstOrFail();
+        $reporter->update(['role' => $requesterRole]);
         $loggedInResponse = $this->actingAs($reporter)->post(route('ticket.store'), [
             'submission_token' => (string) Str::uuid(),
             'request_type' => 'consumption',
@@ -473,7 +480,8 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
         ]);
     }
 
-    public function test_atk_submission_returns_ticket_number_before_portal_approval_qr_and_notifications(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('requesterRoles')]
+    public function test_atk_submission_returns_ticket_number_before_portal_approval_qr_and_notifications(string $requesterRole): void
     {
         config(['satset.portal_signatures.shared_secret' => 'atk-qr-test']);
         if (! Schema::hasTable('jobs')) {
@@ -513,7 +521,7 @@ class ConsumptionRequestWithoutReasonTest extends TestCase
             'email' => 'pemohon.atk@lrtjakarta.co.id',
             'username' => 'pemohon.atk',
             'phone' => '0',
-            'role' => 'user',
+            'role' => $requesterRole,
             'password' => 'secret',
         ]);
 

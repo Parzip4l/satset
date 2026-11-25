@@ -23,6 +23,19 @@ class ItManagementDashboardTest extends TestCase
         return ['from' => '2026-10-28', 'to' => '2026-10-28'];
     }
 
+    public function test_it_manager_can_use_operations_and_dashboard_without_reading_restricted_tickets(): void
+    {
+        $operator = $this->user('Pengelola IT');
+        $operator->update(['role' => \App\Support\ItAccess::ROLE]);
+        $visible = $this->ticket();
+        $hidden = $this->ticket();
+        DB::table('it_ticket_details')->where('request_id', $hidden->id)->update(['is_restricted' => true]);
+        $this->actingAs($operator)->getJson(route('it.operations'))->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $visible->id);
+        $this->get(route('it.dashboard', $this->filters()))->assertOk()->assertViewHas('incoming', 1);
+        $this->getJson(route('it.show', $hidden))->assertForbidden();
+        $this->getJson(route('it.configuration.index'))->assertForbidden();
+    }
+
     public function test_management_counts_use_visibility_and_current_backlog_and_reopened_resolution_events(): void
     {
         $visible = $this->ticket();

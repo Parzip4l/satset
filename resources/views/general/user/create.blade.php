@@ -167,6 +167,7 @@
                                         <option value="{{$data->name}}" {{ old('role') == $data->name ? 'selected' : '' }}>{{$data->label}}</option>
                                     @endforeach
                                 </select>
+                                <div class="form-text">Pengelola IT mengelola aset, antrean, dan operasional IT serta tetap bisa mengajukan tiket Satset lainnya.</div>
                             </div>
                         </div>
 

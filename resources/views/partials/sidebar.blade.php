@@ -16,7 +16,7 @@
         @else
         @php
             if (auth()->check()) {
-                $roles = auth()->user()->role; 
+                $roles = \App\Support\ItAccess::menuRoles(auth()->user());
                 $menus = \App\Models\General\Menu::where('is_active', 1)
                     ->whereNull('parent_id')
                     ->with(['children' => function($query) {
@@ -28,7 +28,7 @@
                 $filteredMenus = $menus->filter(function ($menu) use ($roles) {
                     if (\App\Support\AccountAccess::isSuperadmin(auth()->user())) return true;
                     $roleIds = is_string($menu->role_id) ? json_decode($menu->role_id, true) : $menu->role_id;
-                    return is_array($roleIds) && in_array($roles, $roleIds);
+                    return is_array($roleIds) && count(array_intersect($roles, $roleIds)) > 0;
                 });
             } else {
                 $filteredMenus = collect();
@@ -58,7 +58,7 @@
                         $visibleChildren = $menu->children->filter(function($child) use ($roles) {
                             if (\App\Support\AccountAccess::isSuperadmin(auth()->user())) return true;
                             $childRoleIds = is_string($child->role_id) ? json_decode($child->role_id, true) : $child->role_id;
-                            return is_array($childRoleIds) && in_array($roles, $childRoleIds);
+                            return is_array($childRoleIds) && count(array_intersect($roles, $childRoleIds)) > 0;
                         });
                         $isAdminSettingsMenu = \App\Support\AccountAccess::isAdmin(auth()->user())
                             && (str_contains(strtolower((string) $menu->title), 'setting')
@@ -114,6 +114,8 @@
                 @endif
             @endforeach
 
+            @include('partials.it-manager-requester-menu')
+
             @if($canAccessApprovalMenu)
             <li class="pe-menu-title">Persetujuan</li>
             <li class="pe-slide">
@@ -131,12 +133,18 @@
 
             <li class="pe-menu-title">Layanan IT</li>
             <li class="pe-slide">
-                <a href="{{ route(\App\Support\ServiceDomains::itActive() ? 'it.index' : 'it.request') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show', 'it.request') ? 'active' : '' }}">
-                    <i class="bi bi-laptop pe-nav-icon"></i><span class="pe-nav-content">Layanan IT</span>
+                <a href="{{ route(\App\Support\ItAccess::isManager(auth()->user()) ? 'it.request' : (\App\Support\ServiceDomains::itActive() ? 'it.index' : 'it.request')) }}" class="pe-nav-link {{ request()->routeIs(...(\App\Support\ItAccess::isManager(auth()->user()) ? ['it.request', 'it.create'] : ['it.index', 'it.show', 'it.request'])) ? 'active' : '' }}">
+                    <i class="bi bi-laptop pe-nav-icon"></i><span class="pe-nav-content">{{ \App\Support\ItAccess::isManager(auth()->user()) ? 'Ajukan Tiket IT' : 'Layanan IT' }}</span>
                 </a>
             </li>
             @if(\App\Support\ItAssetAccess::allowed(auth()->user()))
             <li class="pe-slide"><a href="{{ route('it.assets.index') }}" class="pe-nav-link {{ request()->routeIs('it.assets.*') ? 'active' : '' }}"><i class="bi bi-pc-display pe-nav-icon"></i><span class="pe-nav-content">Aset IT</span></a></li>
+            @endif
+            @if(\App\Support\ItAccess::isManager(auth()->user()))
+            <li class="pe-slide"><a href="{{ route('it.index') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show') ? 'active' : '' }}"><i class="bi bi-inboxes pe-nav-icon"></i><span class="pe-nav-content">Antrean Tiket IT</span></a></li>
+            @if(\Illuminate\Support\Facades\Schema::hasTable('it_sla_clocks'))
+            <li class="pe-slide"><a href="{{ route('it.operations') }}" class="pe-nav-link {{ request()->routeIs('it.operations') ? 'active' : '' }}"><i class="bi bi-activity pe-nav-icon"></i><span class="pe-nav-content">Operasional IT</span></a></li>
+            @endif
             @endif
             @if(\Illuminate\Support\Facades\Schema::hasTable('it_sla_clocks') && (\App\Support\ItAccess::operational(auth()->user()) || \App\Support\ItAccess::can(auth()->user(), 'view_it_queue') || \App\Support\ItAccess::can(auth()->user(), 'manage_it_configuration')))
             <li class="pe-slide"><a href="{{ route('it.dashboard') }}" class="pe-nav-link {{ request()->routeIs('it.dashboard') ? 'active' : '' }}"><i class="bi bi-bar-chart-line pe-nav-icon"></i><span class="pe-nav-content">Dashboard IT</span></a></li>
