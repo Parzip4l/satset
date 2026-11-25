@@ -55,6 +55,11 @@ class MobileSatsetTicketController extends Controller
                             ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id)));
                 });
             })
+            ->when(! \App\Support\ProcurementAccess::allowed($user), fn ($builder) => $builder->where(function ($visible) use ($user) {
+                $visible->whereNull('payload->request_type')->orWhere('payload->request_type', '!=', 'goods_procurement')
+                    ->orWhere('requester_id', $user->id)
+                    ->orWhereHas('approvals', fn ($approval) => $approval->where('approver_id', $user->id));
+            }))
             ->when($request->query('service'), fn ($builder, $code) => \App\Support\TicketServiceDomain::filter($builder, $code))
             ->when($request->query('request_type'), fn ($builder, $type) => $builder->where('payload->request_type', $type))
             ->when($request->query('status_id'), fn ($builder, $statusId) => $builder->where('status_id', $statusId))

@@ -23,11 +23,26 @@ class TicketWorkflowPresenter
         }
 
         return match ($requestType) {
+            'goods_procurement' => self::procurement($workflowStatus),
             'consumption' => self::consumption($workflowStatus),
             'atk_rtk' => self::atkRtk($workflowStatus, $payload),
             'ga_request_finding' => self::gaRequestFinding($workflowStatus),
             default => self::general($ticketStatus, $workflowStatus),
         };
+    }
+
+    private static function procurement(string $status): array
+    {
+        [$label, $description, $step, $color, $icon] = match ($status) {
+            'WAITING_MANAGER_APPROVAL' => ['Menunggu persetujuan kadep/manager', 'Atasan pemohon perlu menyetujui kebutuhan barang.', 1, 'warning', 'bi-person-check'],
+            'WAITING_PROCUREMENT_REVIEW' => ['Review Procurement', 'Tim Procurement memeriksa kebutuhan dan ketersediaan barang atau dana.', 2, 'info', 'bi-clipboard-check'],
+            'WAITING_PROCUREMENT' => ['Menunggu ketersediaan', 'Barang atau dana belum tersedia. Pengajuan tetap menunggu.', 3, 'warning', 'bi-hourglass-split'],
+            'PARTIALLY_FULFILLED' => ['Terpenuhi sebagian', 'Sebagian kebutuhan sudah diberikan. Sisa kebutuhan masih diproses.', 3, 'primary', 'bi-box-seam'],
+            'CLOSED' => ['Selesai', 'Seluruh kebutuhan sudah dipenuhi melalui barang atau dana beserta bukti penyerahan.', 4, 'success', 'bi-check-circle-fill'],
+            default => [self::humanize($status), 'Pengajuan pengadaan barang sedang diproses.', 1, 'secondary', 'bi-hourglass-split'],
+        };
+
+        return self::result($label, $description, $step, 4, $color, $icon);
     }
 
     private static function consumption(string $status): array

@@ -412,6 +412,7 @@
     ];
 
     $servicePresentation = [
+        'goods_procurement' => ['kicker' => 'Pengadaan & pemenuhan', 'class' => 'tone-slate', 'description' => 'Ajukan kebutuhan barang dengan approval kadep/manager dan tindak lanjut tim Procurement.'],
         'atk_rtk' => ['kicker' => 'Kebutuhan kantor', 'class' => 'tone-amber', 'description' => 'Ajukan alat tulis atau perlengkapan rumah tangga kantor dari katalog yang tersedia.'],
         'consumption' => ['kicker' => 'Kegiatan & rapat', 'class' => 'tone-teal', 'description' => 'Ajukan konsumsi kegiatan dengan alur approval atasan dan verifikasi Bagian Umum.'],
         'ga_request_finding' => ['kicker' => 'Layanan fasilitas', 'class' => 'featured tone-red', 'description' => 'Sampaikan kebutuhan dukungan atau temuan fasilitas agar dapat segera ditindaklanjuti.'],

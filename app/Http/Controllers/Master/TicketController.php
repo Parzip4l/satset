@@ -258,6 +258,8 @@ class TicketController extends Controller
             ],
         ];
 
+        $createActions[] = ['label' => 'Pengajuan Pengadaan Barang', 'description' => 'Pengadaan melalui tim Procurement', 'icon' => 'bi-cart-check', 'route' => 'procurement.create'];
+
         $createActions[] = ['label' => 'Layanan IT', 'description' => 'Gangguan dan permintaan layanan IT', 'icon' => 'bi-laptop', 'route' => 'it.request'];
 
         if ($request->ajax()) {
@@ -1468,7 +1470,8 @@ class TicketController extends Controller
     public function update(Request $request, $id)
     {
         $ticket = Ticket::findOrFail($id);
-        abort_if(\App\Support\Sppd::is($ticket) || $request->input('payload.request_type') === \App\Support\Sppd::TYPE, 404);
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
+        abort_if(\App\Support\Sppd::is($ticket) || in_array($request->input('payload.request_type'), [\App\Support\Sppd::TYPE, \App\Support\ProcurementAccess::TYPE], true), 404);
 
         $ticket->update($request->all());
 
@@ -1485,6 +1488,7 @@ class TicketController extends Controller
     public function destroy($id)
     {
         $ticket = Ticket::findOrFail($id);
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
         abort_if(\App\Support\Sppd::is($ticket), 404);
         $ticket->delete();
 
@@ -1521,6 +1525,7 @@ class TicketController extends Controller
 
     public function updateStatus(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
         abort_if(\App\Support\Sppd::is($ticket), 404);
         $this->ensureAdminAccess();
 
@@ -1585,6 +1590,7 @@ class TicketController extends Controller
 
     public function assign(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
         abort_if(\App\Support\Sppd::is($ticket), 404);
         $this->ensureAdminAccess();
 
@@ -1629,6 +1635,7 @@ class TicketController extends Controller
 
     public function comment(Request $request, Ticket $ticket)
     {
+        abort_unless(TicketAccess::canView($request->user(), $ticket), 403);
         abort_if(\App\Support\Sppd::is($ticket), 404);
         $request->validate([
             'message' => 'required|string',
@@ -1698,7 +1705,7 @@ class TicketController extends Controller
         abort_if(\App\Support\Sppd::is($ticket), 404);
         $user = $request->user();
         $canSync = (int) $ticket->requester_id === (int) $user?->id
-            || GaAccess::allowed($user)
+            || (\App\Support\ProcurementAccess::is($ticket) ? \App\Support\ProcurementAccess::allowed($user) : GaAccess::allowed($user))
             || $ticket->approvals()
                 ->where('level', 1)
                 ->whereRaw('LOWER(status) = ?', ['pending'])
@@ -1745,6 +1752,7 @@ class TicketController extends Controller
 
     public function bumReviewAtkRtk(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
         $this->ensureGaOperationAccess();
         $this->ensureAtkRtkManagerApprovalCleared($ticket);
 
@@ -1774,6 +1782,7 @@ class TicketController extends Controller
 
     public function replenishAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
     {
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
         $this->ensureGaOperationAccess();
         $this->ensureAtkRtkManagerApprovalCleared($ticket);
 
@@ -1834,6 +1843,7 @@ class TicketController extends Controller
 
     public function handoverAtkRtk(Request $request, Ticket $ticket, ConsumableStockService $stockService)
     {
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
         $this->ensureGaOperationAccess();
         $this->ensureAtkRtkManagerApprovalCleared($ticket);
 
@@ -1910,6 +1920,7 @@ class TicketController extends Controller
 
     public function updateConsumptionFlow(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
         abort_if(\App\Support\Sppd::is($ticket), 404);
         $this->ensureGaOperationAccess();
 
@@ -2207,6 +2218,7 @@ class TicketController extends Controller
 
     public function uploadConsumptionEvidence(Request $request, Ticket $ticket)
     {
+        abort_if(\App\Support\ProcurementAccess::is($ticket), 404);
         abort_if(\App\Support\Sppd::is($ticket), 404);
 
         if ((int) $ticket->requester_id !== (int) $request->user()?->id && ! GaAccess::allowed($request->user())) {

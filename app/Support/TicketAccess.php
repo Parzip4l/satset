@@ -13,6 +13,12 @@ final class TicketAccess
             return false;
         }
 
+        if (ProcurementAccess::is($ticket)) {
+            return ProcurementAccess::allowed($user)
+                || (int) $ticket->requester_id === (int) $user->id
+                || $ticket->approvals()->where('approver_id', $user->id)->exists();
+        }
+
         if (Sppd::is($ticket)) {
             return SppdAccess::canConfigure($user)
                 || (int) $ticket->requester_id === (int) $user->id

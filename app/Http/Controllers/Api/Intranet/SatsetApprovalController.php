@@ -37,7 +37,7 @@ class SatsetApprovalController extends Controller
 
         $approvals = Approval::query()
             ->with(['request.requester', 'request.status', 'approver', 'audits'])
-            ->whereHas('request', fn ($query) => $query->whereIn('payload->request_type', ['atk_rtk', 'consumption']))
+            ->whereHas('request', fn ($query) => $query->whereIn('payload->request_type', ['atk_rtk', 'consumption', 'goods_procurement']))
             ->when($status !== 'all', fn ($query) => $query->whereRaw('LOWER(status) = ?', [$status]))
             ->whereHas('approver', fn ($approver) => $approver->where('email', $approverEmail)
                 ->whereRaw("LOWER(TRIM(COALESCE(role, ''))) <> ?", [SppdAccess::ROLE]))

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\GaSubmissionTiming;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -224,7 +225,7 @@ class LrtjSpaceMobileNotificationService
 
         User::query()
             ->whereNotNull('email')
-            ->whereRaw('LOWER(TRIM(role)) IN (?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+            ->whereIn(DB::raw('LOWER(TRIM(role))'), \App\Support\ProcurementAccess::is($ticket) ? ['admin', 'superadmin', 'super_admin', 'procurement', 'ga', 'bum', 'general affair', 'general affairs', 'bagian umum', 'operasional ga'] : [
                 'admin',
                 'superadmin',
                 'super_admin',
@@ -243,7 +244,7 @@ class LrtjSpaceMobileNotificationService
 
                 $recipientPayload = array_merge($payload, [
                     'recipient_email' => $recipient->email,
-                    'recipient_scope' => 'admin_ga_all_requests',
+                    'recipient_scope' => \App\Support\ProcurementAccess::is($ticket) ? 'procurement' : 'admin_ga_all_requests',
                 ]);
                 $dedupeMarker = hash('sha256', json_encode($recipientPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 

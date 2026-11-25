@@ -206,6 +206,7 @@ class TicketApiController extends Controller
             'urgency_id'         => 'nullable|exists:urgencies,id',
             'ticket_category_id' => 'nullable|exists:ticket_categories,id',
             'dynamic_fields'     => 'nullable|array',
+            'dynamic_fields.request_type' => 'nullable|not_in:goods_procurement',
         ]);
 
         if ($validator->fails()) {
@@ -311,7 +312,7 @@ class TicketApiController extends Controller
 
         // 2. CEK TIKET
         $ticket = \App\Support\Sppd::excludeFrom(Ticket::query())->find($id);
-        if (!$ticket) {
+        if (! $ticket || \App\Support\ProcurementAccess::is($ticket)) {
             return response()->json(['success' => false, 'message' => 'Ticket tidak ditemukan.'], 404);
         }
 
@@ -330,6 +331,7 @@ class TicketApiController extends Controller
             'urgency_id'         => 'nullable|exists:urgencies,id',
             'ticket_category_id' => 'nullable|exists:ticket_categories,id',
             'dynamic_fields'     => 'nullable|array',
+            'dynamic_fields.request_type' => 'nullable|not_in:goods_procurement',
         ]);
 
         if ($validator->fails()) {

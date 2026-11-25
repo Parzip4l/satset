@@ -22,6 +22,7 @@ class ServiceDomains
         'consumption' => ['name' => 'Konsumsi', 'description' => 'Konsumsi rapat dan kegiatan.', 'icon' => 'bi-cup-hot', 'route' => 'ticket.konsumsi.create'],
         'ga_request_finding' => ['name' => 'Permintaan & Temuan', 'description' => 'Kebutuhan dukungan dan temuan fasilitas GA.', 'icon' => 'bi-building-gear', 'route' => 'ticket.ga-permintaan-temuan.create'],
         'it' => ['name' => 'Layanan IT', 'description' => 'Gangguan dan permintaan layanan teknologi informasi.', 'icon' => 'bi-laptop', 'route' => 'it.request'],
+        'goods_procurement' => ['name' => 'Pengajuan Pengadaan Barang', 'description' => 'Pengadaan barang melalui persetujuan atasan dan tim Procurement.', 'icon' => 'bi-cart-check', 'route' => 'procurement.create'],
     ];
 
     public static function catalog(): array

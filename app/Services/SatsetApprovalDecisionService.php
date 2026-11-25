@@ -30,6 +30,11 @@ class SatsetApprovalDecisionService
     ): Ticket {
         abort_if(\App\Support\Sppd::is($ticket), 404);
 
+        if (\App\Support\ProcurementAccess::is($ticket)) {
+            abort_unless((int) $approval->approver_id === (int) $actor->id && (int) $ticket->requester_id !== (int) $actor->id, 403, 'Hanya kadep/manager yang ditunjuk dapat menyetujui pengadaan.');
+            abort_unless(in_array(strtolower($status), ['approved', 'rejected'], true), 422);
+        }
+
         $normalizedStatus = strtolower($status);
         $bumApprover = null;
 
@@ -84,6 +89,11 @@ class SatsetApprovalDecisionService
 
             $freshTicket = Ticket::query()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
 
+            if (\App\Support\ProcurementAccess::is($freshTicket)) {
+                abort_unless((int) $lockedApproval->approver_id === (int) $actor->id && (int) $freshTicket->requester_id !== (int) $actor->id, 403);
+                abort_unless((int) $lockedApproval->level === 1 && data_get($freshTicket->payload, 'workflow_status') === 'WAITING_MANAGER_APPROVAL', 409);
+            }
+
             $approvalUpdates = [
                 'status' => $normalizedStatus,
                 'notes' => $comment,
@@ -106,7 +116,10 @@ class SatsetApprovalDecisionService
             $payload = $freshTicket->payload ?? [];
             $requestType = data_get($payload, 'request_type');
             $ticketStatusName = 'In Progress';
-            if ($requestType === 'atk_rtk') {
+            if ($requestType === 'goods_procurement') {
+                $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'WAITING_PROCUREMENT_REVIEW' : 'REJECTED_BY_MANAGER';
+                $ticketStatusName = $normalizedStatus === 'approved' ? 'In Progress' : 'Closed';
+            } elseif ($requestType === 'atk_rtk') {
                 $payload['workflow_status'] = $normalizedStatus === 'approved' ? 'WAITING_BUM_REVIEW' : 'REJECTED_BY_MANAGER';
                 $ticketStatusName = $normalizedStatus === 'approved' ? 'In Progress' : 'Closed';
             } elseif ($requestType === 'consumption') {

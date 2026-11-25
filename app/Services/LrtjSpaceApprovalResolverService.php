@@ -21,7 +21,7 @@ class LrtjSpaceApprovalResolverService
         $ticket->loadMissing('requester');
         $email = $ticket->requester?->email ?: data_get($ticket->payload, 'reporter_email');
         $override = [];
-        if (SatsetRequesterPolicy::routesDirectlyToGa($email)) {
+        if (! \App\Support\ProcurementAccess::is($ticket) && SatsetRequesterPolicy::routesDirectlyToGa($email)) {
             $fallback = trim((string) config('satset.portal_signatures.direct_ga_fallback_signer.email'));
             if ($fallback === '') {
                 $this->fail('Email fallback approval Team GA belum dikonfigurasi.');
@@ -114,7 +114,7 @@ class LrtjSpaceApprovalResolverService
             $this->fail('Data pemohon dari Portal belum lengkap untuk '.$ticket->ticket_no.'. Portal harus mengirim email pemohon yang aktif.');
         }
 
-        return $requester;
+        return array_replace((array) (data_get($response, 'data.requester') ?? data_get($response, 'requester')), $requester);
     }
 
     public function resolveSppdParticipants(Ticket $ticket): array

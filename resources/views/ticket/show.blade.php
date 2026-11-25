@@ -170,7 +170,7 @@
         $requestType = data_get($ticket->payload, 'request_type');
         $workflowStatus = data_get($ticket->payload, 'workflow_status', '-');
         $pendingApproval = $ticket->approvals->first(fn ($approval) => strtolower((string) $approval->status) === 'pending');
-        $isBumRequest = in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding'], true);
+        $isBumRequest = in_array($requestType, ['consumption', 'atk_rtk', 'ga_request_finding', 'goods_procurement'], true);
         $canManageGaOperations = \App\Support\GaAccess::allowed(auth()->user());
         $isRequester = (int) $ticket->requester_id === (int) auth()->id();
         $managerApprovalSetup = $requestType === 'atk_rtk' && $workflowStatus === 'WAITING_MANAGER_APPROVAL'
@@ -180,10 +180,10 @@
             && (string) $pendingApproval->approver_id === (string) $ticket->requester_id;
         $canActOnPendingApproval = $pendingApproval
             && !$isRequester
-            && ((string) $pendingApproval->approver_id === (string) auth()->id() || \App\Support\AccountAccess::isAdmin(auth()->user()));
+            && ((string) $pendingApproval->approver_id === (string) auth()->id() || ($requestType !== 'goods_procurement' && \App\Support\AccountAccess::isAdmin(auth()->user())));
         $canSyncManagerApproval = $pendingApproval
             && (int) $pendingApproval->level === 1
-            && ($isRequester || $canManageGaOperations || (string) $pendingApproval->approver_id === (string) auth()->id());
+            && ($isRequester || ($requestType === 'goods_procurement' ? \App\Support\ProcurementAccess::allowed(auth()->user()) : $canManageGaOperations) || (string) $pendingApproval->approver_id === (string) auth()->id());
         $canUploadConsumptionEvidence = (int) $ticket->requester_id === (int) auth()->id() || $canManageGaOperations;
         $atkRtkEstimatedAmount = (float) data_get($ticket->payload, 'total_estimated_amount', 0);
         $atkRtkApprovalThreshold = (float) data_get($ticket->payload, 'approval_threshold', config('bum.atk_rtk_manager_approval_threshold', 100000));
@@ -208,7 +208,7 @@
             && \App\Support\AtkRtkGoodsIssue::isBulk($ticket->payload ?? []);
         $reporterAttachments = $ticket->attachments->where('attachment_type', 'ga_report_evidence');
         $otherAttachments = $ticket->attachments->where('attachment_type', '!=', 'ga_report_evidence');
-        $requesterApproverLabel = $requestType === 'atk_rtk' ? 'Kadep Pemohon' : 'Kadiv Pemohon';
+        $requesterApproverLabel = in_array($requestType, ['atk_rtk', 'goods_procurement']) ? 'Kadep / Manager Pemohon' : 'Kadiv Pemohon';
         $displayStatusName = $isBumRequest
             ? match ($workflowStatus) {
                 'CLOSED', 'HANDED_OVER' => 'Closed',
@@ -219,12 +219,14 @@
             }
             : ($ticket->status->name ?? '-');
         $categoryLabel = match ($requestType) {
+            'goods_procurement' => 'Pengajuan Pengadaan Barang',
             'consumption' => 'Permintaan Konsumsi Rapat',
             'atk_rtk' => 'Permintaan ATK/RTK',
             'ga_request_finding' => 'GA Permintaan & Temuan',
             default => $ticket->category->name ?? '-',
         };
         $serviceLabel = match ($requestType) {
+            'goods_procurement' => 'Layanan Procurement',
             'consumption' => 'Layanan BUM - Konsumsi Rapat',
             'atk_rtk' => 'Layanan BUM - ATK/RTK',
             'ga_request_finding' => 'Layanan BUM - QR Permintaan & Temuan',
@@ -328,6 +330,12 @@
                                 'Atasan Approval' => data_get($ticket->payload, 'supervisor_name'),
                                 'Status BUM' => $workflowStatus,
                             ])->filter(fn ($value) => filled($value));
+                        } elseif ($requestType === 'goods_procurement') {
+                            $detailPayload = collect([
+                                'Nama Pemohon' => data_get($ticket->payload, 'requester_name'),
+                                'Departemen Pemohon' => data_get($ticket->payload, 'requester_department'),
+                                'Total Perkiraan Anggaran' => 'Rp'.number_format(data_get($ticket->payload, 'total_estimated_amount', 0), 2, ',', '.'),
+                            ]);
                         } elseif ($requestType === 'ga_request_finding') {
                             $detailPayload = collect([
                                 'Jenis Laporan' => data_get($ticket->payload, 'report_type'),
@@ -394,6 +402,10 @@
                                 </div>
                             @endforelse
                         </div>
+                    @endif
+
+                    @if($requestType === 'goods_procurement')
+                        @include('procurement.detail')
                     @endif
 
                     @if($requestType === 'atk_rtk' && !empty(data_get($ticket->payload, 'items')))
@@ -556,7 +568,7 @@
                         </div>
                         <div class="col-12">
                             <span class="meta-label">Status Proses</span>
-                            <span class="badge bg-light text-dark border px-3 py-2">{{ $workflowStatus }}</span>
+                            <span class="badge bg-light text-dark border px-3 py-2">{{ $requestType === 'goods_procurement' ? \App\Support\TicketWorkflowPresenter::make($ticket->payload)['label'] : $workflowStatus }}</span>
                         </div>
                         @if($managerApprovalSetup)
                         @php
@@ -631,7 +643,7 @@
                                             <a href="{{ $approvalStep->portal_signature_url ?: $approvalStep->portal_qr_url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success mt-2">
                                                 <i class="bi bi-qr-code me-1"></i> Verifikasi QR Portal
                                             </a>
-                                        @elseif($approvalStatus === 'approved')
+                                        @elseif($approvalStatus === 'approved' && $requestType !== 'goods_procurement')
                                             <div class="text-warning small mt-2"><i class="bi bi-exclamation-triangle me-1"></i>QR Portal belum tersedia</div>
                                         @endif
                                     </div>

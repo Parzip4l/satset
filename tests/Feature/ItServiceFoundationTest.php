@@ -87,9 +87,9 @@ class ItServiceFoundationTest extends TestCase
         DB::table('it_user_capabilities')->insert(['user_id' => $user->id, 'capability' => $capability, 'created_at' => now(), 'updated_at' => now()]);
     }
 
-    public function test_migration_separates_four_domains_and_preserves_existing_ticket_identity(): void
+    public function test_migration_separates_service_domains_and_preserves_existing_ticket_identity(): void
     {
-        $this->assertSame(['atk_rtk', 'consumption', 'ga_request_finding', 'it'], ServiceDomain::orderBy('sort_order')->pluck('code')->all());
+        $this->assertSame(['atk_rtk', 'consumption', 'ga_request_finding', 'it', 'goods_procurement'], ServiceDomain::orderBy('sort_order')->pluck('code')->all());
         $this->assertFalse(ServiceDomain::where('code', 'it')->first()->is_active);
         $this->assertFalse(collect(ServiceDomains::catalog())->firstWhere('code', 'it')['accepting_requests']);
         $this->assertFalse(config('satset.it.requests_enabled'));
@@ -317,10 +317,10 @@ class ItServiceFoundationTest extends TestCase
         $this->assertDatabaseHas('requests', ['id' => $legacy->id, 'ticket_no' => $legacy->ticket_no]);
         $this->assertFalse(Schema::hasColumn('requests', 'service_domain_id'));
         $this->assertFalse(Schema::hasTable('it_ticket_details'));
-        $this->assertCount(4, ServiceDomains::catalog());
+        $this->assertCount(5, ServiceDomains::catalog());
     }
 
-    public function test_request_center_has_four_service_cards_and_keeps_history_and_approval_separate(): void
+    public function test_request_center_has_service_cards_and_keeps_history_and_approval_separate(): void
     {
         Schema::create('statuses', function (Blueprint $table) {
             $table->id();
@@ -328,6 +328,6 @@ class ItServiceFoundationTest extends TestCase
         });
         $this->actingAs($this->user())->get(route('ticket.index'))->assertOk()
             ->assertSee('ATK/RTK')->assertSee('Konsumsi')->assertSee('Permintaan &amp; Temuan', false)
-            ->assertSee('Layanan IT')->assertSee('Persetujuan Saya')->assertSee('Lihat tiket saya');
+            ->assertSee('Layanan IT')->assertSee('Pengajuan Pengadaan Barang')->assertSee('Persetujuan Saya')->assertSee('Lihat tiket saya');
     }
 }

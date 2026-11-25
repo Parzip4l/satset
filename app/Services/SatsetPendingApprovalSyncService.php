@@ -23,9 +23,9 @@ class SatsetPendingApprovalSyncService
     public function syncManagerApprover(Ticket $ticket, User $actor): array
     {
         $requestType = (string) data_get($ticket->payload, 'request_type');
-        if (! in_array($requestType, ['consumption', 'atk_rtk'], true)) {
+        if (! in_array($requestType, ['consumption', 'atk_rtk', 'goods_procurement'], true)) {
             throw ValidationException::withMessages([
-                'approval_sync' => 'Sinkronisasi atasan hanya tersedia untuk permintaan konsumsi dan ATK/RTK.',
+                'approval_sync' => 'Sinkronisasi atasan hanya tersedia untuk permintaan konsumsi, ATK/RTK, dan pengadaan barang.',
             ]);
         }
 

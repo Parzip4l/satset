@@ -128,6 +128,12 @@
 
             @include('partials.sppd-menu-item')
 
+            @if(\App\Support\ProcurementAccess::allowed(auth()->user()))
+            <li class="pe-menu-title">Procurement</li>
+            <li class="pe-slide"><a href="{{ route('procurement.index') }}" class="pe-nav-link {{ request()->routeIs('procurement.index', 'procurement.create') ? 'active' : '' }}"><i class="bi bi-cart-check pe-nav-icon"></i><span class="pe-nav-content">Pengadaan Barang</span></a></li>
+            <li class="pe-slide"><a href="{{ route('procurement.reports') }}" class="pe-nav-link {{ request()->routeIs('procurement.reports*') ? 'active' : '' }}"><i class="bi bi-bar-chart-line pe-nav-icon"></i><span class="pe-nav-content">Laporan Pengadaan</span></a></li>
+            @endif
+
             <li class="pe-menu-title">Layanan IT</li>
             <li class="pe-slide">
                 <a href="{{ route(\App\Support\ServiceDomains::itActive() ? 'it.index' : 'it.request') }}" class="pe-nav-link {{ request()->routeIs('it.index', 'it.show', 'it.request') ? 'active' : '' }}">

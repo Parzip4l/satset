@@ -78,7 +78,7 @@
                                     @php
                                         $ticket = $approval->request;
                                         $isSppd = \App\Support\Sppd::is($ticket);
-                                        $workflowStatus = $isSppd ? \App\Support\Sppd::label($ticket) : data_get($ticket->payload, 'workflow_status', '-');
+                                        $workflowStatus = $isSppd ? \App\Support\Sppd::label($ticket) : (\App\Support\ProcurementAccess::is($ticket) ? \App\Support\TicketWorkflowPresenter::make($ticket->payload)['label'] : data_get($ticket->payload, 'workflow_status', '-'));
                                         $approvalColor = match($approval->status) {
                                             'approved' => 'success',
                                             'rejected' => 'danger',

@@ -165,7 +165,7 @@ class userController extends Controller
             : Role::query()->where('name', 'pelapor')->pluck('name');
 
         if (\App\Support\AccountAccess::isAdmin($user)) {
-            $roles = $roles->merge(['admin', 'pelapor', 'ga', SppdAccess::ROLE]);
+            $roles = $roles->merge(['admin', 'pelapor', 'ga', 'procurement', SppdAccess::ROLE]);
         }
         $roles = \App\Support\AccountAccess::isSuperadmin($user) ? $roles->push('superadmin') : $roles->reject(fn ($role) => strtolower(trim((string) $role)) === 'superadmin');
 

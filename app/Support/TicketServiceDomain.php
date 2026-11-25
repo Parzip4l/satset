@@ -19,7 +19,7 @@ class TicketServiceDomain
         }
         $type = data_get($ticket->payload, 'request_type');
 
-        return in_array($type, ['atk_rtk', 'consumption', 'ga_request_finding'], true) ? $type : null;
+        return in_array($type, ['atk_rtk', 'consumption', 'ga_request_finding', 'goods_procurement'], true) ? $type : null;
     }
 
     public static function filter(Builder $query, mixed $code): Builder
@@ -49,7 +49,7 @@ class TicketServiceDomain
             return;
         }
         $type = data_get($ticket->payload, 'request_type');
-        if (in_array($type, ['atk_rtk', 'consumption', 'ga_request_finding'], true)) {
+        if (in_array($type, ['atk_rtk', 'consumption', 'ga_request_finding', 'goods_procurement'], true)) {
             $ticket->service_domain_id = ServiceDomain::where('code', $type)->value('id');
         }
     }

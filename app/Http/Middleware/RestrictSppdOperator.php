@@ -13,6 +13,7 @@ class RestrictSppdOperator
     private const REQUESTER_ROUTES = [
         'ticket.index', 'ticket.mine', 'ticket.general', 'ticket.create', 'ticket.store',
         'ticket.konsumsi.create', 'ticket.atk-rtk.create', 'ticket.ga-permintaan-temuan.create',
+        'procurement.create', 'procurement.store',
         'ticket.form-schema', 'ticket.show', 'ticket.attachments.show', 'ticket.comment',
         'ticket.approvals.sync-manager', 'ticket.approvals.manager-status', 'ticket.atk-rtk.goods-issue',
         'ticket.consumption.form', 'ticket.consumption.evidence', 'ticket.ga-request-finding.report',

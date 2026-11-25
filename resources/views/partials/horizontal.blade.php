@@ -117,6 +117,10 @@
                 || request()->routeIs('ticket.atk-rtk.create')
                 || request()->routeIs('ticket.atk-rtk.warehouse');
         @endphp
+        @if(\App\Support\ProcurementAccess::allowed(auth()->user()))
+        <li class="pe-slide"><a href="{{ route('procurement.index') }}" class="pe-nav-link {{ request()->routeIs('procurement.index', 'procurement.create') ? 'active' : '' }}"><i class="bi bi-cart-check pe-nav-icon"></i><span class="pe-nav-content">Pengadaan Barang</span></a></li>
+        <li class="pe-slide"><a href="{{ route('procurement.reports') }}" class="pe-nav-link {{ request()->routeIs('procurement.reports*') ? 'active' : '' }}"><i class="bi bi-bar-chart-line pe-nav-icon"></i><span class="pe-nav-content">Laporan Pengadaan</span></a></li>
+        @endif
         @if($canAccessGaMenu)
         <li class="pe-slide pe-has-sub">
             <a href="#collapseBumHorizontal" class="pe-nav-link {{ $bumMenuActive ? 'active' : '' }}" data-bs-toggle="collapse" aria-expanded="{{ $bumMenuActive ? 'true' : 'false' }}" aria-controls="collapseBumHorizontal">

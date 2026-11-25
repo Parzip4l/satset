@@ -136,6 +136,15 @@ Route::group(['prefix' => '/', 'middleware' => 'auth'], function () {
         Route::post('/versions/{version}/preview', [\App\Http\Controllers\It\ConfigurationController::class, 'preview'])->name('preview');
     });
 
+    Route::prefix('pengadaan-barang')->name('procurement.')->controller(\App\Http\Controllers\ProcurementController::class)->group(function () {
+        Route::get('/laporan', [\App\Http\Controllers\ProcurementReportController::class, 'index'])->name('reports');
+        Route::get('/laporan/export', [\App\Http\Controllers\ProcurementReportController::class, 'export'])->name('reports.export');
+        Route::get('/', 'index')->name('index');
+        Route::get('/ajukan', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::post('/{ticket}/pemenuhan', 'fulfill')->name('fulfill');
+    });
+
     // Ticket
     Route::prefix('it')->name('it.')->controller(\App\Http\Controllers\It\WorkflowController::class)->group(function () {
         Route::get('/practices', [\App\Http\Controllers\It\PracticeController::class,'index'])->name('practices.index');
