@@ -21,8 +21,11 @@ final class AssetRegister
     private function metadata(array $input, ?Asset $asset = null): array
     {
         $input['asset_tag'] = Str::upper(Str::squish((string) ($input['asset_tag'] ?? '')));
+        if (is_array($input['specifications'] ?? null)) {
+            $input['specifications'] = array_values(array_filter($input['specifications'], fn ($row) => ! is_array($row) || filled($row['name'] ?? null) || filled($row['value'] ?? null)));
+        }
 
-        return Validator::make($input, [
+        $data = Validator::make($input, [
             'asset_tag' => ['required', 'string', 'max:80', Rule::unique('it_assets', 'asset_tag')->ignore($asset?->id)],
             'name' => 'required|string|max:200', 'type_name' => 'required|string|max:150',
             'brand' => 'nullable|string|max:100', 'model' => 'nullable|string|max:150', 'serial_number' => 'nullable|string|max:150',
@@ -30,7 +33,18 @@ final class AssetRegister
             'purchase_price' => 'nullable|numeric|min:0|max:999999999999999.99|decimal:0,2',
             'expires_on' => array_merge(['nullable', 'date_format:Y-m-d'], ! empty($input['acquired_on']) ? ['after_or_equal:acquired_on'] : []),
             'notes' => 'nullable|string|max:10000',
+            'specifications' => 'nullable|array|max:100',
+            'specifications.*' => 'required|array:name,value',
+            'specifications.*.name' => 'required|string|max:100',
+            'specifications.*.value' => 'required|string|max:1000',
         ], ['asset_tag.unique' => 'Kode aset sudah dipakai. Gunakan kode yang berbeda.'])->validate();
+        $data['specifications'] = array_map(fn ($row) => ['name' => Str::squish($row['name']), 'value' => trim($row['value'])], $data['specifications'] ?? []);
+        $names = array_map(fn ($row) => Str::lower($row['name']), $data['specifications']);
+        if (count(array_unique($names)) !== count($names)) {
+            throw ValidationException::withMessages(['specifications' => 'Nama spesifikasi tidak boleh berulang. Gabungkan nilainya dalam satu baris.']);
+        }
+
+        return $data;
     }
 
     private function placement(array $input, ?Asset $current = null): array
@@ -170,6 +184,7 @@ final class AssetRegister
             'brand' => $asset->brand, 'model' => $asset->model, 'serial_number' => $asset->serial_number,
             'acquired_on' => $asset->acquired_on?->toDateString(), 'purchase_price' => $asset->purchase_price,
             'expires_on' => $asset->expires_on?->toDateString(), 'notes' => $asset->notes,
+            'specifications' => $asset->specifications ?? [],
         ];
     }
 

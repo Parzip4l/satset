@@ -8,11 +8,11 @@ class Asset extends Model
 {
     protected $table = 'it_assets';
 
-    protected $fillable = ['asset_tag', 'name', 'type_id', 'location_id', 'assigned_employee_id', 'brand', 'model', 'serial_number', 'acquired_on', 'purchase_price', 'expires_on', 'status', 'notes', 'lock_version', 'created_by'];
+    protected $fillable = ['asset_tag', 'name', 'type_id', 'location_id', 'assigned_employee_id', 'brand', 'model', 'serial_number', 'acquired_on', 'purchase_price', 'expires_on', 'status', 'notes', 'specifications', 'lock_version', 'created_by'];
 
     protected function casts(): array
     {
-        return ['acquired_on' => 'date', 'expires_on' => 'date', 'purchase_price' => 'decimal:2', 'lock_version' => 'integer'];
+        return ['acquired_on' => 'date', 'expires_on' => 'date', 'purchase_price' => 'decimal:2', 'lock_version' => 'integer', 'specifications' => 'array'];
     }
 
     public function type()

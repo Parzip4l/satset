@@ -32,3 +32,28 @@ Kesimpulan: gunakan kembali query pengguna aktif seperti `ChatController::contac
 6. UAT pada data dan lingkungan yang disepakati, lalu rencanakan penerapan Portal dan Satset serta pemantauan.
 
 Status: menunggu informasi atau rancangan endpoint direktori Portal. Belum ada perubahan integrasi atau pemberian akses baru.
+
+## Aset IT: endpoint yang sudah diimplementasikan (25 November 2026)
+
+Bagian di atas membahas editor konfigurasi dan tim IT. Modul Aset IT sudah memakai direktori Portal melalui `POST /api/v1/satset/employees/search`, dengan HMAC dan pagination. Referensi karyawan disimpan pada `it_asset_employees`, tanpa membuat akun login atau memberikan peran Satset. Endpoint Portal tersedia di branch `portal`, commit `5e758d4`.
+
+Pemeriksaan server Portal pada 25 November 2026 menghasilkan HTTP 404 dengan pesan route tidak ditemukan. Ini perlu diselesaikan pada deployment Portal; mengganti daftar menjadi pengguna lokal tidak memperbaiki koneksi.
+
+Pada direktori deployment Portal, tarik branch yang memuat commit tersebut. Untuk deployment Docker Compose dengan service `app`:
+
+```sh
+git pull --ff-only origin portal
+docker compose exec app php artisan optimize:clear
+docker compose exec app php artisan route:list --path=api/v1/satset/employees/search
+```
+
+Jika deployment memakai kode di dalam image, lakukan rebuild/redeploy image sesuai prosedur server sebelum memeriksa route. Pastikan `LRTJ_SPACE_SATSET_SHARED_SECRET` Satset cocok dengan shared secret client `satset` yang aktif pada Portal (atau konfigurasi Portal jika client belum terdaftar). Waktu kedua server harus sinkron. Jangan menampilkan secret ke browser atau log.
+
+Pada deployment Satset yang sudah memuat pembaruan spesifikasi dinamis:
+
+```sh
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan optimize:clear
+```
+
+Migrasi baru hanya menambah kolom JSON `specifications` yang nullable. Setelah penerapan, uji pencarian nama karyawan dari Aset IT. HTTP 404 berarti route/deployment belum tersedia; HTTP 401/403 berarti autentikasi perlu diperiksa; HTTP 429 berarti batas pencarian sementara tercapai. Log Satset mencatat status dan endpoint, tanpa payload karyawan atau tanda tangan.

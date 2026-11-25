@@ -66,6 +66,7 @@ class ItAssetRegisterTest extends TestCase
             $table->timestamps();
         });
         (require database_path('migrations/2026_11_25_000001_create_it_asset_register.php'))->up();
+        (require database_path('migrations/2026_11_25_000002_add_specifications_to_it_assets.php'))->up();
         $this->operator = $this->user('Petugas IT', 'superadmin');
         $this->andi = $this->user('Andi');
         $this->budi = $this->user('Budi');
@@ -255,6 +256,52 @@ class ItAssetRegisterTest extends TestCase
         $this->assertDatabaseCount('it_asset_histories', 0);
         $this->assertDatabaseCount('it_asset_types', 3);
         $this->assertDatabaseCount('it_asset_locations', 0);
+    }
+
+    public function test_dynamic_specifications_are_normalized_displayed_and_audited_when_edited_or_removed(): void
+    {
+        $asset = $this->create(['specifications' => [3 => ['name' => ' RAM ', 'value' => ' 16 GB '], 8 => ['name' => 'Storage', 'value' => '512 GB SSD'], 9 => ['name' => '', 'value' => '']]]);
+        $initial = [['name' => 'RAM', 'value' => '16 GB'], ['name' => 'Storage', 'value' => '512 GB SSD']];
+        $this->assertSame($initial, $asset->specifications);
+        $this->assertSame($initial, $asset->histories()->first()->after_state['specifications']);
+        $this->get(route('it.assets.show', $asset))->assertOk()->assertSee('512 GB SSD');
+        $input = $this->data(['specifications' => [['name' => 'RAM', 'value' => '32 GB']], 'lock_version' => 1, 'reason' => 'Upgrade RAM perangkat.']);
+        unset($input['location_name'], $input['status'], $input['assigned_employee_portal_id']);
+        $this->put(route('it.assets.update', $asset), $input)->assertRedirect()->assertSessionHasNoErrors();
+        $history = $asset->histories()->where('sequence', 2)->firstOrFail();
+        $this->assertSame($initial, $history->before_state['specifications']);
+        $this->assertSame([['name' => 'RAM', 'value' => '32 GB']], $history->after_state['specifications']);
+        $this->put(route('it.assets.update', $asset), array_replace($input, ['specifications' => null, 'lock_version' => 2]))->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame([], $asset->fresh()->specifications);
+        $this->get(route('it.assets.show', $asset))->assertOk()->assertSee('RAM: 32 GB');
+        $this->assertNull($asset->fresh()->purchase_price);
+    }
+
+    public function test_incomplete_duplicate_or_malformed_specifications_do_not_save_assets(): void
+    {
+        $this->actingAs($this->operator);
+        foreach ([
+            [['name' => 'RAM', 'value' => '']],
+            [['name' => '', 'value' => '16 GB']],
+            [['name' => 'RAM', 'value' => '16 GB'], ['name' => ' ram ', 'value' => '32 GB']],
+            [['name' => 'RAM', 'value' => '16 GB', 'script' => 'injected']],
+            ['invalid'],
+        ] as $specifications) {
+            $this->post(route('it.assets.store'), $this->data(['specifications' => $specifications]))->assertSessionHasErrors();
+        }
+        $this->assertDatabaseCount('it_assets', 0);
+        $this->assertDatabaseCount('it_asset_histories', 0);
+    }
+
+    public function test_portal_failure_messages_distinguish_deployment_authentication_and_rate_limits(): void
+    {
+        $this->realDirectory();
+        Http::fakeSequence()->push([], 404)->push([], 401)->push([], 403)->push([], 429)->push([], 500);
+        foreach (['HTTP 404', 'shared secret', 'shared secret', 'Tunggu sebentar', 'HTTP 500'] as $message) {
+            $response = $this->actingAs($this->operator)->getJson(route('it.assets.employees', ['search' => 'Andi']))->assertStatus(503);
+            $this->assertStringContainsString($message, $response->json('message'));
+            $this->assertStringNotContainsString('directory-secret', $response->getContent());
+        }
     }
 
     private function realDirectory(): void

@@ -4,6 +4,7 @@ namespace App\Services\It;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -45,7 +46,13 @@ class PortalEmployeeDirectory
             $this->fail('Direktori karyawan Portal sedang tidak dapat dihubungi. Coba lagi.');
         }
         if (! $response->successful()) {
-            $this->fail('Direktori karyawan Portal belum tersedia atau koneksinya ditolak. Hubungi administrator.');
+            Log::warning('Portal employee directory request failed.', ['status' => $response->status(), 'endpoint' => $endpoint]);
+            $this->fail(match ($response->status()) {
+                404 => 'Direktori karyawan belum tersedia di server Portal (HTTP 404). Administrator perlu memperbarui aplikasi Portal dan cache route.',
+                401, 403 => 'Akses direktori karyawan ditolak Portal. Administrator perlu memeriksa shared secret Satset–Portal, status aplikasi, dan waktu server.',
+                429 => 'Pencarian karyawan terlalu sering. Tunggu sebentar lalu coba lagi.',
+                default => 'Direktori karyawan Portal sedang bermasalah (HTTP '.$response->status().'). Coba lagi atau hubungi administrator.',
+            });
         }
         $json = $response->json();
         $validator = Validator::make(is_array($json) ? $json : [], [

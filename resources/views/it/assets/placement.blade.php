@@ -11,16 +11,6 @@
 <div class="col-12">
     <label for="asset-assignee" class="form-label">Pemegang / PIC karyawan</label>
     @php($selectedPortalEmployee = array_key_exists('assigned_employee_portal_id', session()->getOldInput()) ? (old('assigned_employee_portal_id') ? \App\Models\It\AssetEmployee::where('portal_id', old('assigned_employee_portal_id'))->first() : null) : $asset->assignee)
-    <select name="assigned_employee_portal_id" id="asset-assignee" class="form-select" data-portal-employee data-portal-url="{{ route('it.assets.employees') }}">
-        <option value="">Persediaan / tanpa pemegang</option>
-        @if($selectedPortalEmployee)<option value="{{ $selectedPortalEmployee->portal_id }}" selected>{{ $selectedPortalEmployee->name }} · {{ $selectedPortalEmployee->email }}{{ $selectedPortalEmployee->is_active ? '' : ' (nonaktif)' }}</option>@endif
-    </select>
-    <div class="portal-employee-search mt-2">
-        <label for="portal-employee-search" class="visually-hidden">Cari karyawan dari Portal</label>
-        <div class="input-group"><input id="portal-employee-search" type="search" class="form-control" placeholder="Cari nama, email, atau NIK dari Portal" maxlength="150" autocomplete="off" data-portal-search><button type="button" class="btn btn-outline-secondary" data-portal-find>Cari Portal</button></div>
-        <div class="asset-note mt-2" data-portal-message role="status" aria-live="polite">Nama karyawan bersumber dari Portal. Ketik nama untuk mencari.</div>
-        <div class="asset-suggestions portal-employee-results" role="listbox" hidden data-portal-results aria-label="Hasil karyawan Portal"></div>
-        <button type="button" class="btn btn-link btn-sm px-0" hidden data-portal-more>Muat hasil berikutnya</button>
-    </div>
+    @include('it.assets.employee-picker', ['employee' => $selectedPortalEmployee, 'pickerId' => 'asset-assignee', 'emptyLabel' => 'Tanpa pemegang. Ketik minimal 2 karakter untuk mencari di Portal.'])
     <div class="form-text">Status Digunakan membutuhkan pemegang/PIC. Pilih tanpa pemegang untuk status Tersedia atau Tidak Aktif.</div>
 </div>
